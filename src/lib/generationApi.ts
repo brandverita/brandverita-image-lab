@@ -61,7 +61,7 @@ export type GenerationErrorKind =
 
 export class GenerationApiError extends Error {
   readonly kind: GenerationErrorKind;
-  readonly status?: number;
+  readonly status?: number | undefined;
 
   constructor(kind: GenerationErrorKind, message: string, status?: number) {
     super(message);
@@ -101,7 +101,7 @@ function errorFromStatus(status: number, detail?: string): GenerationApiError {
 
 async function request<T>(
   path: string,
-  init: RequestInit & { accessToken?: string | null } = {},
+  init: RequestInit & { accessToken?: string | null | undefined } = {},
 ): Promise<T> {
   if (!API_BASE_URL) {
     throw new GenerationApiError(
