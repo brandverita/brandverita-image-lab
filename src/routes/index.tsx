@@ -1,9 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
+import { AuthPanel } from "@/components/generation/AuthPanel";
 import { GenerationForm } from "@/components/generation/GenerationForm";
+import { RecentJobs } from "@/components/generation/RecentJobs";
 import { ResultPanel, type PanelState } from "@/components/generation/ResultPanel";
 import { useGeneration } from "@/hooks/use-generation";
+import { useSupabaseSession } from "@/hooks/use-supabase-session";
 import { API_BASE_URL, GENERATION_ENABLED, apiEnvironmentLabel } from "@/lib/generationApi";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
