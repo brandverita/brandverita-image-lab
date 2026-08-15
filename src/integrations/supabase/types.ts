@@ -14,7 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      generation_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          height: number | null
+          id: string
+          idempotency_key: string | null
+          modal_call_id: string | null
+          output_path: string | null
+          prompt_hash: string | null
+          result_url: string | null
+          seed: number | null
+          status: string
+          updated_at: string
+          user_id: string
+          width: number | null
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          height?: number | null
+          id?: string
+          idempotency_key?: string | null
+          modal_call_id?: string | null
+          output_path?: string | null
+          prompt_hash?: string | null
+          result_url?: string | null
+          seed?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          width?: number | null
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          height?: number | null
+          id?: string
+          idempotency_key?: string | null
+          modal_call_id?: string | null
+          output_path?: string | null
+          prompt_hash?: string | null
+          result_url?: string | null
+          seed?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          width?: number | null
+          workflow_id?: string
+        }
+        Relationships: []
+      }
+      generation_usage: {
+        Row: {
+          created_at: string
+          gpu_seconds: number
+          id: string
+          jobs_count: number
+          period: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gpu_seconds?: number
+          id?: string
+          jobs_count?: number
+          period: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gpu_seconds?: number
+          id?: string
+          jobs_count?: number
+          period?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

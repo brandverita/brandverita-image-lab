@@ -1,9 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
+import { AuthPanel } from "@/components/generation/AuthPanel";
 import { GenerationForm } from "@/components/generation/GenerationForm";
+import { RecentJobs } from "@/components/generation/RecentJobs";
 import { ResultPanel, type PanelState } from "@/components/generation/ResultPanel";
 import { useGeneration } from "@/hooks/use-generation";
+import { useSupabaseSession } from "@/hooks/use-supabase-session";
 import { API_BASE_URL, GENERATION_ENABLED, apiEnvironmentLabel } from "@/lib/generationApi";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -45,8 +50,15 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
 function Index() {
   const { phase, job, errorMessage, statusText, submit, retry, isBusy, lastPrompt } =
     useGeneration();
+  const { session, loading: sessionLoading, userId } = useSupabaseSession();
+  const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (phase === "done" || phase === "error") setJobsRefreshKey((key) => key + 1);
+  }, [phase]);
 
   const apiConfigured = Boolean(API_BASE_URL) && GENERATION_ENABLED;
+
 
   const state: PanelState =
     phase === "submitting" || phase === "polling"
@@ -129,7 +141,22 @@ function Index() {
             />
           </section>
         </div>
+
+        <section aria-labelledby="account-heading" className="mt-10 rounded-lg border border-border bg-card p-6">
+          <h3 id="account-heading" className="mb-4 text-left text-sm font-semibold text-foreground">
+            Test account
+          </h3>
+          <AuthPanel session={session} loading={sessionLoading} />
+        </section>
+
+        <section aria-labelledby="jobs-heading" className="mt-10 space-y-3">
+          <h3 id="jobs-heading" className="text-left text-sm font-semibold text-foreground">
+            Recent test jobs
+          </h3>
+          <RecentJobs userId={userId} refreshKey={jobsRefreshKey} />
+        </section>
       </main>
+
 
       <footer className="border-t border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-xs text-muted-foreground">
