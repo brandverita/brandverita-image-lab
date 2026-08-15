@@ -50,8 +50,15 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
 function Index() {
   const { phase, job, errorMessage, statusText, submit, retry, isBusy, lastPrompt } =
     useGeneration();
+  const { session, loading: sessionLoading, userId } = useSupabaseSession();
+  const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (phase === "done" || phase === "error") setJobsRefreshKey((key) => key + 1);
+  }, [phase]);
 
   const apiConfigured = Boolean(API_BASE_URL) && GENERATION_ENABLED;
+
 
   const state: PanelState =
     phase === "submitting" || phase === "polling"
