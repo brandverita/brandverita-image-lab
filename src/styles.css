@@ -132,6 +132,33 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/*
+ * BrandVerita Generation Test theme: light neutral slate surfaces with a
+ * deep blue primary for actions and focus rings. No dark default.
+ */
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.984 0.003 247.858);
+  --foreground: oklch(0.208 0.042 265.755);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.208 0.042 265.755);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.208 0.042 265.755);
+  --primary: oklch(0.488 0.217 264.376);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.279 0.041 260.031);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.955 0.02 258);
+  --accent-foreground: oklch(0.42 0.19 264.376);
+  --destructive: oklch(0.505 0.213 27.518);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.917 0.014 255.508);
+  --input: oklch(0.895 0.016 255.508);
+  --ring: oklch(0.488 0.217 264.376);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
