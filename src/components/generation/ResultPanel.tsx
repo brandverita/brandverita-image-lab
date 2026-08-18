@@ -32,7 +32,8 @@ function DeveloperPanel({
   job: GenerationJob | null;
   status: string;
   elapsedMs: number;
-  errorCode?: string | null;
+  errorCode?: string | null | undefined;
+
 }) {
   const rows: Array<[string, string]> = [
     ["Job ID", job?.job_id ?? "—"],
