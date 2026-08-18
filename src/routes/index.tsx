@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 
-import { AuthPanel } from "@/components/generation/AuthPanel";
 import { GenerationForm } from "@/components/generation/GenerationForm";
 import { RecentJobs } from "@/components/generation/RecentJobs";
 import { ResultPanel, type PanelState } from "@/components/generation/ResultPanel";
+import { SignInScreen } from "@/components/generation/SignInScreen";
+import { Button } from "@/components/ui/button";
+import { useAccessCheck } from "@/hooks/use-access";
 import { useGeneration } from "@/hooks/use-generation";
 import { useSupabaseSession } from "@/hooks/use-supabase-session";
+import { supabase } from "@/integrations/supabase/client";
 import {
   API_BASE_URL,
   API_CONFIGURED,
@@ -14,6 +17,7 @@ import {
   apiEnvironmentLabel,
   checkHealth,
 } from "@/lib/generationApi";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -56,7 +60,14 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
 
 function Index() {
   const { session, loading: sessionLoading, userId } = useSupabaseSession();
+  const { access } = useAccessCheck(userId);
+  const authorized = Boolean(session) && access === "allowed";
   const accessToken = session?.access_token ?? null;
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+  }
+
   const {
     phase,
     job,
@@ -139,16 +150,36 @@ function Index() {
               ok={supabaseConfigured}
               label={supabaseConfigured ? "Supabase connected" : "Supabase not connected"}
             />
+            {session ? (
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{session.user.email}</span>
+                <Button variant="outline" size="sm" onClick={() => void handleSignOut()}>
+                  Sign out
+                </Button>
+              </span>
+            ) : null}
           </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+        {!authorized ? (
+          sessionLoading || access === "checking" ? (
+            <p className="text-sm text-muted-foreground">Checking access…</p>
+          ) : (
+            <SignInScreen
+              unauthorizedEmail={session && access === "denied" ? (session.user.email ?? "") : null}
+              onSignOut={() => void handleSignOut()}
+            />
+          )
+        ) : (
+        <>
         <div className="mb-6">
           <h2 className="text-left text-2xl font-semibold tracking-tight text-foreground">
             Text-to-image test run
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+
             Submits a single Flux Schnell job to the BrandVerita Generation API and polls it until it
             completes. Results come only from the API — nothing here is simulated.
           </p>
@@ -207,20 +238,16 @@ function Index() {
           </section>
         </div>
 
-        <section aria-labelledby="account-heading" className="mt-10 rounded-lg border border-border bg-card p-6">
-          <h3 id="account-heading" className="mb-4 text-left text-sm font-semibold text-foreground">
-            Test account
-          </h3>
-          <AuthPanel session={session} loading={sessionLoading} />
-        </section>
-
         <section aria-labelledby="jobs-heading" className="mt-10 space-y-3">
           <h3 id="jobs-heading" className="text-left text-sm font-semibold text-foreground">
             Recent test jobs
           </h3>
           <RecentJobs userId={userId} refreshKey={jobsRefreshKey} />
         </section>
+        </>
+        )}
       </main>
+
 
       <footer className="border-t border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-xs text-muted-foreground">
