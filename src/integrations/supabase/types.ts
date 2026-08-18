@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      allowed_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
       generation_jobs: {
         Row: {
           completed_at: string | null
@@ -106,7 +127,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_user_allowed: { Args: never; Returns: boolean }
+      is_email_allowed: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
