@@ -143,16 +143,36 @@ function Index() {
               ok={supabaseConfigured}
               label={supabaseConfigured ? "Supabase connected" : "Supabase not connected"}
             />
+            {session ? (
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{session.user.email}</span>
+                <Button variant="outline" size="sm" onClick={() => void handleSignOut()}>
+                  Sign out
+                </Button>
+              </span>
+            ) : null}
           </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+        {!authorized ? (
+          sessionLoading || access === "checking" ? (
+            <p className="text-sm text-muted-foreground">Checking access…</p>
+          ) : (
+            <SignInScreen
+              unauthorizedEmail={session && access === "denied" ? (session.user.email ?? "") : null}
+              onSignOut={() => void handleSignOut()}
+            />
+          )
+        ) : (
+        <>
         <div className="mb-6">
           <h2 className="text-left text-2xl font-semibold tracking-tight text-foreground">
             Text-to-image test run
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+
             Submits a single Flux Schnell job to the BrandVerita Generation API and polls it until it
             completes. Results come only from the API — nothing here is simulated.
           </p>
