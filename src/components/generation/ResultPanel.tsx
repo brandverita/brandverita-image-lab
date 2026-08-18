@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import type { GenerationJob } from "@/lib/generationApi";
+import { WORKFLOW_ID, type GenerationJob } from "@/lib/generationApi";
 
 export type PanelState = "empty" | "loading" | "error" | "success";
 
@@ -8,8 +8,54 @@ interface ResultPanelProps {
   job: GenerationJob | null;
   statusText?: string;
   errorMessage?: string | null;
+  errorCode?: string | null;
+  elapsedMs: number;
   altText: string;
   onRetry: () => void;
+  onRefreshResult: () => void;
+}
+
+function formatElapsed(ms: number): string {
+  if (ms <= 0) return "—";
+  const seconds = ms / 1000;
+  return seconds < 60
+    ? `${seconds.toFixed(1)}s`
+    : `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+}
+
+function DeveloperPanel({
+  job,
+  status,
+  elapsedMs,
+  errorCode,
+}: {
+  job: GenerationJob | null;
+  status: string;
+  elapsedMs: number;
+  errorCode?: string | null;
+}) {
+  const rows: Array<[string, string]> = [
+    ["Job ID", job?.job_id ?? "—"],
+    ["Workflow ID", job?.workflow_id ?? WORKFLOW_ID],
+    ["Status", status],
+    ["Progress", typeof job?.progress === "number" ? `${job.progress}%` : "—"],
+    ["Seed", typeof job?.seed === "number" ? String(job.seed) : "—"],
+    ["Elapsed", formatElapsed(elapsedMs)],
+  ];
+  if (errorCode) rows.push(["Error code", errorCode]);
+
+  return (
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-1 rounded-lg border border-border bg-muted/40 p-4 text-xs sm:grid-cols-2">
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex items-baseline justify-between gap-3">
+          <dt className="text-muted-foreground">{label}</dt>
+          <dd className="truncate font-mono text-foreground" title={value}>
+            {value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 export function ResultPanel({
@@ -17,11 +63,20 @@ export function ResultPanel({
   job,
   statusText,
   errorMessage,
+  errorCode,
+  elapsedMs,
   altText,
   onRetry,
+  onRefreshResult,
 }: ResultPanelProps) {
+  const statusLabel =
+    state === "empty" ? "idle" : (job?.status ?? (state === "error" ? "failed" : "submitting"));
+
+  let body: React.ReactNode;
+
   if (state === "loading") {
-    return (
+    const progress = typeof job?.progress === "number" ? job.progress : null;
+    body = (
       <div className="flex min-h-[22rem] flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
         <span
           role="status"
@@ -31,14 +86,26 @@ export function ResultPanel({
           <span className="sr-only">Generation in progress</span>
         </span>
         <p className="text-sm text-muted-foreground">{statusText ?? "Generating your image…"}</p>
+        {progress !== null ? (
+          <div
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width]"
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+        ) : null}
       </div>
     );
-  }
-
-  if (state === "error") {
-    return (
+  } else if (state === "error") {
+    body = (
       <div className="min-h-[22rem] rounded-lg border border-destructive/30 bg-destructive/5 p-6">
-        <h3 className="text-sm font-semibold text-destructive">Generation failed</h3>
+        <h4 className="text-sm font-semibold text-destructive">Generation failed</h4>
         <p role="alert" className="mt-2 text-sm text-destructive/90">
           {errorMessage ?? "Something went wrong while generating this image."}
         </p>
@@ -47,36 +114,48 @@ export function ResultPanel({
         </Button>
       </div>
     );
-  }
-
-  if (state === "success" && job?.result_url) {
-    return (
+  } else if (state === "success" && job?.result_url) {
+    body = (
       <div className="space-y-4 rounded-lg border border-border bg-card p-4">
         <img
           src={job.result_url}
           alt={altText}
+          onError={onRefreshResult}
           className="w-full rounded-md border border-border bg-muted object-contain"
         />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            {job.width ?? "?"} x {job.height ?? "?"} · job {job.job_id.slice(0, 8)}
+            {job.width ?? "?"} x {job.height ?? "?"}
+            {job.completed_at ? ` · completed ${new Date(job.completed_at).toLocaleTimeString()}` : ""}
           </p>
-          <Button asChild>
-            <a href={job.result_url} download target="_blank" rel="noreferrer">
-              Download image
-            </a>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={onRefreshResult}>
+              Refresh link
+            </Button>
+            <Button asChild>
+              <a href={job.result_url} download target="_blank" rel="noreferrer">
+                Download image
+              </a>
+            </Button>
+          </div>
         </div>
+      </div>
+    );
+  } else {
+    body = (
+      <div className="flex min-h-[22rem] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-8 text-center">
+        <div className="h-10 w-10 rounded-md border border-border bg-muted" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">
+          No test generations yet. Create your first image from the form.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-[22rem] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-8 text-center">
-      <div className="h-10 w-10 rounded-md border border-border bg-muted" aria-hidden="true" />
-      <p className="text-sm text-muted-foreground">
-        No test generations yet. Create your first image from the form.
-      </p>
+    <div className="space-y-3">
+      {body}
+      <DeveloperPanel job={job} status={statusLabel} elapsedMs={elapsedMs} errorCode={errorCode} />
     </div>
   );
 }
