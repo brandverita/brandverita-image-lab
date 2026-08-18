@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Deploy target for CI builds (Netlify): static assets -> dist/, SSR handler ->
+  // .netlify/functions-internal/. Lovable's sandbox build overrides this internally,
+  // so the in-editor preview is unaffected.
+  nitro: { preset: "netlify" },
 });
