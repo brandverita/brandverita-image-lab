@@ -60,7 +60,14 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
 
 function Index() {
   const { session, loading: sessionLoading, userId } = useSupabaseSession();
+  const { access } = useAccessCheck(userId);
+  const authorized = Boolean(session) && access === "allowed";
   const accessToken = session?.access_token ?? null;
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+  }
+
   const {
     phase,
     job,
