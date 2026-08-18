@@ -211,20 +211,16 @@ function Index() {
           </section>
         </div>
 
-        <section aria-labelledby="account-heading" className="mt-10 rounded-lg border border-border bg-card p-6">
-          <h3 id="account-heading" className="mb-4 text-left text-sm font-semibold text-foreground">
-            Test account
-          </h3>
-          <AuthPanel session={session} loading={sessionLoading} />
-        </section>
-
         <section aria-labelledby="jobs-heading" className="mt-10 space-y-3">
           <h3 id="jobs-heading" className="text-left text-sm font-semibold text-foreground">
             Recent test jobs
           </h3>
           <RecentJobs userId={userId} refreshKey={jobsRefreshKey} />
         </section>
+        </>
+        )}
       </main>
+
 
       <footer className="border-t border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-xs text-muted-foreground">
