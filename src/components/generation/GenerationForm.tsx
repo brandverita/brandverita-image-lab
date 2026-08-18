@@ -1,12 +1,14 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DIMENSION_OPTIONS,
   NEGATIVE_PROMPT_MAX_LENGTH,
   PROMPT_MAX_LENGTH,
+  SEED_MAX,
   WORKFLOW_ID,
 } from "@/lib/generationApi";
 
@@ -15,29 +17,50 @@ export interface GenerationFormValues {
   negativePrompt: string;
   width: number;
   height: number;
+  seed: number | null;
 }
 
 interface GenerationFormProps {
   isSubmitting: boolean;
   disabled?: boolean;
   onSubmit: (values: GenerationFormValues) => void;
+  onReset: () => void;
 }
 
-export function GenerationForm({ isSubmitting, disabled, onSubmit }: GenerationFormProps) {
+const DEFAULT_DIMENSION = "1024x1024";
+
+export function GenerationForm({ isSubmitting, disabled, onSubmit, onReset }: GenerationFormProps) {
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
-  const [dimension, setDimension] = useState("1024x1024");
+  const [dimension, setDimension] = useState(DEFAULT_DIMENSION);
+  const [seed, setSeed] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const busy = isSubmitting || Boolean(disabled);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return; // guards against double submits
     const trimmed = prompt.trim();
     if (!trimmed) {
       setError("A prompt is required.");
       return;
     }
+    if (trimmed.length > PROMPT_MAX_LENGTH) {
+      setError(`The prompt must be ${PROMPT_MAX_LENGTH} characters or fewer.`);
+      return;
+    }
+
+    let seedValue: number | null = null;
+    const rawSeed = seed.trim();
+    if (rawSeed) {
+      if (!/^\d+$/.test(rawSeed) || Number(rawSeed) > SEED_MAX) {
+        setError(`Seed must be a whole number between 0 and ${SEED_MAX}.`);
+        return;
+      }
+      seedValue = Number(rawSeed);
+    }
+
     setError(null);
     const [width, height] = dimension.split("x").map(Number);
     onSubmit({
@@ -45,7 +68,17 @@ export function GenerationForm({ isSubmitting, disabled, onSubmit }: GenerationF
       negativePrompt: negativePrompt.trim(),
       width: width ?? 1024,
       height: height ?? 1024,
+      seed: seedValue,
     });
+  }
+
+  function handleReset() {
+    setPrompt("");
+    setNegativePrompt("");
+    setDimension(DEFAULT_DIMENSION);
+    setSeed("");
+    setError(null);
+    onReset();
   }
 
   return (
@@ -113,15 +146,31 @@ export function GenerationForm({ isSubmitting, disabled, onSubmit }: GenerationF
           </select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="workflow">Workflow</Label>
-          <input
-            id="workflow"
-            readOnly
-            value={WORKFLOW_ID}
-            aria-label="Workflow identifier (fixed)"
-            className="h-10 w-full rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          <Label htmlFor="seed">Seed</Label>
+          <Input
+            id="seed"
+            inputMode="numeric"
+            value={seed}
+            disabled={busy}
+            onChange={(event) => setSeed(event.target.value.replace(/[^\d]/g, ""))}
+            placeholder="Random"
+            aria-describedby="seed-help"
           />
+          <p id="seed-help" className="text-xs text-muted-foreground">
+            Optional. Leave blank for a random seed.
+          </p>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="workflow">Workflow</Label>
+        <Input
+          id="workflow"
+          readOnly
+          value={WORKFLOW_ID}
+          aria-label="Workflow identifier (fixed)"
+          className="bg-muted text-muted-foreground"
+        />
       </div>
 
       {error ? (
@@ -130,9 +179,14 @@ export function GenerationForm({ isSubmitting, disabled, onSubmit }: GenerationF
         </p>
       ) : null}
 
-      <Button type="submit" disabled={busy} className="w-full sm:w-auto">
-        {isSubmitting ? "Generating…" : "Generate image"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={busy}>
+          {isSubmitting ? "Generating…" : "Generate image"}
+        </Button>
+        <Button type="button" variant="outline" onClick={handleReset} disabled={isSubmitting}>
+          Reset
+        </Button>
+      </div>
     </form>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * Typed client for the BrandVerita Generation API.
+ * Typed client for the BrandVerita Generation API (separate FastAPI service on Modal).
  *
  * This is the ONLY module that talks to the Generation API. It never touches
  * Modal, ComfyUI, or GPU infrastructure directly, and it never logs prompts,
@@ -16,15 +16,16 @@ export const DIMENSION_OPTIONS = [
   { label: "1024 x 1280", width: 1024, height: 1280 },
 ] as const;
 
-export type DimensionValue = `${number}x${number}`;
-
 export const PROMPT_MAX_LENGTH = 2000;
 export const NEGATIVE_PROMPT_MAX_LENGTH = 1000;
+export const SEED_MAX = 4294967295;
 export const POLL_INTERVAL_MS = 2000;
 export const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 export const API_BASE_URL = (import.meta.env["VITE_GENERATION_API_URL"] ?? "").replace(/\/+$/, "");
-export const GENERATION_ENABLED = import.meta.env["VITE_GENERATION_ENABLED"] !== "false";
+/** Strict opt-in: anything other than the exact string "true" keeps generation disabled. */
+export const GENERATION_ENABLED = import.meta.env["VITE_GENERATION_ENABLED"] === "true";
+export const API_CONFIGURED = Boolean(API_BASE_URL) && GENERATION_ENABLED;
 
 export type JobStatus = "queued" | "running" | "completed" | "failed" | "canceled";
 
@@ -32,12 +33,14 @@ export interface GenerationJob {
   job_id: string;
   status: JobStatus;
   workflow_id: string;
-  width?: number;
-  height?: number;
+  progress?: number | null;
+  width?: number | null;
+  height?: number | null;
+  seed?: number | null;
   result_url?: string | null;
-  error?: string | null;
-  created_at?: string;
-  updated_at?: string;
+  completed_at?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
 }
 
 export interface CreateGenerationInput {
@@ -45,6 +48,7 @@ export interface CreateGenerationInput {
   negativePrompt?: string;
   width: number;
   height: number;
+  seed?: number | null;
   idempotencyKey: string;
   accessToken?: string | null;
 }
@@ -99,6 +103,24 @@ function errorFromStatus(status: number, detail?: string): GenerationApiError {
   );
 }
 
+/** Pulls the user-safe message out of a FastAPI error body without logging it. */
+function safeErrorMessage(raw: string): string | undefined {
+  try {
+    const parsed = JSON.parse(raw) as {
+      error_message?: string;
+      detail?: string | { error_message?: string };
+    };
+    if (typeof parsed.error_message === "string") return parsed.error_message;
+    if (typeof parsed.detail === "string") return parsed.detail;
+    if (parsed.detail && typeof parsed.detail === "object" && parsed.detail.error_message) {
+      return parsed.detail.error_message;
+    }
+  } catch {
+    /* not JSON — fall through */
+  }
+  return undefined;
+}
+
 async function request<T>(
   path: string,
   init: RequestInit & { accessToken?: string | null | undefined } = {},
@@ -128,7 +150,7 @@ async function request<T>(
   if (!response.ok) {
     let detail: string | undefined;
     try {
-      detail = (await response.text()).slice(0, 200);
+      detail = safeErrorMessage((await response.text()).slice(0, 500));
     } catch {
       detail = undefined;
     }
@@ -154,19 +176,31 @@ export function newIdempotencyKey(): string {
   });
 }
 
+/** GET /health — used only for the connection indicator. */
+export async function checkHealth(): Promise<boolean> {
+  if (!API_BASE_URL) return false;
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, { method: "GET" });
+    if (!response.ok) return false;
+    const body = (await response.json()) as { status?: string };
+    return body.status === "ok";
+  } catch {
+    return false;
+  }
+}
+
 export function createGeneration(input: CreateGenerationInput): Promise<GenerationJob> {
   return request<GenerationJob>("/v1/generations", {
     method: "POST",
     accessToken: input.accessToken,
     body: JSON.stringify({
       workflow_id: WORKFLOW_ID,
+      prompt: input.prompt,
+      negative_prompt: input.negativePrompt || "",
+      width: input.width,
+      height: input.height,
+      ...(typeof input.seed === "number" ? { seed: input.seed } : {}),
       idempotency_key: input.idempotencyKey,
-      inputs: {
-        prompt: input.prompt,
-        negative_prompt: input.negativePrompt || undefined,
-        width: input.width,
-        height: input.height,
-      },
     }),
   });
 }
@@ -178,6 +212,18 @@ export function getGeneration(jobId: string, accessToken?: string | null): Promi
   });
 }
 
+/** Re-signs an expired stored result URL: GET /v1/generations/{job_id}/result */
+export async function getFreshResultUrl(
+  jobId: string,
+  accessToken?: string | null,
+): Promise<string | null> {
+  const body = await request<{ result_url?: string | null }>(
+    `/v1/generations/${encodeURIComponent(jobId)}/result`,
+    { method: "GET", accessToken },
+  );
+  return body.result_url ?? null;
+}
+
 /** Coarse environment label derived from the API host — never the full URL. */
 export function apiEnvironmentLabel(): string {
   if (!API_BASE_URL) return "not configured";
@@ -186,6 +232,7 @@ export function apiEnvironmentLabel(): string {
     if (host === "localhost" || host === "127.0.0.1") return "local";
     if (host.includes("staging") || host.includes("stg")) return "staging";
     if (host.includes("dev")) return "development";
+    if (host.endsWith("modal.run")) return "modal";
     return "remote";
   } catch {
     return "unknown";
