@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AuthPanel } from "@/components/generation/AuthPanel";
 import { GenerationForm } from "@/components/generation/GenerationForm";
@@ -7,8 +7,13 @@ import { RecentJobs } from "@/components/generation/RecentJobs";
 import { ResultPanel, type PanelState } from "@/components/generation/ResultPanel";
 import { useGeneration } from "@/hooks/use-generation";
 import { useSupabaseSession } from "@/hooks/use-supabase-session";
-import { API_BASE_URL, GENERATION_ENABLED, apiEnvironmentLabel } from "@/lib/generationApi";
-
+import {
+  API_BASE_URL,
+  API_CONFIGURED,
+  GENERATION_ENABLED,
+  apiEnvironmentLabel,
+  checkHealth,
+} from "@/lib/generationApi";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,6 +40,8 @@ export const Route = createFileRoute("/")({
 
 const supabaseConfigured = Boolean(import.meta.env["VITE_SUPABASE_URL"]);
 
+type HealthState = "checking" | "ok" | "unreachable" | "not_configured";
+
 function StatusDot({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
@@ -48,17 +55,53 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
 }
 
 function Index() {
-  const { phase, job, errorMessage, statusText, submit, retry, isBusy, lastPrompt } =
-    useGeneration();
   const { session, loading: sessionLoading, userId } = useSupabaseSession();
+  const accessToken = session?.access_token ?? null;
+  const {
+    phase,
+    job,
+    errorMessage,
+    errorCode,
+    statusText,
+    elapsedMs,
+    submit,
+    retry,
+    reset,
+    refreshResultUrl,
+    isBusy,
+    lastPrompt,
+  } = useGeneration(accessToken);
   const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
+  const [health, setHealth] = useState<HealthState>(
+    API_CONFIGURED ? "checking" : "not_configured",
+  );
+
+  const runHealthCheck = useCallback(async () => {
+    if (!API_CONFIGURED) {
+      setHealth("not_configured");
+      return;
+    }
+    setHealth("checking");
+    setHealth((await checkHealth()) ? "ok" : "unreachable");
+  }, []);
+
+  useEffect(() => {
+    void runHealthCheck();
+  }, [runHealthCheck]);
 
   useEffect(() => {
     if (phase === "done" || phase === "error") setJobsRefreshKey((key) => key + 1);
   }, [phase]);
 
-  const apiConfigured = Boolean(API_BASE_URL) && GENERATION_ENABLED;
+  const canGenerate = API_CONFIGURED && health === "ok";
 
+  const unavailableReason = !API_BASE_URL
+    ? "The Generation API URL is not configured for this environment."
+    : !GENERATION_ENABLED
+      ? "Generation is switched off for this environment."
+      : health === "unreachable"
+        ? "The Generation API health check did not respond. The service may be starting up or offline."
+        : null;
 
   const state: PanelState =
     phase === "submitting" || phase === "polling"
@@ -68,6 +111,15 @@ function Index() {
         : phase === "done"
           ? "success"
           : "empty";
+
+  const apiStatusLabel =
+    health === "ok"
+      ? "Generation API online"
+      : health === "checking"
+        ? "Checking Generation API…"
+        : health === "unreachable"
+          ? "Generation API unreachable"
+          : "Generation API not configured";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -82,10 +134,7 @@ function Index() {
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <StatusDot
-              ok={apiConfigured}
-              label={apiConfigured ? "Generation API configured" : "Generation API unavailable"}
-            />
+            <StatusDot ok={health === "ok"} label={apiStatusLabel} />
             <StatusDot
               ok={supabaseConfigured}
               label={supabaseConfigured ? "Supabase connected" : "Supabase not connected"}
@@ -105,13 +154,21 @@ function Index() {
           </p>
         </div>
 
-        {!apiConfigured ? (
+        {unavailableReason ? (
           <div
             role="alert"
-            className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+            className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
           >
-            Generation is disabled for this environment because the Generation API URL is not
-            configured. Set the API URL environment variable to run a test generation.
+            <span>{unavailableReason}</span>
+            {health === "unreachable" ? (
+              <button
+                type="button"
+                onClick={() => void runHealthCheck()}
+                className="rounded-md border border-destructive/40 px-3 py-1 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Check again
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -120,7 +177,12 @@ function Index() {
             <h3 id="form-heading" className="mb-5 text-left text-sm font-semibold text-foreground">
               Generation request
             </h3>
-            <GenerationForm isSubmitting={isBusy} disabled={!apiConfigured} onSubmit={submit} />
+            <GenerationForm
+              isSubmitting={isBusy}
+              disabled={!canGenerate}
+              onSubmit={submit}
+              onReset={reset}
+            />
           </section>
 
           <section aria-labelledby="result-heading" className="space-y-3">
@@ -132,12 +194,15 @@ function Index() {
               job={job}
               statusText={statusText}
               errorMessage={errorMessage}
+              errorCode={errorCode}
+              elapsedMs={elapsedMs}
               altText={
                 lastPrompt
                   ? `Generated image for the prompt: ${lastPrompt.slice(0, 120)}`
                   : "Generated test image"
               }
               onRetry={retry}
+              onRefreshResult={() => void refreshResultUrl()}
             />
           </section>
         </div>
@@ -157,10 +222,10 @@ function Index() {
         </section>
       </main>
 
-
       <footer className="border-t border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-xs text-muted-foreground">
           <span>API environment: {apiEnvironmentLabel()}</span>
+          <span>API health: {health === "ok" ? "ok" : health.replace("_", " ")}</span>
           <span>Supabase: {supabaseConfigured ? "connected" : "not connected"}</span>
         </div>
       </footer>
