@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 
-import { AuthPanel } from "@/components/generation/AuthPanel";
 import { GenerationForm } from "@/components/generation/GenerationForm";
 import { RecentJobs } from "@/components/generation/RecentJobs";
 import { ResultPanel, type PanelState } from "@/components/generation/ResultPanel";
+import { SignInScreen } from "@/components/generation/SignInScreen";
+import { Button } from "@/components/ui/button";
+import { useAccessCheck } from "@/hooks/use-access";
 import { useGeneration } from "@/hooks/use-generation";
 import { useSupabaseSession } from "@/hooks/use-supabase-session";
+import { supabase } from "@/integrations/supabase/client";
 import {
   API_BASE_URL,
   API_CONFIGURED,
@@ -14,6 +17,7 @@ import {
   apiEnvironmentLabel,
   checkHealth,
 } from "@/lib/generationApi";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
