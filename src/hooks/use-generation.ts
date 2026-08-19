@@ -53,6 +53,8 @@ export function useGeneration() {
 
   const lastRequest = useRef<{ values: GenerationFormValues; idempotencyKey: string } | null>(null);
   const cancelled = useRef(false);
+  /** Set by checkNow() to make the polling loop skip its next 2s wait. */
+  const pollNow = useRef(false);
 
   useEffect(
     () => () => {
