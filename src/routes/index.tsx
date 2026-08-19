@@ -62,7 +62,6 @@ function Index() {
   const { session, loading: sessionLoading, userId } = useSupabaseSession();
   const { access } = useAccessCheck(userId);
   const authorized = Boolean(session) && access === "allowed";
-  const accessToken = session?.access_token ?? null;
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -81,7 +80,7 @@ function Index() {
     refreshResultUrl,
     isBusy,
     lastPrompt,
-  } = useGeneration(accessToken);
+  } = useGeneration();
   const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
   const [health, setHealth] = useState<HealthState>(
     API_CONFIGURED ? "checking" : "not_configured",
