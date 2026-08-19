@@ -8,6 +8,7 @@ import {
   newIdempotencyKey,
   POLL_INTERVAL_MS,
   POLL_TIMEOUT_MS,
+  QUEUE_STALL_MS,
   GenerationApiError,
   type GenerationJob,
 } from "@/lib/generationApi";
