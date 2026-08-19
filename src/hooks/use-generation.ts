@@ -11,11 +11,29 @@ import {
   GenerationApiError,
   type GenerationJob,
 } from "@/lib/generationApi";
+import { supabase } from "@/integrations/supabase/client";
 import type { GenerationFormValues } from "@/components/generation/GenerationForm";
 
 type Phase = "idle" | "submitting" | "polling" | "done" | "error";
 
-export function useGeneration(accessToken: string | null) {
+/**
+ * Reads a live access token straight from the Supabase client at call time.
+ * A token captured at render can be stale (or absent right after the magic-link
+ * redirect), which produced unauthenticated requests to the Generation API.
+ */
+async function currentAccessToken(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) {
+    throw new GenerationApiError(
+      "signed_out",
+      "You are signed out. Sign in again, then retry the generation.",
+    );
+  }
+  return token;
+}
+
+export function useGeneration() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [job, setJob] = useState<GenerationJob | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -23,9 +41,6 @@ export function useGeneration(accessToken: string | null) {
   const [statusText, setStatusText] = useState<string>("Submitting job…");
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
-
-  const tokenRef = useRef(accessToken);
-  tokenRef.current = accessToken;
 
   const lastRequest = useRef<{ values: GenerationFormValues; idempotencyKey: string } | null>(null);
   const cancelled = useRef(false);
@@ -36,6 +51,7 @@ export function useGeneration(accessToken: string | null) {
     },
     [],
   );
+
 
   // Elapsed-time ticker, stopped as soon as the job reaches a terminal state.
   useEffect(() => {
