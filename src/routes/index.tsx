@@ -154,7 +154,17 @@ function Index() {
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <StatusDot ok={health === "ok"} label={apiStatusLabel} />
+            <StatusDot ok={healthOk} label={apiStatusLabel} />
+            {health.kind === "ok" && health.info.version ? (
+              <span className="rounded border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                API v{health.info.version}
+              </span>
+            ) : null}
+            {health.kind === "ok" && health.info.dispatch === false ? (
+              <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                Dispatch disabled
+              </span>
+            ) : null}
             <StatusDot
               ok={supabaseConfigured}
               label={supabaseConfigured ? "Supabase connected" : "Supabase not connected"}
