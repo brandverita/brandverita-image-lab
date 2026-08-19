@@ -20,7 +20,11 @@ export const PROMPT_MAX_LENGTH = 2000;
 export const NEGATIVE_PROMPT_MAX_LENGTH = 1000;
 export const SEED_MAX = 4294967295;
 export const POLL_INTERVAL_MS = 2000;
-export const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+/** A cold GPU worker has to boot ComfyUI and load Flux weights before the first
+ *  image, which can take several minutes; 5 minutes was cutting that off. */
+export const POLL_TIMEOUT_MS = 12 * 60 * 1000;
+/** Beyond this, a job still "queued" almost certainly has no worker attached. */
+export const QUEUE_STALL_MS = 90 * 1000;
 
 export const API_BASE_URL = (import.meta.env["VITE_GENERATION_API_URL"] ?? "").replace(/\/+$/, "");
 /** Strict opt-in: anything other than the exact string "true" keeps generation disabled. */
