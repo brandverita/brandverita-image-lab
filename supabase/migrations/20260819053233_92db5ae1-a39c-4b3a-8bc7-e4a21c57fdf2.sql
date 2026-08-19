@@ -1,0 +1,1 @@
+REVOKE SELECT ON public.allowed_emails FROM authenticated;

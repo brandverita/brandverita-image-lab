@@ -163,7 +163,13 @@ async function request<T>(
       },
     });
   } catch {
-    throw new GenerationApiError("network", "Could not reach the Generation API.");
+    // A browser also lands here when the API answered but the response was not
+    // readable (an error response served without CORS headers), so the message
+    // must not claim the service is simply offline.
+    throw new GenerationApiError(
+      "network",
+      "The Generation API did not return a readable response (blocked or offline). Retry, and if it repeats the API needs a redeploy.",
+    );
   }
 
   if (!response.ok) {

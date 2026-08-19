@@ -23,7 +23,15 @@ type Phase = "idle" | "submitting" | "polling" | "done" | "error";
  */
 async function currentAccessToken(): Promise<string> {
   const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+  let token = data.session?.access_token;
+
+  if (!token) {
+    // A stored session whose refresh failed leaves no usable token; try once
+    // more explicitly before telling the user to sign in.
+    const refreshed = await supabase.auth.refreshSession();
+    token = refreshed.data.session?.access_token;
+  }
+
   if (!token) {
     throw new GenerationApiError(
       "signed_out",
