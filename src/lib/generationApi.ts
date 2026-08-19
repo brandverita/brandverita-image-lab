@@ -207,16 +207,37 @@ export function newIdempotencyKey(): string {
   });
 }
 
-/** GET /health — used only for the connection indicator. */
-export async function checkHealth(): Promise<boolean> {
-  if (!API_BASE_URL) return false;
+export interface HealthInfo {
+  ok: boolean;
+  version?: string;
+  dispatch?: boolean;
+  workerApp?: string;
+  workerClass?: string;
+}
+
+/** GET /health — returns the full body so the UI can show which build is live. */
+export async function checkHealth(): Promise<HealthInfo | null> {
+  if (!API_BASE_URL) return null;
   try {
     const response = await fetch(`${API_BASE_URL}/health`, { method: "GET" });
-    if (!response.ok) return false;
-    const body = (await response.json()) as { status?: string };
-    return body.status === "ok";
+    if (!response.ok) return null;
+    const body = (await response.json()) as {
+      status?: string;
+      version?: string;
+      dispatch?: boolean;
+      worker_app?: string;
+      worker_class?: string;
+    };
+    if (body.status !== "ok") return null;
+    return {
+      ok: true,
+      version: body.version,
+      dispatch: body.dispatch,
+      workerApp: body.worker_app,
+      workerClass: body.worker_class,
+    };
   } catch {
-    return false;
+    return null;
   }
 }
 
