@@ -88,16 +88,17 @@ function Index() {
   } = useGeneration();
   const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
   const [health, setHealth] = useState<HealthState>(
-    API_CONFIGURED ? "checking" : "not_configured",
+    API_CONFIGURED ? { kind: "checking" } : { kind: "not_configured" },
   );
 
   const runHealthCheck = useCallback(async () => {
     if (!API_CONFIGURED) {
-      setHealth("not_configured");
+      setHealth({ kind: "not_configured" });
       return;
     }
-    setHealth("checking");
-    setHealth((await checkHealth()) ? "ok" : "unreachable");
+    setHealth({ kind: "checking" });
+    const info = await checkHealth();
+    setHealth(info ? { kind: "ok", info } : { kind: "unreachable" });
   }, []);
 
   useEffect(() => {
@@ -108,15 +109,17 @@ function Index() {
     if (phase === "done" || phase === "error") setJobsRefreshKey((key) => key + 1);
   }, [phase]);
 
+  const healthOk = health.kind === "ok";
+
   // Never allow a submit before the Supabase session has settled — an unauthenticated
   // request is rejected by the API as a missing bearer token.
-  const canGenerate = API_CONFIGURED && health === "ok" && !sessionLoading && Boolean(session);
+  const canGenerate = API_CONFIGURED && healthOk && !sessionLoading && Boolean(session);
 
   const unavailableReason = !API_BASE_URL
     ? "The Generation API URL is not configured for this environment."
     : !GENERATION_ENABLED
       ? "Generation is switched off for this environment."
-      : health === "unreachable"
+      : health.kind === "unreachable"
         ? "The Generation API health check did not respond. The service may be starting up or offline."
         : null;
 
@@ -130,11 +133,11 @@ function Index() {
           : "empty";
 
   const apiStatusLabel =
-    health === "ok"
+    health.kind === "ok"
       ? "Generation API online"
-      : health === "checking"
+      : health.kind === "checking"
         ? "Checking Generation API…"
-        : health === "unreachable"
+        : health.kind === "unreachable"
           ? "Generation API unreachable"
           : "Generation API not configured";
 
