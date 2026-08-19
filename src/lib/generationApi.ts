@@ -56,6 +56,8 @@ export interface CreateGenerationInput {
 export type GenerationErrorKind =
   | "not_configured"
   | "unauthorized"
+  | "signed_out"
+  | "service_misconfigured"
   | "rate_limited"
   | "invalid_request"
   | "not_found"
@@ -76,7 +78,23 @@ export class GenerationApiError extends Error {
 }
 
 function errorFromStatus(status: number, detail?: string): GenerationApiError {
+  const code = (detail ?? "").toLowerCase();
+
+  if (code.includes("auth_backend_unavailable")) {
+    return new GenerationApiError(
+      "service_misconfigured",
+      "The Generation API cannot verify logins right now (service configuration). This is not a problem with your session.",
+      status,
+    );
+  }
   if (status === 401 || status === 403) {
+    if (code.includes("token_missing") || code.includes("missing bearer token")) {
+      return new GenerationApiError(
+        "signed_out",
+        "The request was sent without a login token. Sign out and sign in again, then retry.",
+        status,
+      );
+    }
     return new GenerationApiError("unauthorized", "Session expired. Please sign in again.", status);
   }
   if (status === 404) {
@@ -98,6 +116,7 @@ function errorFromStatus(status: number, detail?: string): GenerationApiError {
   }
   return new GenerationApiError(
     "server_error",
+
     "Service temporarily unavailable. Please retry in a moment.",
     status,
   );
