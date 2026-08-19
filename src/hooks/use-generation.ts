@@ -220,6 +220,12 @@ export function useGeneration() {
     }
   }, [job]);
 
+  /** Forces the polling loop to skip its next 2s wait and poll immediately.
+   *  No-op when no job is being polled. */
+  const checkNow = useCallback(() => {
+    pollNow.current = true;
+  }, []);
+
   return {
     phase,
     job,
@@ -229,6 +235,7 @@ export function useGeneration() {
     elapsedMs,
     submit,
     retry,
+    checkNow,
     reset,
     refreshResultUrl,
     isBusy: phase === "submitting" || phase === "polling",
