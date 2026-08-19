@@ -45,7 +45,11 @@ export const Route = createFileRoute("/")({
 
 const supabaseConfigured = Boolean(import.meta.env["VITE_SUPABASE_URL"]);
 
-type HealthState = "checking" | "ok" | "unreachable" | "not_configured";
+type HealthState =
+  | { kind: "checking" }
+  | { kind: "ok"; info: HealthInfo }
+  | { kind: "unreachable" }
+  | { kind: "not_configured" };
 
 function StatusDot({ ok, label }: { ok: boolean; label: string }) {
   return (
