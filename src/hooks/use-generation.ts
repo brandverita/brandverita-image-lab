@@ -134,7 +134,11 @@ export function useGeneration() {
           setErrorMessage("This generation timed out. You can retry the request.");
           return;
         }
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        if (pollNow.current) {
+          pollNow.current = false;
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
         if (cancelled.current) return;
 
         const next = await getGeneration(created.job_id, await currentAccessToken());
