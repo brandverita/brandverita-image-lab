@@ -209,10 +209,10 @@ export function newIdempotencyKey(): string {
 
 export interface HealthInfo {
   ok: boolean;
-  version?: string;
-  dispatch?: boolean;
-  workerApp?: string;
-  workerClass?: string;
+  version?: string | undefined;
+  dispatch?: boolean | undefined;
+  workerApp?: string | undefined;
+  workerClass?: string | undefined;
 }
 
 /** GET /health — returns the full body so the UI can show which build is live. */
