@@ -39,12 +39,16 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string
+          error_code: string | null
           error_message: string | null
           height: number | null
           id: string
           idempotency_key: string | null
           modal_call_id: string | null
+          negative_prompt: string | null
           output_path: string | null
+          progress: number
+          prompt: string | null
           prompt_hash: string | null
           result_url: string | null
           seed: number | null
@@ -57,12 +61,16 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           created_at?: string
+          error_code?: string | null
           error_message?: string | null
           height?: number | null
           id?: string
           idempotency_key?: string | null
           modal_call_id?: string | null
+          negative_prompt?: string | null
           output_path?: string | null
+          progress?: number
+          prompt?: string | null
           prompt_hash?: string | null
           result_url?: string | null
           seed?: number | null
@@ -75,12 +83,16 @@ export type Database = {
         Update: {
           completed_at?: string | null
           created_at?: string
+          error_code?: string | null
           error_message?: string | null
           height?: number | null
           id?: string
           idempotency_key?: string | null
           modal_call_id?: string | null
+          negative_prompt?: string | null
           output_path?: string | null
+          progress?: number
+          prompt?: string | null
           prompt_hash?: string | null
           result_url?: string | null
           seed?: number | null
