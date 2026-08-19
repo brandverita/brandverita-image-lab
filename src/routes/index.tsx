@@ -273,7 +273,21 @@ function Index() {
       <footer className="border-t border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-xs text-muted-foreground">
           <span>API environment: {apiEnvironmentLabel()}</span>
-          <span>API health: {health === "ok" ? "ok" : health.replace("_", " ")}</span>
+          <span>
+            API health:{" "}
+            {health.kind === "ok"
+              ? `ok (v${health.info.version ?? "?"}${
+                  health.info.dispatch === false ? ", dispatch off" : ""
+                })`
+              : health.kind === "checking"
+                ? "checking"
+                : health.kind === "unreachable"
+                  ? "unreachable"
+                  : "not configured"}
+            {health.kind === "ok" && health.info.workerApp
+              ? ` · worker: ${health.info.workerApp}/${health.info.workerClass ?? "?"}`
+              : ""}
+          </span>
           <span>Supabase: {supabaseConfigured ? "connected" : "not connected"}</span>
         </div>
       </footer>
