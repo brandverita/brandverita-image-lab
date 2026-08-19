@@ -8,6 +8,7 @@ import {
   newIdempotencyKey,
   POLL_INTERVAL_MS,
   POLL_TIMEOUT_MS,
+  QUEUE_STALL_MS,
   GenerationApiError,
   type GenerationJob,
 } from "@/lib/generationApi";
@@ -138,7 +139,15 @@ export function useGeneration() {
 
         if (cancelled.current) return;
         setJob(next);
-        setStatusText(next.status === "queued" ? "Queued…" : "Rendering on the Generation API…");
+        const waited = Date.now() - began;
+        setStatusText(
+          next.status === "queued"
+            ? waited > QUEUE_STALL_MS
+              ? "Still queued — no worker has picked this job up yet."
+              : "Queued…"
+            : "Rendering on the GPU worker (a cold start can take a few minutes)…",
+        );
+
 
         if (isTerminalStatus(next.status)) {
           finish(next);
