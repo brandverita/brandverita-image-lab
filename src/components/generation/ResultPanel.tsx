@@ -40,6 +40,8 @@ function DeveloperPanel({
     ["Workflow ID", job?.workflow_id ?? WORKFLOW_ID],
     ["Status", status],
     ["Progress", typeof job?.progress === "number" ? `${job.progress}%` : "—"],
+    ["Modal call ID", job?.modal_call_id ?? "—"],
+    ["Output path", job?.output_path ?? "—"],
     ["Seed", typeof job?.seed === "number" ? String(job.seed) : "—"],
     ["Elapsed", formatElapsed(elapsedMs)],
   ];
