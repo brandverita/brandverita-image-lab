@@ -42,6 +42,8 @@ export interface GenerationJob {
   height?: number | null;
   seed?: number | null;
   result_url?: string | null;
+  output_path?: string | null;
+  modal_call_id?: string | null;
   completed_at?: string | null;
   error_code?: string | null;
   error_message?: string | null;
