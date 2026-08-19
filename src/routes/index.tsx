@@ -210,7 +210,7 @@ function Index() {
             className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
           >
             <span>{unavailableReason}</span>
-            {health === "unreachable" ? (
+            {health.kind === "unreachable" ? (
               <button
                 type="button"
                 onClick={() => void runHealthCheck()}
