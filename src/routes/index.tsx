@@ -62,7 +62,6 @@ function Index() {
   const { session, loading: sessionLoading, userId } = useSupabaseSession();
   const { access } = useAccessCheck(userId);
   const authorized = Boolean(session) && access === "allowed";
-  const accessToken = session?.access_token ?? null;
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -81,7 +80,7 @@ function Index() {
     refreshResultUrl,
     isBusy,
     lastPrompt,
-  } = useGeneration(accessToken);
+  } = useGeneration();
   const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
   const [health, setHealth] = useState<HealthState>(
     API_CONFIGURED ? "checking" : "not_configured",
@@ -104,7 +103,9 @@ function Index() {
     if (phase === "done" || phase === "error") setJobsRefreshKey((key) => key + 1);
   }, [phase]);
 
-  const canGenerate = API_CONFIGURED && health === "ok";
+  // Never allow a submit before the Supabase session has settled — an unauthenticated
+  // request is rejected by the API as a missing bearer token.
+  const canGenerate = API_CONFIGURED && health === "ok" && !sessionLoading && Boolean(session);
 
   const unavailableReason = !API_BASE_URL
     ? "The Generation API URL is not configured for this environment."
