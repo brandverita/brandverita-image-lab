@@ -180,7 +180,7 @@ export function useGeneration() {
     const current = job;
     if (!current) return;
     try {
-      const fresh = await getFreshResultUrl(current.job_id, tokenRef.current);
+      const fresh = await getFreshResultUrl(current.job_id, await currentAccessToken());
       if (!fresh) {
         setPhase("error");
         setErrorMessage("The stored result is no longer available. Re-run the generation to view it.");
