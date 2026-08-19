@@ -53,6 +53,8 @@ export function useGeneration() {
 
   const lastRequest = useRef<{ values: GenerationFormValues; idempotencyKey: string } | null>(null);
   const cancelled = useRef(false);
+  /** Set by checkNow() to make the polling loop skip its next 2s wait. */
+  const pollNow = useRef(false);
 
   useEffect(
     () => () => {
@@ -132,7 +134,11 @@ export function useGeneration() {
           setErrorMessage("This generation timed out. You can retry the request.");
           return;
         }
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        if (pollNow.current) {
+          pollNow.current = false;
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
         if (cancelled.current) return;
 
         const next = await getGeneration(created.job_id, await currentAccessToken());
@@ -214,6 +220,12 @@ export function useGeneration() {
     }
   }, [job]);
 
+  /** Forces the polling loop to skip its next 2s wait and poll immediately.
+   *  No-op when no job is being polled. */
+  const checkNow = useCallback(() => {
+    pollNow.current = true;
+  }, []);
+
   return {
     phase,
     job,
@@ -223,6 +235,7 @@ export function useGeneration() {
     elapsedMs,
     submit,
     retry,
+    checkNow,
     reset,
     refreshResultUrl,
     isBusy: phase === "submitting" || phase === "polling",

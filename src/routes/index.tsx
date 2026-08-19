@@ -16,6 +16,7 @@ import {
   GENERATION_ENABLED,
   apiEnvironmentLabel,
   checkHealth,
+  type HealthInfo,
 } from "@/lib/generationApi";
 
 
@@ -44,7 +45,11 @@ export const Route = createFileRoute("/")({
 
 const supabaseConfigured = Boolean(import.meta.env["VITE_SUPABASE_URL"]);
 
-type HealthState = "checking" | "ok" | "unreachable" | "not_configured";
+type HealthState =
+  | { kind: "checking" }
+  | { kind: "ok"; info: HealthInfo }
+  | { kind: "unreachable" }
+  | { kind: "not_configured" };
 
 function StatusDot({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -76,6 +81,7 @@ function Index() {
     elapsedMs,
     submit,
     retry,
+    checkNow,
     reset,
     refreshResultUrl,
     isBusy,
@@ -83,16 +89,17 @@ function Index() {
   } = useGeneration();
   const [jobsRefreshKey, setJobsRefreshKey] = useState(0);
   const [health, setHealth] = useState<HealthState>(
-    API_CONFIGURED ? "checking" : "not_configured",
+    API_CONFIGURED ? { kind: "checking" } : { kind: "not_configured" },
   );
 
   const runHealthCheck = useCallback(async () => {
     if (!API_CONFIGURED) {
-      setHealth("not_configured");
+      setHealth({ kind: "not_configured" });
       return;
     }
-    setHealth("checking");
-    setHealth((await checkHealth()) ? "ok" : "unreachable");
+    setHealth({ kind: "checking" });
+    const info = await checkHealth();
+    setHealth(info ? { kind: "ok", info } : { kind: "unreachable" });
   }, []);
 
   useEffect(() => {
@@ -103,15 +110,17 @@ function Index() {
     if (phase === "done" || phase === "error") setJobsRefreshKey((key) => key + 1);
   }, [phase]);
 
+  const healthOk = health.kind === "ok";
+
   // Never allow a submit before the Supabase session has settled — an unauthenticated
   // request is rejected by the API as a missing bearer token.
-  const canGenerate = API_CONFIGURED && health === "ok" && !sessionLoading && Boolean(session);
+  const canGenerate = API_CONFIGURED && healthOk && !sessionLoading && Boolean(session);
 
   const unavailableReason = !API_BASE_URL
     ? "The Generation API URL is not configured for this environment."
     : !GENERATION_ENABLED
       ? "Generation is switched off for this environment."
-      : health === "unreachable"
+      : health.kind === "unreachable"
         ? "The Generation API health check did not respond. The service may be starting up or offline."
         : null;
 
@@ -125,11 +134,11 @@ function Index() {
           : "empty";
 
   const apiStatusLabel =
-    health === "ok"
+    health.kind === "ok"
       ? "Generation API online"
-      : health === "checking"
+      : health.kind === "checking"
         ? "Checking Generation API…"
-        : health === "unreachable"
+        : health.kind === "unreachable"
           ? "Generation API unreachable"
           : "Generation API not configured";
 
@@ -146,7 +155,17 @@ function Index() {
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <StatusDot ok={health === "ok"} label={apiStatusLabel} />
+            <StatusDot ok={healthOk} label={apiStatusLabel} />
+            {health.kind === "ok" && health.info.version ? (
+              <span className="rounded border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                API v{health.info.version}
+              </span>
+            ) : null}
+            {health.kind === "ok" && health.info.dispatch === false ? (
+              <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                Dispatch disabled
+              </span>
+            ) : null}
             <StatusDot
               ok={supabaseConfigured}
               label={supabaseConfigured ? "Supabase connected" : "Supabase not connected"}
@@ -192,7 +211,7 @@ function Index() {
             className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
           >
             <span>{unavailableReason}</span>
-            {health === "unreachable" ? (
+            {health.kind === "unreachable" ? (
               <button
                 type="button"
                 onClick={() => void runHealthCheck()}
@@ -235,6 +254,7 @@ function Index() {
               }
               onRetry={retry}
               onRefreshResult={() => void refreshResultUrl()}
+              onCheckNow={checkNow}
             />
           </section>
         </div>
@@ -253,7 +273,21 @@ function Index() {
       <footer className="border-t border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-xs text-muted-foreground">
           <span>API environment: {apiEnvironmentLabel()}</span>
-          <span>API health: {health === "ok" ? "ok" : health.replace("_", " ")}</span>
+          <span>
+            API health:{" "}
+            {health.kind === "ok"
+              ? `ok (v${health.info.version ?? "?"}${
+                  health.info.dispatch === false ? ", dispatch off" : ""
+                })`
+              : health.kind === "checking"
+                ? "checking"
+                : health.kind === "unreachable"
+                  ? "unreachable"
+                  : "not configured"}
+            {health.kind === "ok" && health.info.workerApp
+              ? ` · worker: ${health.info.workerApp}/${health.info.workerClass ?? "?"}`
+              : ""}
+          </span>
           <span>Supabase: {supabaseConfigured ? "connected" : "not connected"}</span>
         </div>
       </footer>

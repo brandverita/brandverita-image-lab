@@ -13,6 +13,7 @@ interface ResultPanelProps {
   altText: string;
   onRetry: () => void;
   onRefreshResult: () => void;
+  onCheckNow: () => void;
 }
 
 function formatElapsed(ms: number): string {
@@ -40,6 +41,8 @@ function DeveloperPanel({
     ["Workflow ID", job?.workflow_id ?? WORKFLOW_ID],
     ["Status", status],
     ["Progress", typeof job?.progress === "number" ? `${job.progress}%` : "—"],
+    ["Modal call ID", job?.modal_call_id ?? "—"],
+    ["Output path", job?.output_path ?? "—"],
     ["Seed", typeof job?.seed === "number" ? String(job.seed) : "—"],
     ["Elapsed", formatElapsed(elapsedMs)],
   ];
@@ -69,6 +72,7 @@ export function ResultPanel({
   altText,
   onRetry,
   onRefreshResult,
+  onCheckNow,
 }: ResultPanelProps) {
   const statusLabel =
     state === "empty" ? "idle" : (job?.status ?? (state === "error" ? "failed" : "submitting"));
@@ -77,7 +81,7 @@ export function ResultPanel({
 
   if (state === "loading") {
     const progress = typeof job?.progress === "number" ? job.progress : null;
-    body = (
+      body = (
       <div className="flex min-h-[22rem] flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
         <span
           role="status"
@@ -101,6 +105,9 @@ export function ResultPanel({
             />
           </div>
         ) : null}
+        <Button variant="outline" size="sm" onClick={onCheckNow}>
+          Check now
+        </Button>
       </div>
     );
   } else if (state === "error") {
