@@ -13,6 +13,7 @@ interface ResultPanelProps {
   altText: string;
   onRetry: () => void;
   onRefreshResult: () => void;
+  onCheckNow: () => void;
 }
 
 function formatElapsed(ms: number): string {
