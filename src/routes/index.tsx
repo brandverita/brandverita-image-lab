@@ -253,6 +253,7 @@ function Index() {
               }
               onRetry={retry}
               onRefreshResult={() => void refreshResultUrl()}
+              onCheckNow={checkNow}
             />
           </section>
         </div>
