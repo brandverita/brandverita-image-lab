@@ -103,7 +103,9 @@ function Index() {
     if (phase === "done" || phase === "error") setJobsRefreshKey((key) => key + 1);
   }, [phase]);
 
-  const canGenerate = API_CONFIGURED && health === "ok";
+  // Never allow a submit before the Supabase session has settled — an unauthenticated
+  // request is rejected by the API as a missing bearer token.
+  const canGenerate = API_CONFIGURED && health === "ok" && !sessionLoading && Boolean(session);
 
   const unavailableReason = !API_BASE_URL
     ? "The Generation API URL is not configured for this environment."
