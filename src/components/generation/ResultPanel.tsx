@@ -81,7 +81,7 @@ export function ResultPanel({
 
   if (state === "loading") {
     const progress = typeof job?.progress === "number" ? job.progress : null;
-    body = (
+      body = (
       <div className="flex min-h-[22rem] flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card p-8">
         <span
           role="status"
@@ -105,6 +105,9 @@ export function ResultPanel({
             />
           </div>
         ) : null}
+        <Button variant="outline" size="sm" onClick={onCheckNow}>
+          Check now
+        </Button>
       </div>
     );
   } else if (state === "error") {
