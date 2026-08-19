@@ -81,6 +81,7 @@ function Index() {
     elapsedMs,
     submit,
     retry,
+    checkNow,
     reset,
     refreshResultUrl,
     isBusy,
