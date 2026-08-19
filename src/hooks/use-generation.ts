@@ -95,10 +95,17 @@ export function useGeneration() {
         height: values.height,
         seed: values.seed,
         idempotencyKey,
-        accessToken: tokenRef.current,
+        accessToken: await currentAccessToken(),
       });
       if (cancelled.current) return;
       setJob(created);
+
+      if (!created.job_id) {
+        setPhase("error");
+        setElapsedMs(Date.now() - began);
+        setErrorMessage("The Generation API did not return a job id, so the job cannot be tracked.");
+        return;
+      }
 
       if (isTerminalStatus(created.status)) {
         finish(created);
@@ -119,7 +126,8 @@ export function useGeneration() {
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
         if (cancelled.current) return;
 
-        const next = await getGeneration(created.job_id, tokenRef.current);
+        const next = await getGeneration(created.job_id, await currentAccessToken());
+
         if (cancelled.current) return;
         setJob(next);
         setStatusText(next.status === "queued" ? "Queued…" : "Rendering on the Generation API…");
