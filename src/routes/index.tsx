@@ -16,6 +16,7 @@ import {
   GENERATION_ENABLED,
   apiEnvironmentLabel,
   checkHealth,
+  type HealthInfo,
 } from "@/lib/generationApi";
 
 
