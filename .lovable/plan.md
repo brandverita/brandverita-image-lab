@@ -1,33 +1,45 @@
-# Diagnose "Session expired" on generation
+# Fix "Session expired" on generation
 
-The UI shows "Session expired. Please sign in again." for any 401/403 from the Generation API. Since you are signed in and the magic link worked, the token exists in the browser — so the 401 is being produced by the API's token check, not by the app's login state. Which of the two possible causes it is has not been confirmed yet, so step 1 is to find out rather than guess.
+## What the checks show
 
-Two candidate causes:
+The deployed Modal API is healthy and correct: `GET /health` returns ok, `POST /v1/generations` exists, and cross-origin preflight from `brandverita-image-lab.netlify.app` is allowed. Calling `POST /v1/generations` with no auth header returns exactly `401 {"detail":"Missing bearer token"}` — the response you are seeing. So the API is rejecting the request because **no bearer token arrived**, not because your login expired.
 
-1. The API cannot verify the token — its Supabase credentials are not reaching the container, or the verification call fails. The current code catches every exception in the verification path and returns the same generic 401, so a missing `SUPABASE_URL` looks identical to a genuinely expired token.
-2. The browser never sends the header — for example the request goes out before the session is restored after the magic-link redirect.
+The second console line points the same way: the Supabase REST call to `generation_jobs` was rejected with "No API key found in request". Two unrelated clients both losing their headers on the live site is the thing to explain — and the Netlify build does have all five `VITE_*` values baked in, so this is not a missing-env-var build.
 
-## Step 1 — Confirm which one it is (no code changes)
+The `{"detail":"Method Not Allowed"}` line is a separate, smaller bug: it is a `GET` on the collection path, which happens when the polling call runs with an empty job id (`/v1/generations/` → redirect → `GET /v1/generations` → 405). That fires after the POST already failed.
 
-Run one authenticated request by hand against the deployed API using your current browser token, and read the response body. That distinguishes "missing bearer token" from "invalid or expired access token" from a credentials failure. I will give you the exact two commands to paste (one to print the token from the app, one curl).
+The exact reason headers are absent is not yet confirmed, so step 1 confirms it before changing behaviour.
 
-## Step 2 — Make the API honest about failures
+## Step 1 — Confirm where the headers are lost (no code changes)
 
-Regardless of the outcome, the API should stop collapsing every failure into one message. I will produce an updated `api.py` that:
+I will give you a short snippet to paste into the console on the live site while signed in. It reports whether `supabase.auth.getSession()` currently returns a token, and sends one test `POST /v1/generations` with the header attached, printing the status only. Outcomes:
 
-- Returns `401` with `token_missing` only when there is no bearer header.
-- Returns `401` with `token_invalid` only when Supabase actually rejects the token.
-- Returns `500` with `auth_backend_unavailable` when the service cannot reach Supabase or its own secret is missing, so a misconfiguration no longer masquerades as an expired login.
-- Attaches the Modal secret to the auth-verifying function explicitly and fails loudly at startup if `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are absent.
+- Test call succeeds → the app is submitting before/without the session token; go to step 2.
+- Test call also 401s → the token itself is being refused; we look at the Supabase session/JWT side instead.
+- Headers missing even in the manual call → something in the browser (extension/shield) is stripping cross-origin headers; retest in a clean profile.
 
-You redeploy with `modal deploy api.py`.
+## Step 2 — Make the frontend always send a live token
 
-## Step 3 — Frontend follow-ups, only if step 1 points there
+Changes in the generation path:
 
-- Map the new `auth_backend_unavailable` case to a "Generation service misconfigured" banner instead of "Session expired".
-- If the token is genuinely missing on submit, hold the Generate button disabled until the Supabase session has finished loading, and refresh the token immediately before each request instead of reusing the one captured at render.
+1. Fetch the token at call time. `useGeneration` currently captures `session.access_token` from render. Instead, read a fresh token via `supabase.auth.getSession()` immediately before each POST and each poll, so a token refreshed after the magic-link redirect is always used.
+2. If no token is available, fail with a clear "You are signed out — sign in again" state instead of firing an unauthenticated request.
+3. Keep the Generate button disabled until the session has finished loading (currently it only depends on API health).
+4. Guard polling: never issue a request when `job_id` is missing — surface "The API did not return a job id" instead, which removes the 405 noise.
+5. Refresh the recent-jobs query after the session becomes available so it is not run in a signed-out state.
+
+## Step 3 — Make the API distinguish failure kinds
+
+Updated `api.py` (you redeploy) so a 401 tells the truth:
+
+- `token_missing` when no bearer header is present.
+- `token_invalid` when Supabase actually rejects the token.
+- `500 auth_backend_unavailable` when the service cannot reach Supabase or its secret is absent — today that case is also reported as a 401, which reads as "session expired".
+
+The frontend error mapping in `src/lib/generationApi.ts` gains a matching branch so a misconfiguration never shows up as a login problem.
 
 ## Technical notes
 
-- No secrets enter this repo; all Supabase service-role handling stays in the Modal app.
-- Error copy stays in `src/lib/generationApi.ts` (`errorFromStatus`), which already parses FastAPI `detail` payloads, so richer API error codes surface without restructuring the client.
+- No secrets enter this repo; service-role handling stays in the Modal app.
+- Token retrieval stays client-side Supabase; no server routes are added.
+- Error copy remains centralised in `errorFromStatus` in `src/lib/generationApi.ts`.
