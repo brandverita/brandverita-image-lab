@@ -72,6 +72,7 @@ export function ResultPanel({
   altText,
   onRetry,
   onRefreshResult,
+  onCheckNow,
 }: ResultPanelProps) {
   const statusLabel =
     state === "empty" ? "idle" : (job?.status ?? (state === "error" ? "failed" : "submitting"));
