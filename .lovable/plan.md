@@ -1,25 +1,23 @@
 # BrandVerita Generation Platform — Revised Plan (Provider-Neutral, Studio-Readiness)
 
-## 1. Updated executive recommendation
+Approved 2026-08-23 with two corrections and one addition (incorporated below). Phase 0 executed as a read-only audit — see the Phase 0 decision record artifact. Phase 1 awaits explicit approval.
 
-Build the Generation Platform as a **provider-neutral** service behind one stable API contract, with provider adapters (`modal_comfyui`, `replicate`, `bfl_api`) selected per workflow version by the server-side registry. Execute in strict phase order: **Phase 0** is validation and decisions only (no behavior change) — it resolves the identity/JWT model, records the worker environment, and classifies the current Flux deployment as `research_only`. **Phase 1** is Flux-preserving modularization only: registry + adapter interface + Modal adapter, byte-identical Flux behavior, additive schema. Replicate evaluation (Phase 2), outpaint research (Phase 3), and the Studio contract (Phase 4) follow only after the prior phase's acceptance criteria pass. The smallest safe work packages are: Phase 0 = a read-only decision record; Phase 1 = one additive DB migration + one Modal API restructure (v6) + regression proof. No Studio UI, no outpainting, no billing, no production deployment in this request.
+## 1. Executive recommendation
 
----
+Build the Generation Platform as a **provider-neutral** service behind one stable API contract, with provider adapters (`modal_comfyui`, `replicate`, `bfl_api`) selected per workflow version by the server-side registry. Strict phase order: **Phase 0** validation/decisions only (done — decision record delivered); **Phase 1** Flux-preserving modularization (registry + adapter interface + Modal adapter, byte-identical Flux behavior, additive schema); Phase 2 Replicate staging evaluation + asset/ledger foundations; Phase 3 outpaint research (Lab-only); Phase 4 Studio integration contract. No Studio UI, outpainting, billing, or production deployment until the relevant phase is approved.
 
-## 2. Decision record (confirmed answers to prior open questions)
+## 2. Decision record (confirmed answers)
 
 | # | Decision |
 |---|---|
-| Q1 Data home | `comfy-ui` Supabase project is the **permanent staging / Image Lab** project. A **dedicated production Supabase project** will be created before any customer-facing Studio release. No production jobs, assets, usage data, or service-role credentials in `comfy-ui`. Main account app owns identity/billing/entitlement; Studio owns designs/Content Hub/Tela state. |
-| Q2 Outpaint | `outpaint:v1` stays **Lab-only, experimental, `research_only`**. No self-hosted FLUX.1-Fill-dev for customers without verified commercial self-hosted license. Lab may evaluate Modal (research), Replicate-hosted editing endpoints, and BFL editing — each subject to model/node/provider/hosting terms. Promotion requires a documented ≥20 authorized-asset test set + quality rubric. |
-| Q3 Identity | One authoritative identity issuer for the Generation API, resolved in **Phase 0 before backend modularization**. Server-side JWT verification (signature, `iss`, `aud`, expiry/nbf, stable user ID, workspace ID, entitlement claim or server-side lookup), ideally asymmetric keys + JWKS. No shared Supabase JWT secrets between projects; no "browser has a Studio session" trust. If the existing handoff token can't support required audience/claims, use a short-lived server-to-server token exchange. Final model stated in the Phase 0 decision record after inspecting the existing handoff and signing-key config. |
-| Q4 Credits | No charging/deduction/payments this phase. Reservation-ready informational `usage_ledger` only: user, workspace, workflow key/version, provider, estimated credits, estimated provider cost, actual provider cost, actual GPU seconds, status `reserved`/`settled`/`void`. Design must later support reserve-before-dispatch and void-on-failure. |
-| Q5 Retention | Staging/Lab: 30-day default retention, earlier user deletion, scheduled cleanup of expired objects, duration configurable per environment. Production: configurable per asset type and product policy (no fixed 90-day rule), user/workspace deletion and legal retention supported, signed URLs short-lived, no customer assets for provider/model improvement absent explicit terms + disclosures. |
-| Q6 Presets | Approved preset-only list for `outpaint:v1`: `1080x1080`, `1200x627`, `1600x900`, `1080x1920`, `1080x1350`. No arbitrary dimensions. API owns preset definitions per workflow version; frontend fetches safe preset metadata only. |
+| Q1 Data home | `comfy-ui` is the **permanent staging / Image Lab** project. A **dedicated production Supabase project** is created before any customer-facing Studio release. No production jobs/assets/usage/service-role credentials in `comfy-ui`. Main account app owns identity/billing/entitlement; Studio owns designs/Content Hub/Tela state. |
+| Q2 Outpaint | `outpaint:v1` Lab-only, experimental, `research_only`. No self-hosted FLUX.1-Fill-dev for customers without verified commercial self-hosted license. Lab may evaluate Modal (research), Replicate-hosted editing, BFL editing — each subject to model/node/provider/hosting terms. Promotion requires a documented ≥20 authorized-asset test set + quality rubric. |
+| Q3 Identity | One authoritative identity issuer, resolved in Phase 0 (see decision record: JWKS-based verification recommended; Studio token-claims inspection still required). Server-side verification of signature, `iss`, `aud`, expiry/nbf, stable user ID, workspace ID, entitlement claim or server-side lookup. No shared Supabase JWT secrets; no browser-session trust. |
+| Q4 Credits | No charging this phase. Reservation-ready informational `usage_ledger` only (user, workspace, workflow key/version, provider, estimated credits, estimated/actual provider cost, actual GPU seconds, status reserved/settled/void). Must later support reserve-before-dispatch and void-on-failure. |
+| Q5 Retention | Staging/Lab: 30-day default, earlier user deletion, scheduled cleanup, configurable per environment. Production: configurable per asset type and product policy; user/workspace deletion and legal retention supported; signed URLs short-lived; no customer assets for provider/model improvement absent explicit terms + disclosures. |
+| Q6 Presets | `outpaint:v1` preset-only: `1080x1080`, `1200x627`, `1600x900`, `1080x1920`, `1080x1350`. No arbitrary dimensions. API owns presets per workflow version; frontend fetches safe preset metadata only. |
 
----
-
-## 3. Updated architecture
+## 3. Architecture
 
 ```text
 myaccount.brandverita.io
@@ -36,38 +34,26 @@ BrandVerita Generation API (Modal FastAPI)
         ├── Provider adapter: replicate       (Phase 2, staging eval)
         ├── Provider adapter: bfl_api         (interface only)
         └── Provider adapter: modal_comfyui   (research_only)
-                    │
                     ▼
             Provider-specific execution
-                    │
                     ▼
        Private Generation Platform storage and metadata
 
-Image Lab at brandverita-image-lab.netlify.app
-        └── Calls STAGING Generation API only — testing, provider
-            comparison, workflow QA, regression, operational diagnosis.
-            Never a relay; never proxies Studio traffic; never points at
-            production API / Supabase / storage / customer data.
+Image Lab (brandverita-image-lab.netlify.app)
+        └── Staging Generation API only. Never a relay; never proxies Studio
+            traffic; never points at production API / Supabase / storage / data.
 ```
 
-All frontend clients (Lab and future Studio) call only the BrandVerita Generation API — never Replicate, BFL, Modal, or ComfyUI directly.
+All frontend clients call only the BrandVerita Generation API — never Replicate, BFL, Modal, or ComfyUI directly.
 
----
+## 4. Data-model delta (additive; comfy-ui staging)
 
-## 4. Revised data-model delta
+Every new table: GRANTs + RLS in the same migration (authenticated SELECT-own; service_role ALL; no anon).
 
-All changes are **additive** migrations in `comfy-ui` (staging). No renames, no drops. Every new table gets GRANTs + RLS in the same migration (authenticated SELECT-own only; service_role ALL; no anon).
-
-**`workflow_definitions`** (new; registry — full schema in §6). Service-role write. Clients read only through view `workflow_definitions_public` (key, version, display_name, status, allowed_dimensions, safe input-schema subset, presets, registry_visibility where `studio_safe`) — never provider internals, terms refs, or flags.
-
-**`generation_assets`** (new; Phase 2 unless additive prep approved in Phase 1):
-`id uuid pk`, `owner_id uuid`, `workspace_id uuid null`, `sha256 text`, `bucket text`, `storage_path text`, `content_type text`, `file_size bigint`, `width int`, `height int`, `kind text` (input|output), `source_asset_id uuid null fk`, `job_id uuid null fk`, `workflow_key text`, `workflow_version text`, `provenance jsonb`, `created_at`, `deleted_at`, `expires_at`. New private bucket `generation-assets` for inputs; `generation-outputs` retained for outputs.
-
-**`usage_ledger`** (new; informational, non-charging):
-`id uuid pk`, `user_id uuid`, `workspace_id uuid null`, `job_id uuid fk`, `workflow_key text`, `workflow_version text`, `provider text`, `estimated_credits numeric`, `estimated_provider_cost numeric`, `actual_provider_cost numeric null`, `gpu_seconds numeric null`, `status text` (reserved|settled|void), `created_at`, `settled_at`. Service-role only.
-
-**`generation_jobs` extensions** (additive columns):
-`workspace_id uuid null`, `workflow_version text`, `workflow_config_hash text`, `provider text`, `provider_model text`, `provider_job_reference text`, `input_asset_ids uuid[]`, `output_asset_ids uuid[]`, `inputs jsonb` (validated safe inputs only), `worker_version text`, `usage_ledger_id uuid null`, `error_category text`, `internal_error_ref text`, `queued_at timestamptz`, `started_at timestamptz`, `expires_at timestamptz`. (`error_code`, `completed_at`, `progress` already exist.)
+- **`workflow_definitions`** (new; §6 schema). Clients never read it directly — `GET /v1/workflows` is server-filtered (Correction 1).
+- **`generation_assets`** (Phase 2): `id`, `owner_id`, `workspace_id`, `sha256`, `bucket`, `storage_path`, `content_type`, `file_size`, `width`, `height`, `kind` (input|output), `source_asset_id`, `job_id`, `workflow_key`, `workflow_version`, `provenance jsonb`, `created_at`, `deleted_at`, `expires_at`. New private bucket `generation-assets`; `generation-outputs` retained for outputs.
+- **`usage_ledger`** (Phase 2; informational): `id`, `user_id`, `workspace_id`, `job_id`, `workflow_key`, `workflow_version`, `provider`, `estimated_credits`, `estimated_provider_cost`, `actual_provider_cost`, `gpu_seconds`, `status` (reserved|settled|void), `created_at`, `settled_at`. Service-role only.
+- **`generation_jobs` extensions** (Phase 1, additive nullable columns): `workspace_id`, `workflow_version`, `workflow_config_hash`, `provider`, `provider_model`, `provider_job_reference`, `input_asset_ids uuid[]`, `output_asset_ids uuid[]`, `inputs jsonb` (validated safe inputs only), `worker_version`, `usage_ledger_id`, `error_category`, `internal_error_ref`, `queued_at`, `started_at`, `expires_at`.
 
 **State machine** (application-owned, enforced in the API):
 ```text
@@ -76,9 +62,7 @@ queued|dispatching|running|uploading_output → failed
 queued → cancelled
 queued|dispatching|running → expired
 ```
-`progress_percent` is informational only; clients must not infer state from it. All provider errors normalize to safe user-facing codes + internal categories — no raw provider exceptions, URLs, tokens, model config, or stack traces to clients.
-
----
+`progress_percent` is informational only; clients never infer state from it. Provider errors normalize to safe user-facing codes + internal categories — no raw provider exceptions, URLs, tokens, model config, or stack traces to clients.
 
 ## 5. Provider adapter specification
 
@@ -92,94 +76,64 @@ normalize_provider_result(provider_response) -> { output bytes/refs, metadata }
 estimate_cost(validated_inputs, workflow_definition) -> { credits, provider_cost }
 ```
 
-- **`modal_comfyui`** (implemented, Phase 1): current working Flux path moved verbatim — server-built ComfyUI graph, `ComfyUIWorker.generate_image`, storage upload, job updates. All self-hosted FLUX dev workflows are `research_only` until commercial self-hosted rights are documented; never dispatchable from Studio production.
-- **`replicate`** (Phase 2, staging only): first hosted commercial candidate. Async prediction + polling/webhook per current Replicate API; prediction ID stored in `provider_job_reference`; exact model/version identifier, terms reference, and cost metadata recorded on the registry row; tokens server-only; workflow stays `pending_review` until legal/data-handling review is recorded. Do not self-host weights from a Replicate listing assuming hosted rights transfer.
-- **`bfl_api`** (Phase 2, interface + registry support only): no production dispatch unless later approved; no customer/private production assets sent until data-use/retention/privacy/commercial terms are reviewed and accepted.
+- **`modal_comfyui`** (Phase 1, implemented): current working Flux path moved verbatim. Self-hosted FLUX dev workflows are `research_only` until commercial rights documented; never dispatchable from Studio production.
+- **`replicate`** (Phase 2, staging only): async prediction + polling/webhook; prediction ID in `provider_job_reference`; exact model/version + terms reference + cost metadata on the registry row; tokens server-only; stays `pending_review` until legal/data-handling review recorded. No self-hosting of Replicate-listed weights assuming hosted rights transfer.
+- **`bfl_api`** (Phase 2, interface + registry support only): no production dispatch unless later approved; no customer/private production assets until data-use/retention/privacy/commercial terms accepted.
 
----
+## 6. Registry schema, immutability, visibility
 
-## 6. Registry schema and initial entries
+**`workflow_definitions`**: `id`, `key`, `version`, `status` (draft|testing|active|deprecated|disabled), `display_name`, `description`, `provider`, `provider_model`, `provider_workflow_reference`, `commercial_status` (research_only|commercial_hosted|licensed_self_hosted|pending_review|blocked), `provider_terms_reference`, `provider_terms_verified_at`, `data_handling_profile`, `allowed_envs text[]`, `production_enabled bool default false`, `enabled_for_studio bool default false`, `registry_visibility` (internal|studio_safe|hidden), `rollout_percentage int 0–100`, `allowed_workspace_ids uuid[] null`, `feature_flag`, `input_schema jsonb`, `output_schema jsonb`, `allowed_dimensions jsonb`, `estimated_credits`, `config_hash`, `worker_version`, `comfyui_ref`, `model_manifest_ref`, `created_at`, `retired_at`, unique(`key`,`version`).
 
-**`workflow_definitions`** columns (mandatory):
-`id uuid pk`, `key text`, `version text`, `status text` (draft|testing|active|deprecated|disabled), `display_name text`, `description text`, `provider text`, `provider_model text`, `provider_workflow_reference text`, `commercial_status text` (research_only|commercial_hosted|licensed_self_hosted|pending_review|blocked), `provider_terms_reference text`, `provider_terms_verified_at timestamptz`, `data_handling_profile text`, `allowed_envs text[]`, `production_enabled bool default false`, `enabled_for_studio bool default false`, `registry_visibility text` (internal|studio_safe|hidden), `rollout_percentage int` (0–100), `allowed_workspace_ids uuid[] null`, `feature_flag text`, `input_schema jsonb`, `output_schema jsonb`, `allowed_dimensions jsonb`, `estimated_credits numeric`, `config_hash text` (immutable), `worker_version text`, `comfyui_ref text`, `model_manifest_ref text`, `created_at`, `retired_at`, unique(`key`,`version`).
+**Correction 2 — immutability split**:
+- *Immutable once the version is activated* (enforced by DB trigger rejecting UPDATE): `key`, `version`, `provider`, `provider_model`, `provider_workflow_reference`, `config_hash`, `input_schema`, `output_schema`, `model_manifest_ref`, `comfyui_ref`. A material change to any of these creates a new workflow version.
+- *Controlled but mutable* (service-role only, audited): `status`, `production_enabled`, `enabled_for_studio`, `registry_visibility`, `rollout_percentage`, `allowed_workspace_ids`, `feature_flag`, `retired_at`, `provider_terms_verified_at`, `data_handling_profile`. Incident disable or rollout change never creates a new version.
 
-**Commercial-use gate (non-negotiable)**: Studio production dispatch requires `commercial_status ∈ {commercial_hosted, licensed_self_hosted}` AND documented provider/model reference AND stored terms reference AND recorded verification date AND approved data-handling profile AND `production_enabled = true`. `research_only` is rejected server-side for production/Studio-origin requests regardless of frontend state or hidden URLs.
+**Correction 1 — visibility / authorization**: `GET /v1/workflows` is server-filtered by authenticated caller + environment; the safe view is a column allowlist, not an authorization layer:
+- Lab allowlisted internal users → safe internal metadata for research workflows (`registry_visibility=internal`, caller's env).
+- Studio users → only `studio_safe` workflows that are active, commercially approved, `enabled_for_studio`, and allowed in the current environment.
+- Unauthenticated or any other caller → no workflows (empty/401).
+- No client response may include raw graphs, provider secrets, model file paths, deployment references, API tokens, or infrastructure internals.
 
-**Config immutability**: `config_hash` is immutable; any material change to provider model, graph, prompt template, custom-node config, or inference settings creates a new workflow version, never an edit.
+**Commercial-use gate**: Studio production dispatch requires `commercial_status ∈ {commercial_hosted, licensed_self_hosted}` + documented provider/model reference + stored terms reference + verification date + approved data-handling profile + `production_enabled=true`. `research_only` is rejected server-side for production/Studio-origin requests regardless of frontend state.
 
-**Initial seed rows** (staging):
-```text
-flux_text_to_image:v1            provider=modal_comfyui  commercial_status=research_only
-                                 status=active  allowed_envs=[staging]  production_enabled=false
-                                 enabled_for_studio=false  registry_visibility=internal
-flux_text_to_image:v1-commercial-candidate
-                                 provider=replicate  commercial_status=pending_review
-                                 status=draft  allowed_envs=[staging]  production_enabled=false
-                                 enabled_for_studio=false  registry_visibility=internal
-outpaint:v1                      provider=modal_comfyui  commercial_status=research_only
-                                 status=draft  allowed_envs=[staging]  production_enabled=false
-                                 enabled_for_studio=false  registry_visibility=internal
-```
+**Initial seed rows** (staging): `flux_text_to_image:v1` (modal_comfyui, research_only, active, staging, internal), `flux_text_to_image:v1-commercial-candidate` (replicate, pending_review, draft, staging, internal), `outpaint:v1` (modal_comfyui, research_only, draft, staging, internal).
 
----
+## 7. Phase 0 — validation checklist (executed 2026-08-23)
 
-## 7. Phase 0 — validation checklist (no behavior change)
+Read-only audit complete; full evidence in the Phase 0 decision record artifact. Covered: deployment manifest (API v5 live, worker image, models, DB, storage), baseline performance/cost (E2E ~55–72s, ~$0.02/image on A10G), identity recommendation (JWKS), environment separation, provider/legal review records (Correction 3: structured per-candidate records with provider, exact model/endpoint/version, hosted vs self-hosted, intended use, commercial-use conclusion, input/output retention conclusion, training/improvement-use conclusion, customer-data permission, terms URL, retrieval date/version, review owner/date, restrictions, approval status), and the Phase 1 go/no-go recommendation.
 
-Owner: ops + API. Output: a concise decision record.
+Outstanding Phase 0 follow-ups (user-supplied): ComfyUI fork commit hash (to pin), Supabase signing-keys migration status for comfy-ui, a sample Studio↔myaccount handoff token for claims inspection.
 
-- [ ] Record exact worker image: ComfyUI commit/version, custom-node list, model manifest, Python/CUDA/PyTorch versions, build reference → stored as `comfyui_ref` / `model_manifest_ref` on the Flux registry row.
-- [ ] Measure baseline from recent `generation_jobs`: queue time, cold-start, execution, E2E, approximate GPU cost per image.
-- [ ] Inspect the existing Studio ↔ myaccount JWT handoff and Supabase signing-key configuration (algorithm, JWKS availability, `iss`/`aud` claims, workspace/entitlement claims).
-- [ ] Decide and record: **direct JWT verification vs short-lived server-to-server token exchange** — the single identity model for the Generation API.
-- [ ] Confirm the exact deployed FLUX model/source and classify it `research_only` pending verified commercial self-hosted rights.
-- [ ] Create provider/legal review checklist for Replicate and BFL hosted options (commercial use, data-use/retention, privacy, pricing).
-- [ ] Confirm isolation: Image Lab cannot reach future production API/data (registry `allowed_envs`, separate projects/secrets — by construction, not convention).
-- [ ] Confirm `generation_usage.period` format for ledger compatibility.
+## 8. Phase 1 — implementation checklist (smallest safe package; awaits approval)
 
-## 8. Phase 1 — implementation checklist (smallest safe package)
+**One additive Supabase migration** (comfy-ui, staging): `workflow_definitions` + GRANTs + RLS + immutability trigger + seed rows; `generation_jobs` extension columns (nullable, no backfill). Defer `generation_assets`/`usage_ledger` tables to Phase 2.
 
-**One additive Supabase migration** (in `comfy-ui`, staging):
-- Create `workflow_definitions` + GRANTs + RLS + safe-column view `workflow_definitions_public`; seed the three initial rows from §6.
-- Add the `generation_jobs` extension columns from §4 (nullable, no backfill required).
-- Defer `generation_assets` and `usage_ledger` tables unless the additive prep is approved in the same migration (they are inert until Phase 2 code exists).
+**Modal API restructure (v6)** — same app, file-level split: `supabase_rest.py` (existing httpx helpers), `registry.py` (load/cache 60s, env + status + flag + commercial gate), `adapters/base.py` + `adapters/modal_comfyui.py` (verbatim Flux move) + `replicate.py`/`bfl_api.py` stubs (403 `workflow_unavailable`), `jobs.py` (state machine), thin `api.py`. `POST /v1/generations` accepts legacy flat shape (routed to `flux_text_to_image:v1`) and structured `{workflow_id, workflow_version, inputs}`; unknown → 400 `unsupported_workflow`; disallowed → 403. New `GET /v1/workflows` with Correction-1 server filtering. Jobs write `workflow_version`, `workflow_config_hash`, `provider`, `provider_model`, `worker_version`, `queued_at`, `started_at`. `/health` reports `version: "v6"` + registry keys. Add JWKS-based JWT verification (ES256, iss/aud/exp/nbf) alongside the existing auth check. Mark the 2 stale 2026-08-19 `queued` rows `expired`.
 
-**Modal API restructure (v6)** — same app, file-level split, no new Modal apps:
-- `supabase_rest.py` — existing httpx helpers (unchanged).
-- `registry.py` — load/cache registry (60s), evaluate env + status + flag + commercial gate.
-- `adapters/base.py` — the §5 interface; `adapters/modal_comfyui.py` — today's dispatch + `build_flux_workflow` moved **verbatim**; `adapters/replicate.py`, `adapters/bfl_api.py` — stubs raising `workflow_unavailable`.
-- `jobs.py` — insert/update/respond + state machine enforcement; `api.py` — thin FastAPI wiring.
-- `POST /v1/generations` accepts the legacy flat shape (routed to `flux_text_to_image:v1`) and the structured `{workflow_id, workflow_version, inputs}` shape; unknown → 400 `unsupported_workflow`; not-allowed → 403 `workflow_unavailable`.
-- New `GET /v1/workflows` — safe internal metadata for the Lab (registry_visibility=internal rows, safe fields only).
-- Job records now write `workflow_version`, `workflow_config_hash`, `provider`, `provider_model`, `worker_version`, `queued_at`, `started_at`.
-- `/health` reports `version: "v6"` + loaded registry keys.
+**Image Lab frontend**: `src/lib/generationApi.ts` adds `listWorkflows()` + `WorkflowInfo`; dev panel shows `provider`, `workflow_version`, `config_hash` prefix. No upload UI, no outpaint UI, no picker.
 
-**Image Lab frontend (this repo)**:
-- `src/lib/generationApi.ts`: add `listWorkflows()` + `WorkflowInfo` type; legacy `createGeneration` path untouched.
-- Dev panel: display `provider`, `workflow_version`, `config_hash` (first 8 chars) from job responses.
-- No upload UI, no outpaint UI, no workflow picker beyond read-only display.
-
-**Explicitly not in Phase 1**: customer asset upload, asset/usage behavior, Studio anything, outpaint execution, Replicate/BFL dispatch.
+**Not in Phase 1**: customer asset upload, asset/usage runtime behavior, Studio anything, outpaint execution, Replicate/BFL dispatch.
 
 ## 9. Phase 1 acceptance criteria and regression plan
 
-1. `GET /health` returns `version: "v6"` and lists `flux_text_to_image:v1`.
-2. Byte-level regression: the ComfyUI graph built by the new Modal adapter for a fixed (prompt, negative, width, height, seed) input equals the v5 builder output.
-3. E2E: one Flux job from the Lab UI completes; image renders; recent jobs list loads.
-4. Contract tests: legacy flat shape accepted; structured shape with `flux_text_to_image:v1` accepted; unknown workflow → 400; `outpaint:v1` (draft) → 403; stub providers → 403.
-5. New job rows carry `provider=modal_comfyui`, `workflow_version`, `config_hash`, `worker_version`, `queued_at`/`started_at`.
-6. `GET /v1/workflows` returns safe fields only (verified: no terms refs, no model internals).
+1. `/health` returns `version: "v6"` and lists `flux_text_to_image:v1`.
+2. Byte-level regression: adapter-built graph for fixed (prompt, negative, w, h, seed) equals v5 output.
+3. E2E: one Flux job from the Lab completes; image renders; recent jobs load.
+4. Contract tests: legacy + structured shapes accepted; unknown workflow → 400; `outpaint:v1` (draft) → 403; stub providers → 403; unauthenticated `GET /v1/workflows` → none.
+5. New jobs carry `provider=modal_comfyui`, `workflow_version`, `config_hash`, `worker_version`, `queued_at`/`started_at`.
+6. `GET /v1/workflows` returns safe fields only; immutability trigger rejects edits to immutable fields on an active version.
 7. AuthZ unchanged: other user's job → 404; unauthenticated → 401.
-8. Typecheck + build green; Netlify deploy of the Lab unchanged in behavior.
-Rollback: redeploy v5 `api.py`; migration is additive so no DB rollback needed. Registry disable is an `UPDATE status='disabled'`.
+8. Typecheck + build green; Netlify Lab deploy unchanged in behavior.
+Rollback: redeploy v5; migration additive (no DB rollback); registry disable = `UPDATE status='disabled'` (mutable field).
 
-## 10. Risks, assumptions, genuinely unresolved items
+## 10. Risks, assumptions, unresolved items
 
-- **Identity model** (Q3) is decided in principle but the concrete mechanism depends on what Phase 0 finds in the existing handoff (algorithm, JWKS, claims). This is the one item that can change Phase 2+ design.
-- Replicate/BFL commercial + data-handling terms are **unverified**; the `pending_review` registry rows exist precisely so nothing ships before review.
-- FLUX self-hosted commercial rights are **not verified** — current deployment is research/staging only by policy.
-- Phase 1 assumes the registry cache and state-machine enforcement don't perturb the working dispatch path; the byte-level graph regression is the guard.
-- Assumption: `ComfyUIWorker` needs no changes in Phase 1 (adapter calls it exactly as v5 does).
+- Studio identity sub-decision (handoff-token claims vs token exchange) awaits a sample token — does not block Phase 1.
+- Replicate/BFL commercial + data-handling terms unverified — `pending_review` rows exist so nothing ships before review.
+- FLUX self-hosted commercial rights not yet recorded (schnell weights are Apache-2.0 per HF listing; fork + custom nodes + deployment terms still need the review record) — research_only stands until recorded.
+- ComfyUI fork commit unpinned in the worker image — record and pin during Phase 1.
+- Assumption: `ComfyUIWorker` needs no changes in Phase 1.
 
-## 11. Explicitly deferred (not in this request)
+## 11. Explicitly deferred
 
-Studio UI and any Studio code; outpaint execution and its Lab UI; Replicate/BFL dispatch implementation; customer asset upload/finalization flow; `generation_assets`/`usage_ledger` runtime behavior; rate limiting; credit deduction/billing; production Supabase project, production Modal app, and prod secrets; scheduled retention cleanup job; stuck-job cron; Studio identity enforcement (beyond the Phase 0 decision record); Content Hub handoff.
+Studio UI/code; outpaint execution and Lab UI; Replicate/BFL dispatch; customer asset upload/finalization; `generation_assets`/`usage_ledger` runtime behavior; rate limiting; credit deduction/billing; production Supabase project, production Modal app, prod secrets; scheduled retention cleanup; stuck-job cron (beyond marking the 2 stale rows); Content Hub handoff.
