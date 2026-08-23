@@ -33,7 +33,9 @@ BrandVerita Generation API (Modal FastAPI)
         ├── Job lifecycle, idempotency, usage ledger
         ├── Provider adapter: replicate       (Phase 2, staging eval)
         ├── Provider adapter: bfl_api         (interface only)
-        └── Provider adapter: modal_comfyui   (research_only)
+        └── Provider adapter: modal_comfyui   (adapter neutral — per-workflow
+                                               commercial classification enforced
+                                               from the workflow registry)
                     ▼
             Provider-specific execution
                     ▼
