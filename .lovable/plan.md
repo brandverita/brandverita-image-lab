@@ -138,9 +138,9 @@ Rollback: redeploy v5; migration additive (no DB rollback); registry disable = `
 
 - Studio identity sub-decision (handoff-token claims vs token exchange) awaits a sample token — does not block Phase 1.
 - Replicate/BFL commercial + data-handling terms unverified — `pending_review` rows exist so nothing ships before review.
-- FLUX self-hosted commercial rights not yet recorded (schnell weights are Apache-2.0 per HF listing; fork + custom nodes + deployment terms still need the review record) — research_only stands until recorded.
-- ComfyUI fork commit unpinned in the worker image — record and pin during Phase 1.
-- Assumption: `ComfyUIWorker` needs no changes in Phase 1.
+- FLUX.1-schnell weights are Apache-2.0 (commercial use permitted per HF listing, subject to the full compliance inventory); baseline reclassified `research_only` → `pending_review` (Correction 4). The remaining gate is the manifest review record (§8): fork SHA, custom nodes, all model artifact hashes/licenses, image digest, Python/CUDA/PyTorch pins, fork source modifications, and customer-data processing/retention/privacy. Target classification after review: `commercial_self_hosted_approved`.
+- ComfyUI fork SHA now known (`344b43989e8c56b5bb4a66cf028c834192ab59dd`) but not yet pinned in the worker image — pin via detached checkout during Phase 1; do not sync the ~91-commits-behind fork with upstream during Phase 1.
+- Assumption: `ComfyUIWorker` needs no runtime changes in Phase 1 beyond the build-time pinning above.
 
 ## 11. Explicitly deferred
 
