@@ -132,6 +132,7 @@ Outstanding Phase 0 follow-ups (user-supplied): Supabase signing-keys migration 
 6. `GET /v1/workflows` returns safe fields only; immutability trigger rejects edits to immutable fields on an active version.
 7. AuthZ unchanged: other user's job → 404; unauthenticated → 401.
 8. Typecheck + build green; Netlify Lab deploy unchanged in behavior.
+9. Worker image build log shows `git rev-parse HEAD` = `344b43989e8c56b5bb4a66cf028c834192ab59dd`, HF artifacts downloaded at pinned revisions, and the resulting Modal image digest is recorded in the deployment manifest + workflow metadata.
 Rollback: redeploy v5; migration additive (no DB rollback); registry disable = `UPDATE status='disabled'` (mutable field).
 
 ## 10. Risks, assumptions, unresolved items
