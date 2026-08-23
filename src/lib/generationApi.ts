@@ -31,12 +31,25 @@ export const API_BASE_URL = (import.meta.env["VITE_GENERATION_API_URL"] ?? "").r
 export const GENERATION_ENABLED = import.meta.env["VITE_GENERATION_ENABLED"] === "true";
 export const API_CONFIGURED = Boolean(API_BASE_URL) && GENERATION_ENABLED;
 
-export type JobStatus = "queued" | "running" | "completed" | "failed" | "canceled";
+export type JobStatus =
+  | "queued"
+  | "dispatching"
+  | "running"
+  | "uploading_output"
+  | "completed"
+  | "failed"
+  | "canceled"
+  | "cancelled"
+  | "expired";
 
 export interface GenerationJob {
   job_id: string;
   status: JobStatus;
   workflow_id: string;
+  workflow_version?: string | null;
+  provider?: string | null;
+  provider_model?: string | null;
+  workflow_config_hash?: string | null;
   progress?: number | null;
   width?: number | null;
   height?: number | null;
@@ -44,6 +57,8 @@ export interface GenerationJob {
   result_url?: string | null;
   output_path?: string | null;
   modal_call_id?: string | null;
+  queued_at?: string | null;
+  started_at?: string | null;
   completed_at?: string | null;
   error_code?: string | null;
   error_message?: string | null;
@@ -213,6 +228,9 @@ export interface HealthInfo {
   dispatch?: boolean | undefined;
   workerApp?: string | undefined;
   workerClass?: string | undefined;
+  environment?: string | undefined;
+  registryOk?: boolean | undefined;
+  workflows?: string[] | undefined;
 }
 
 /** GET /health — returns the full body so the UI can show which build is live. */
@@ -227,6 +245,9 @@ export async function checkHealth(): Promise<HealthInfo | null> {
       dispatch?: boolean;
       worker_app?: string;
       worker_class?: string;
+      environment?: string;
+      registry_ok?: boolean;
+      workflows?: string[];
     };
     if (body.status !== "ok") return null;
     return {
@@ -235,10 +256,38 @@ export async function checkHealth(): Promise<HealthInfo | null> {
       dispatch: body.dispatch,
       workerApp: body.worker_app,
       workerClass: body.worker_class,
+      environment: body.environment,
+      registryOk: body.registry_ok,
+      workflows: body.workflows,
     };
   } catch {
     return null;
   }
+}
+
+/** Safe, server-filtered workflow registry view (GET /v1/workflows). The API
+ *  never exposes raw graphs, provider references, or deployment internals. */
+export interface WorkflowInfo {
+  key: string;
+  version: string;
+  display_name?: string | null;
+  description?: string | null;
+  status?: string | null;
+  provider?: string | null;
+  provider_model?: string | null;
+  commercial_status?: string | null;
+  allowed_dimensions?: Array<{ width: number; height: number }> | null;
+  estimated_credits?: number | null;
+  enabled_for_studio?: boolean | null;
+  production_enabled?: boolean | null;
+  config_hash_prefix?: string | undefined;
+}
+
+export function listWorkflows(accessToken?: string | null): Promise<WorkflowInfo[]> {
+  return request<{ workflows?: WorkflowInfo[] }>("/v1/workflows", {
+    method: "GET",
+    accessToken,
+  }).then((body) => body.workflows ?? []);
 }
 
 export function createGeneration(input: CreateGenerationInput): Promise<GenerationJob> {
@@ -292,5 +341,11 @@ export function apiEnvironmentLabel(): string {
 }
 
 export function isTerminalStatus(status: JobStatus): boolean {
-  return status === "completed" || status === "failed" || status === "canceled";
+  return (
+    status === "completed" ||
+    status === "failed" ||
+    status === "canceled" ||
+    status === "cancelled" ||
+    status === "expired"
+  );
 }
