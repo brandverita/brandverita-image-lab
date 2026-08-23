@@ -118,6 +118,8 @@ Outstanding Phase 0 follow-ups (user-supplied): Supabase signing-keys migration 
 
 **Manifest review gate (remaining approval gate for `commercial_self_hosted_approved`)**: the review record must cover the exact ComfyUI fork commit, all custom nodes + commits/licenses, Flux Schnell artifact source + hash, CLIP/T5/VAE and all other model artifacts + licenses/hashes, Modal image build reference/digest, Python/CUDA/PyTorch versions, any source modifications to the fork, and customer-data processing, storage, retention, and privacy requirements.
 
+**Image Lab frontend**: `src/lib/generationApi.ts` adds `listWorkflows()` + `WorkflowInfo`; dev panel shows `provider`, `workflow_version`, `config_hash` prefix. No upload UI, no outpaint UI, no picker.
+
 **Not in Phase 1**: customer asset upload, asset/usage runtime behavior, Studio anything, outpaint execution, Replicate/BFL dispatch.
 
 ## 9. Phase 1 acceptance criteria and regression plan
