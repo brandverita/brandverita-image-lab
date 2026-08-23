@@ -39,68 +39,116 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string
+          error_category: string | null
           error_code: string | null
           error_message: string | null
+          expires_at: string | null
           height: number | null
           id: string
           idempotency_key: string | null
+          input_asset_ids: string[] | null
+          inputs: Json | null
+          internal_error_ref: string | null
           modal_call_id: string | null
           negative_prompt: string | null
+          output_asset_ids: string[] | null
           output_path: string | null
           progress: number
           prompt: string | null
           prompt_hash: string | null
+          provider: string | null
+          provider_job_reference: string | null
+          provider_model: string | null
+          queued_at: string | null
           result_url: string | null
           seed: number | null
+          started_at: string | null
           status: string
           updated_at: string
+          usage_ledger_id: string | null
           user_id: string
           width: number | null
+          worker_version: string | null
+          workflow_config_hash: string | null
           workflow_id: string
+          workflow_version: string | null
+          workspace_id: string | null
         }
         Insert: {
           completed_at?: string | null
           created_at?: string
+          error_category?: string | null
           error_code?: string | null
           error_message?: string | null
+          expires_at?: string | null
           height?: number | null
           id?: string
           idempotency_key?: string | null
+          input_asset_ids?: string[] | null
+          inputs?: Json | null
+          internal_error_ref?: string | null
           modal_call_id?: string | null
           negative_prompt?: string | null
+          output_asset_ids?: string[] | null
           output_path?: string | null
           progress?: number
           prompt?: string | null
           prompt_hash?: string | null
+          provider?: string | null
+          provider_job_reference?: string | null
+          provider_model?: string | null
+          queued_at?: string | null
           result_url?: string | null
           seed?: number | null
+          started_at?: string | null
           status?: string
           updated_at?: string
+          usage_ledger_id?: string | null
           user_id: string
           width?: number | null
+          worker_version?: string | null
+          workflow_config_hash?: string | null
           workflow_id: string
+          workflow_version?: string | null
+          workspace_id?: string | null
         }
         Update: {
           completed_at?: string | null
           created_at?: string
+          error_category?: string | null
           error_code?: string | null
           error_message?: string | null
+          expires_at?: string | null
           height?: number | null
           id?: string
           idempotency_key?: string | null
+          input_asset_ids?: string[] | null
+          inputs?: Json | null
+          internal_error_ref?: string | null
           modal_call_id?: string | null
           negative_prompt?: string | null
+          output_asset_ids?: string[] | null
           output_path?: string | null
           progress?: number
           prompt?: string | null
           prompt_hash?: string | null
+          provider?: string | null
+          provider_job_reference?: string | null
+          provider_model?: string | null
+          queued_at?: string | null
           result_url?: string | null
           seed?: number | null
+          started_at?: string | null
           status?: string
           updated_at?: string
+          usage_ledger_id?: string | null
           user_id?: string
           width?: number | null
+          worker_version?: string | null
+          workflow_config_hash?: string | null
           workflow_id?: string
+          workflow_version?: string | null
+          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -131,6 +179,105 @@ export type Database = {
           period?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      workflow_definitions: {
+        Row: {
+          allowed_dimensions: Json
+          allowed_envs: string[]
+          allowed_workspace_ids: string[] | null
+          comfyui_ref: string | null
+          commercial_status: string
+          config_hash: string | null
+          created_at: string
+          data_handling_profile: string | null
+          description: string | null
+          display_name: string | null
+          enabled_for_studio: boolean
+          estimated_credits: number | null
+          feature_flag: string | null
+          id: string
+          input_schema: Json
+          key: string
+          model_manifest_ref: string | null
+          output_schema: Json
+          production_enabled: boolean
+          provider: string
+          provider_model: string | null
+          provider_terms_reference: string | null
+          provider_terms_verified_at: string | null
+          provider_workflow_reference: string | null
+          registry_visibility: string
+          retired_at: string | null
+          rollout_percentage: number
+          status: string
+          version: string
+          worker_version: string | null
+        }
+        Insert: {
+          allowed_dimensions?: Json
+          allowed_envs?: string[]
+          allowed_workspace_ids?: string[] | null
+          comfyui_ref?: string | null
+          commercial_status?: string
+          config_hash?: string | null
+          created_at?: string
+          data_handling_profile?: string | null
+          description?: string | null
+          display_name?: string | null
+          enabled_for_studio?: boolean
+          estimated_credits?: number | null
+          feature_flag?: string | null
+          id?: string
+          input_schema?: Json
+          key: string
+          model_manifest_ref?: string | null
+          output_schema?: Json
+          production_enabled?: boolean
+          provider: string
+          provider_model?: string | null
+          provider_terms_reference?: string | null
+          provider_terms_verified_at?: string | null
+          provider_workflow_reference?: string | null
+          registry_visibility?: string
+          retired_at?: string | null
+          rollout_percentage?: number
+          status?: string
+          version: string
+          worker_version?: string | null
+        }
+        Update: {
+          allowed_dimensions?: Json
+          allowed_envs?: string[]
+          allowed_workspace_ids?: string[] | null
+          comfyui_ref?: string | null
+          commercial_status?: string
+          config_hash?: string | null
+          created_at?: string
+          data_handling_profile?: string | null
+          description?: string | null
+          display_name?: string | null
+          enabled_for_studio?: boolean
+          estimated_credits?: number | null
+          feature_flag?: string | null
+          id?: string
+          input_schema?: Json
+          key?: string
+          model_manifest_ref?: string | null
+          output_schema?: Json
+          production_enabled?: boolean
+          provider?: string
+          provider_model?: string | null
+          provider_terms_reference?: string | null
+          provider_terms_verified_at?: string | null
+          provider_workflow_reference?: string | null
+          registry_visibility?: string
+          retired_at?: string | null
+          rollout_percentage?: number
+          status?: string
+          version?: string
+          worker_version?: string | null
         }
         Relationships: []
       }
