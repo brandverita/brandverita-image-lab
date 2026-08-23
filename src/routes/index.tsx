@@ -93,6 +93,7 @@ function Index() {
   const [health, setHealth] = useState<HealthState>(
     API_CONFIGURED ? { kind: "checking" } : { kind: "not_configured" },
   );
+  const [workflows, setWorkflows] = useState<WorkflowInfo[] | null>(null);
 
   const runHealthCheck = useCallback(async () => {
     if (!API_CONFIGURED) {
@@ -107,6 +108,27 @@ function Index() {
   useEffect(() => {
     void runHealthCheck();
   }, [runHealthCheck]);
+
+  // Safe registry view for the footer — authenticated Lab users only, and a
+  // failure here must never block generation.
+  useEffect(() => {
+    if (!authorized) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        const list = await listWorkflows(token);
+        if (!cancelled) setWorkflows(list);
+      } catch {
+        if (!cancelled) setWorkflows(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authorized]);
 
   useEffect(() => {
     if (phase === "done" || phase === "error") setJobsRefreshKey((key) => key + 1);
@@ -280,7 +302,7 @@ function Index() {
             {health.kind === "ok"
               ? `ok (v${health.info.version ?? "?"}${
                   health.info.dispatch === false ? ", dispatch off" : ""
-                })`
+                }${health.info.registryOk === false ? ", registry error" : ""})`
               : health.kind === "checking"
                 ? "checking"
                 : health.kind === "unreachable"
@@ -289,6 +311,12 @@ function Index() {
             {health.kind === "ok" && health.info.workerApp
               ? ` · worker: ${health.info.workerApp}/${health.info.workerClass ?? "?"}`
               : ""}
+          </span>
+          <span>
+            Registry:{" "}
+            {workflows && workflows.length > 0
+              ? workflows.map((w) => `${w.key}:${w.version}`).join(" · ")
+              : "—"}
           </span>
           <span>Supabase: {supabaseConfigured ? "connected" : "not connected"}</span>
         </div>
