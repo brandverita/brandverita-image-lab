@@ -151,7 +151,11 @@ export function useGeneration() {
             ? waited > QUEUE_STALL_MS
               ? "Still queued — no worker has picked this job up yet."
               : "Queued…"
-            : "Rendering on the GPU worker (a cold start can take a few minutes)…",
+            : next.status === "dispatching"
+              ? "Dispatching to the GPU worker…"
+              : next.status === "uploading_output"
+                ? "Uploading the result…"
+                : "Rendering on the GPU worker (a cold start can take a few minutes)…",
         );
 
 

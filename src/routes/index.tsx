@@ -16,7 +16,9 @@ import {
   GENERATION_ENABLED,
   apiEnvironmentLabel,
   checkHealth,
+  listWorkflows,
   type HealthInfo,
+  type WorkflowInfo,
 } from "@/lib/generationApi";
 
 

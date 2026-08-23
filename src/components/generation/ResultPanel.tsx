@@ -39,6 +39,10 @@ function DeveloperPanel({
   const rows: Array<[string, string]> = [
     ["Job ID", job?.job_id ?? "—"],
     ["Workflow ID", job?.workflow_id ?? WORKFLOW_ID],
+    ["Workflow version", job?.workflow_version ?? "—"],
+    ["Provider", job?.provider ?? "—"],
+    ["Model", job?.provider_model ?? "—"],
+    ["Config hash", job?.workflow_config_hash ? `${job.workflow_config_hash.slice(0, 12)}…` : "—"],
     ["Status", status],
     ["Progress", typeof job?.progress === "number" ? `${job.progress}%` : "—"],
     ["Modal call ID", job?.modal_call_id ?? "—"],
