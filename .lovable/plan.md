@@ -1,44 +1,30 @@
 # Fix: ModuleNotFoundError: No module named 'jwt' on `modal deploy api.py`
 
 ## Root cause (confirmed)
-`phase1-v6-staging/jwks_auth.py` line 19 runs `import jwt`. The `jwt` namespace is provided by the **PyJWT** package on PyPI (not the unrelated legacy `jwt` package). The Modal image that backs the V6 API app does not pip-install PyJWT, so container startup fails at import time — before the server even binds. This is a missing build dependency, not a code bug.
+The error is **local**, not in the Modal container. `modal deploy api.py` imports `api.py` in your local Python (on the Mac) to build the app graph *before* it builds the remote image. `api.py` top-level-imports `jwks_auth`, which imports `jwt`. The `jwt` module is provided by the **PyJWT** PyPI package. Your local venv (`modal-project/venv`) does not have PyJWT installed, so the local import fails and the deploy aborts.
 
-## The one-line fix
-Add `PyJWT` to the pip-install list of the API app's Modal image in `phase1-v6-staging/api.py`.
+The remote `api_image` is already correct — it pip-installs `PyJWT==2.10.1` and `cryptography==44.0.0`. The image definition block you pasted confirms this. No change to `api.py` or the image is needed.
 
-In `api.py` there is an image definition of the form:
+## The fix — install the runtime deps in the local venv
+`modal deploy` must be able to import every module reachable from `api.py` in the local Python. Install the same set of importable third-party packages locally that the API graph pulls in:
 
-```python
-image = modal.Image.debian_slim().pip_install(
-    "fastapi",
-    "httpx",
-    ...   # other deps
-)
-```
-
-Add `"PyJWT"` to that list. If the file pins versions (e.g. `"httpx==0.27.2"`), pin consistently, e.g. `"PyJWT==2.9.0"`. PyJWT 2.x is required because `jwks_auth.py` uses JWKS/JWKClient APIs only present in 2.x.
-
-```python
-image = modal.Image.debian_slim().pip_install(
-    "fastapi",
-    "httpx",
-    "PyJWT==2.9.0",
-    ...   # rest unchanged
-)
+```bash
+cd modal-project
+source venv/bin/activate
+pip install PyJWT==2.10.1 cryptography==44.0.0
 ```
 
 Notes:
-- Install `PyJWT` (case-insensitive on PyPI; `pyjwt` also works). Do **not** install the bare `jwt` package — it is a different, unmaintained library and will shadow the correct one.
-- If `api.py` reuses the worker image (`modal_worker_v2.py`'s image) instead of defining its own, add `PyJWT` to whichever image object the API `@app.function(image=...)` actually references. The worker image also lacks PyJWT, so the same addition applies there. Either way the package must end up in the image the API function runs in.
-- No change to `jwks_auth.py`, `jobs.py`, `registry.py`, `supabase_rest.py`, or the adapters. The import is correct; only the image dependency list is incomplete.
+- Install **PyJWT** (case-insensitive; `pyjwt` works too). Do NOT install the bare `jwt` package — it is a different, unmaintained library that shadows the correct one.
+- If `modal deploy` then fails on the next import (e.g. `httpx`, `pydantic`), install those locally too (`pip install httpx pydantic`). The goal is: every top-level `import` reachable from `api.py` resolves in the local venv. `modal`, `fastapi`, `uvicorn`, `pydantic`, `httpx`, `PyJWT`, `cryptography` are the full set per the image block. `supabase-py` is deliberately NOT used (the comment in api.py says httpx only), so it is not required.
+- `modal` itself is already installed locally (the CLI ran), but the `modal` Python package used inside `api.py` for `modal.Cls.from_name` may be a separate import — if `import modal` fails locally, `pip install modal` in the venv.
 
-## Deploy
+## Redeploy
 ```bash
 cd modal-project/phase1-v6-staging
 rm -rf __pycache__ ../__pycache__
 modal deploy api.py
 ```
-The image rebuilds (small layer addition; Flux model layers are cached and won't re-download since this is the API image, not the worker image).
 
 ## Verify
 1. `curl https://brandverita--brandverita-api-v6-fastapi-app.modal.run/health`
@@ -49,7 +35,4 @@ The image rebuilds (small layer addition; Flux model layers are cached and won't
 4. Contract checks: unknown workflow → 400, `outpaint:v1` → 403, stub providers → 403, unauthenticated `GET /v1/workflows` → empty/401.
 
 ## Rollback
-No V5 change is involved. If the redeployed V6 API still fails, leave `VITE_GENERATION_API_URL` pointed at V5; optionally `modal app stop brandverita-api-v6`.
-
-## Confirmation needed
-Paste the `image = modal.Image...` block from your `api.py` (and confirm whether the API references its own image or the worker's) so the exact edit can be applied verbatim. The fix above is correct for either case.
+No V5 change is involved. If the redeployed V6 API misbehaves, leave `VITE_GENERATION_API_URL` pointed at V5; optionally `modal app stop brandverita-api-v6`.
