@@ -11,13 +11,15 @@ The remote `api_image` is already correct — it pip-installs `PyJWT==2.10.1` an
 ```bash
 cd modal-project
 source venv/bin/activate
-pip install PyJWT==2.10.1 cryptography==44.0.0
+pip install PyJWT==2.10.1 cryptography==44.0.0 httpx==0.28.1 pydantic==2.10.4 fastapi==0.115.6 uvicorn==0.34.0 modal
 ```
+
+Install the **full set** at once, not one-by-one. `modal deploy` imports every module reachable from `api.py` locally, so every top-level third-party `import` in that graph must resolve in the venv. Per the `api_image` block the complete importable set is: `modal`, `fastapi`, `uvicorn`, `pydantic`, `httpx`, `PyJWT`, `cryptography`. Installing all of them now avoids a whack-a-mole of `ModuleNotFoundError` on each successive import.
 
 Notes:
 - Install **PyJWT** (case-insensitive; `pyjwt` works too). Do NOT install the bare `jwt` package — it is a different, unmaintained library that shadows the correct one.
-- If `modal deploy` then fails on the next import (e.g. `httpx`, `pydantic`), install those locally too (`pip install httpx pydantic`). The goal is: every top-level `import` reachable from `api.py` resolves in the local venv. `modal`, `fastapi`, `uvicorn`, `pydantic`, `httpx`, `PyJWT`, `cryptography` are the full set per the image block. `supabase-py` is deliberately NOT used (the comment in api.py says httpx only), so it is not required.
-- `modal` itself is already installed locally (the CLI ran), but the `modal` Python package used inside `api.py` for `modal.Cls.from_name` may be a separate import — if `import modal` fails locally, `pip install modal` in the venv.
+- `supabase-py` is deliberately NOT used (the comment in api.py says httpx only), so do not install it.
+- `modal` is already installed locally (the CLI ran), but `pip install modal` inside the venv ensures the `import modal` used by `api.py` for `modal.Cls.from_name` resolves there too — the CLI's environment and the venv may differ.
 
 ## Redeploy
 ```bash
