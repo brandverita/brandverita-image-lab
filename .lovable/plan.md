@@ -4,7 +4,18 @@ V5 (`brandverita-api`, `comfyui-generation-worker`) stays untouched and keeps se
 
 ## Done
 - V6 worker deployed: `comfyui-generation-worker-v6` (image `im-oweHTBQbMa88vvzYbmCXPP`, torch 2.5.1/cu121, all Flux models downloaded and verified, 605s build).
-- The build log tail shows the model download step succeeded, but the excerpt did not include the `git rev-parse HEAD` assertion line or the `MANIFEST_RECORD` sha256 lines for `flux1-schnell.safetensors` and `ae.safetensors`. These are still needed to complete the build manifest (the sha256 placeholders recorded in Phase 1 must be filled from this build).
+- The build log tail shows the model download step succeeded, but the excerpt did not include the `git rev-parse HEAD` assertion line or the `MANIFEST_RECORD` sha256 lines for `flux1-schnell.safetensors` and `ae.safetensors`. These are manifest-recording data only.
+
+## Manifest lines are NOT a blocker for `api.py`
+
+They are compliance evidence for the Phase 1 build manifest, not an input to the API deployment. Deploy `api.py` now; collect them afterwards.
+
+Note on where they live: those lines were printed inside the image build. Because the layers are now content-addressed and cached, a re-deploy will not reprint them. Two ways to recover them:
+
+1. Scroll back / re-open the build log in the Modal dashboard: App `comfyui-generation-worker-v6` → the deployment → image build `im-w4SUGzkHgB3c1LO3wnpYmD` logs. Search for `rev-parse` and `MANIFEST_RECORD`.
+2. Preferred, and reproducible: read the values straight out of the deployed image with a one-off Modal function (added to `modal_worker_v2.py` as a separate `@app.function` that only prints, changing nothing about `ComfyUIWorker`). It runs `git -C /root/ComfyUI rev-parse HEAD` and `sha256` over each model artifact, then prints `MANIFEST_RECORD` lines. Run with `modal run modal_worker_v2.py::print_manifest`. This is the authoritative source because it reads the image that is actually deployed.
+
+Expected: the SHA must equal `344b43989e8c56b5bb4a66cf028c834192ab59dd`; the two sha256 values replace the placeholders in `phase-1-build-manifest.md`.
 
 ## Next: deploy the V6 API
 
@@ -14,6 +25,7 @@ modal deploy api.py
 ```
 
 The API resolves the worker by name (`comfyui-generation-worker-v6`, overridable via `WORKER_APP_NAME`), so the worker had to exist first — it now does.
+
 
 ## Verification after API deploy
 1. `curl https://brandverita--brandverita-api-v6-fastapi-app.modal.run/health`
