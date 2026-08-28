@@ -1,37 +1,62 @@
-# V6 API still crash-looping on `No module named 'jwks_auth'`
+# V6 API: the module-copy layers were never saved into api.py
 
-## What the evidence shows
+## Confirmed cause
 
-- The `api_image` definition you pasted copies `jwks_auth.py`, `supabase_rest.py`, `registry.py`, `jobs.py`, and `adapters/` into `/root` at build time with `copy=True`.
-- `grep` confirms the endpoint does use it: `@app.function(image=api_image, secrets=[supabase_secret])` at line 517, directly above `@modal.asgi_app()` / `def fastapi_app()`; line 257 uses the same image.
-- The container still fails at `/root/api.py` line 58 `import jwks_auth`.
+`grep` settles it:
 
-The decorator is therefore correct, and the copy layers simply were not in the image that ran. Two candidates remain, in order of likelihood: (a) a second, later `api_image = ...` assignment in `api.py` overriding the good one, so the name bound at line 517 has no copy layers; (b) the deploy reused a cached image built before the copy layers were added. Both are cheap to rule out.
+- Line 70: `api_image = modal.Image.debian_slim(python_version="3.11").pip_install(` — the original one-line definition.
+- `grep -n "add_local_file\|add_local_dir" api.py` returned **nothing**.
 
-## Step 1 — Rule out a duplicate `api_image`, and confirm the files are where Modal looks
+So the amended `api_image` block (the one you pasted to me) exists only in your clipboard/editor buffer, not in the deployed `api.py`. The decorators are already correct (`image=api_image` at lines 257 and 517), and all nine module files are present on disk. The container therefore ran an image with no `/root/jwks_auth.py`, exactly as the traceback says.
 
-```bash
-cd ~/Desktop/modal-project/phase1-v6-staging
-grep -n "api_image" api.py
-grep -n "add_local_file\|add_local_dir" api.py
-ls -1 jwks_auth.py supabase_rest.py registry.py jobs.py adapters/__init__.py adapters/base.py adapters/modal_comfyui.py adapters/replicate.py adapters/bfl_api.py
+## The fix — one edit in `api.py`
+
+Replace the single `api_image = ...` assignment starting at line 70 with the chained version, keeping the existing `pip_install` pin list byte-identical and appending the copy layers:
+
+```python
+api_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .pip_install(
+        "fastapi==0.115.6",
+        "uvicorn==0.34.0",
+        "pydantic==2.10.4",
+        "httpx==0.28.1",
+        "modal",
+        "PyJWT==2.10.1",
+        "cryptography==44.0.0",
+    )
+    .add_local_file("jwks_auth.py", "/root/jwks_auth.py", copy=True)
+    .add_local_file("supabase_rest.py", "/root/supabase_rest.py", copy=True)
+    .add_local_file("registry.py", "/root/registry.py", copy=True)
+    .add_local_file("jobs.py", "/root/jobs.py", copy=True)
+    .add_local_dir("adapters", "/root/adapters", copy=True)
+)
 ```
 
-Expect exactly one `api_image = (` assignment, five `add_local_*` lines, and all nine files present. If a later `api_image = ...` exists, delete it (or merge its layers into the single canonical definition) — that alone is the fix.
+Delete the old assignment entirely — do not leave a second `api_image = ...` anywhere in the file, or whichever runs last wins. Nothing else changes: no decorators, secrets, app names, registry logic, Flux graph, or V5.
 
-## Step 2 — Force a clean rebuild
+## Pre-deploy check
 
 ```bash
 cd ~/Desktop/modal-project/phase1-v6-staging
+grep -c "^api_image = " api.py          # must print 1
+grep -c "add_local_file\|add_local_dir" api.py   # must print 5
+source ../venv/bin/activate
 rm -rf __pycache__ adapters/__pycache__ ../__pycache__
-modal deploy --force-build api.py
+python -c "import api; print('V6 import graph OK')"
 ```
 
-The build log must show layer steps for the four `add_local_file` copies and the `adapters` directory. If it shows only the automatic `api.py` mount, stop and send me the full build output before changing anything else.
+## Deploy
 
-## Step 3 — Make packaging observable instead of crash-only
+```bash
+modal deploy api.py
+```
 
-Extend the `/health` payload with a `modules_present` object built from `os.path.exists("/root/jwks_auth.py")`, the other three module paths, and `os.path.isdir("/root/adapters")`. One curl then confirms packaging on every future deploy, rather than waiting for a crash trace. Read-only additive field; no behaviour change.
+The build output must now show the four `add_local_file` copies and the `adapters` directory layer, not just the automatic `api.py` mount.
+
+## Optional hardening
+
+Add a `modules_present` object to the `/health` payload from `os.path.exists("/root/jwks_auth.py")` (plus the other three) and `os.path.isdir("/root/adapters")`. One curl then verifies packaging on every future deploy instead of waiting for a crash trace.
 
 ## Verification
 
@@ -40,7 +65,7 @@ curl --fail-with-body --max-time 30 \
   https://brandverita--brandverita-api-v6-fastapi-app.modal.run/health
 ```
 
-Expect `version: v6`, `app_name: brandverita-api-v6`, `worker_app: comfyui-generation-worker-v6`, all `modules_present` true, and no `ModuleNotFoundError` in the Modal logs.
+Expect `version: v6`, `app_name: brandverita-api-v6`, `worker_app: comfyui-generation-worker-v6`, and no fresh `ModuleNotFoundError` in the Modal logs.
 
 Then confirm V5 is untouched:
 
@@ -49,8 +74,8 @@ curl --fail-with-body --max-time 30 \
   https://brandverita--brandverita-api-fastapi-app.modal.run/health
 ```
 
-After that: contract checks (unknown workflow → 400, `outpaint:v1` → 403, stub providers → 403, unauthenticated `GET /v1/workflows` → empty/401) and one authenticated end-to-end generation, confirming the job row records `provider`, `workflow_version`, `workflow_config_hash`, `worker_version`.
+After that: contract checks (unknown workflow → 400, `outpaint:v1` → 403, stub providers → 403, unauthenticated `GET /v1/workflows` → empty/401), then one authenticated end-to-end generation confirming the job row records `provider`, `workflow_version`, `workflow_config_hash`, and `worker_version`.
 
 ## Scope and rollback
 
-Only `brandverita-api-v6` changes. The V5 API and `comfyui-generation-worker-v6` are untouched, and Image Lab stays on the V5 `VITE_GENERATION_API_URL` until all checks pass.
+Only `brandverita-api-v6` changes. The V5 API and `comfyui-generation-worker-v6` stay as deployed, and Image Lab remains on the V5 `VITE_GENERATION_API_URL` until every check passes.
