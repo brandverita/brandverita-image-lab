@@ -248,6 +248,11 @@ def validate_image(data: bytes, declared_mime: str) -> ValidationResult:
             "The file contents are not a valid PNG, JPEG or WebP image matching the declared type.",
         )
 
+    # Container-level animation rejection: authoritative regardless of the
+    # Pillow version; the n_frames check below stays as a second layer.
+    if is_animated_container(data, real_mime):
+        raise api_error("asset_validation_failed", "Animated images are not supported.")
+
     expected_format = ALLOWED[declared_mime][0]
     try:
         with Image.open(io.BytesIO(data)) as probe:
