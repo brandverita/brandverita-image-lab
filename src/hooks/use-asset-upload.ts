@@ -4,6 +4,7 @@ import {
   AssetApiError,
   createUploadAuthorization,
   finalizeAsset,
+  getAsset,
   newAssetIdempotencyKey,
   uploadToAuthorization,
   validateFileLocally,
