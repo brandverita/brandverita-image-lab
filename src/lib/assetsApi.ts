@@ -153,7 +153,7 @@ function errorFor(status: number, raw: string): AssetApiError {
 
 async function request<T>(
   path: string,
-  init: { method: "GET" | "POST"; accessToken?: string | null; body?: unknown },
+  init: { method: "GET" | "POST"; accessToken?: string | null | undefined; body?: unknown },
 ): Promise<T> {
   if (!API_BASE_URL) throw new AssetApiError("not_configured");
 
