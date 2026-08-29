@@ -211,6 +211,21 @@ def sniff_magic(data: bytes) -> Optional[str]:
     return None  # SVG, GIF, TIFF, HEIC, PDF, AVIF, BMP, ICO, zip, anything else
 
 
+def is_animated_container(data: bytes, mime: str) -> bool:
+    """Container-level animation check, independent of the Pillow build.
+
+    Every APNG carries an `acTL` chunk and every animated WebP carries an
+    `ANIM` RIFF chunk, so a byte scan is authoritative. It errs toward
+    over-rejection (safe direction): a pathological false positive rejects a
+    still image, but no animated file can slip through.
+    """
+    if mime == "image/png":
+        return b"acTL" in data
+    if mime == "image/webp":
+        return b"ANIM" in data
+    return False
+
+
 class ValidationResult(BaseModel):
     content_type: str
     width: int
@@ -232,6 +247,11 @@ def validate_image(data: bytes, declared_mime: str) -> ValidationResult:
             "asset_validation_failed",
             "The file contents are not a valid PNG, JPEG or WebP image matching the declared type.",
         )
+
+    # Container-level animation rejection: authoritative regardless of the
+    # Pillow version; the n_frames check below stays as a second layer.
+    if is_animated_container(data, real_mime):
+        raise api_error("asset_validation_failed", "Animated images are not supported.")
 
     expected_format = ALLOWED[declared_mime][0]
     try:

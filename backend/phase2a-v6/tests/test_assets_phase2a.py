@@ -6,6 +6,7 @@ Run from `modal-project/phase1-v6-staging` with two distinct staging user tokens
     export V6=https://brandverita--brandverita-api-v6-fastapi-app.modal.run
     export TOK_A="<user A supabase access token>"
     export TOK_B="<user B supabase access token>"
+    export SUPABASE_URL="https://thspgkedjkiltrcimond.supabase.co"
     python tests/test_assets_phase2a.py
 
 Requires: httpx, pillow. Read-only with respect to generation: it never submits a
@@ -27,6 +28,7 @@ from PIL import Image
 V6 = os.environ["V6"].rstrip("/")
 TOK_A = os.environ["TOK_A"]
 TOK_B = os.environ["TOK_B"]
+SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 
 results: list[tuple[bool, str]] = []
 
@@ -56,17 +58,24 @@ def webp_bytes(w: int = 64, h: int = 64, animated: bool = False) -> bytes:
     buf = io.BytesIO()
     base = Image.new("RGB", (w, h), (10, 120, 90))
     if animated:
-        base.save(buf, format="WEBP", save_all=True, append_images=[base, base], duration=100)
+        # Frames must differ: encoders collapse identical frames into a still image.
+        frame2 = Image.new("RGB", (w, h), (200, 30, 60))
+        base.save(buf, format="WEBP", save_all=True, append_images=[frame2], duration=100)
     else:
         base.save(buf, format="WEBP")
-    return buf.getvalue()
+    data = buf.getvalue()
+    assert (b"ANIM" in data) == animated, "WebP fixture did not encode as expected"
+    return data
 
 
 def apng_bytes() -> bytes:
     buf = io.BytesIO()
     base = Image.new("RGB", (32, 32), (255, 0, 0))
-    base.save(buf, format="PNG", save_all=True, append_images=[base, base], duration=100)
-    return buf.getvalue()
+    frame2 = Image.new("RGB", (32, 32), (0, 0, 255))
+    base.save(buf, format="PNG", save_all=True, append_images=[frame2], duration=100)
+    data = buf.getvalue()
+    assert b"acTL" in data, "APNG fixture did not encode as animated"
+    return data
 
 
 def bomb_png() -> bytes:
@@ -247,7 +256,7 @@ owner_view = httpx.get(f"{V6}/v1/assets/{ready_id}", headers=auth(TOK_A), timeou
 signed = httpx.get(owner_view["read_url"], timeout=60)
 check(signed.status_code == 200 and signed.content[:4] == b"\x89PNG", "16 signed thumbnail works")
 raw = httpx.get(
-    f"{os.environ.get('SUPABASE_URL', '').rstrip('/')}/storage/v1/object/public/generation-assets/x",
+    f"{SUPABASE_URL}/storage/v1/object/public/generation-assets/x",
     timeout=30,
 )
 check(raw.status_code >= 400, "16b public bucket URL does not serve objects")
