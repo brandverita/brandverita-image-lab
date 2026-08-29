@@ -28,6 +28,7 @@ from PIL import Image
 V6 = os.environ["V6"].rstrip("/")
 TOK_A = os.environ["TOK_A"]
 TOK_B = os.environ["TOK_B"]
+SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 
 results: list[tuple[bool, str]] = []
 
