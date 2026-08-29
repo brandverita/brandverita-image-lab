@@ -58,17 +58,24 @@ def webp_bytes(w: int = 64, h: int = 64, animated: bool = False) -> bytes:
     buf = io.BytesIO()
     base = Image.new("RGB", (w, h), (10, 120, 90))
     if animated:
-        base.save(buf, format="WEBP", save_all=True, append_images=[base, base], duration=100)
+        # Frames must differ: encoders collapse identical frames into a still image.
+        frame2 = Image.new("RGB", (w, h), (200, 30, 60))
+        base.save(buf, format="WEBP", save_all=True, append_images=[frame2], duration=100)
     else:
         base.save(buf, format="WEBP")
-    return buf.getvalue()
+    data = buf.getvalue()
+    assert (b"ANIM" in data) == animated, "WebP fixture did not encode as expected"
+    return data
 
 
 def apng_bytes() -> bytes:
     buf = io.BytesIO()
     base = Image.new("RGB", (32, 32), (255, 0, 0))
-    base.save(buf, format="PNG", save_all=True, append_images=[base, base], duration=100)
-    return buf.getvalue()
+    frame2 = Image.new("RGB", (32, 32), (0, 0, 255))
+    base.save(buf, format="PNG", save_all=True, append_images=[frame2], duration=100)
+    data = buf.getvalue()
+    assert b"acTL" in data, "APNG fixture did not encode as animated"
+    return data
 
 
 def bomb_png() -> bytes:
