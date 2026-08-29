@@ -97,14 +97,14 @@ describe("error mapping", () => {
     expect(String((error as AssetApiError).message)).not.toContain("SECRET");
   });
 
-  it("does not call the API when local validation fails", async () => {
+  it("does not call the API when local validation fails", () => {
     const fetchMock = mockFetch(200, {});
-    await expect(
+    expect(() =>
       createUploadAuthorization({
         file: file("a.gif", "image/gif", 10),
         idempotencyKey: "k",
       }),
-    ).rejects.toMatchObject({ code: "invalid_file_type" });
+    ).toThrowError(expect.objectContaining({ code: "invalid_file_type" }));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
