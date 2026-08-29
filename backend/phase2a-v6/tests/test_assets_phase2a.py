@@ -249,7 +249,7 @@ owner_view = httpx.get(f"{V6}/v1/assets/{ready_id}", headers=auth(TOK_A), timeou
 signed = httpx.get(owner_view["read_url"], timeout=60)
 check(signed.status_code == 200 and signed.content[:4] == b"\x89PNG", "16 signed thumbnail works")
 raw = httpx.get(
-    f"{os.environ.get('SUPABASE_URL', '').rstrip('/')}/storage/v1/object/public/generation-assets/x",
+    f"{SUPABASE_URL}/storage/v1/object/public/generation-assets/x",
     timeout=30,
 )
 check(raw.status_code >= 400, "16b public bucket URL does not serve objects")
