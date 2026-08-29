@@ -80,11 +80,18 @@ export function AssetTestPanel({ accessToken }: AssetTestPanelProps) {
     try {
       setRecent(await listAssets(tokenRef.current, 12));
     } catch (error) {
-      setRecentError(
-        error instanceof AssetApiError
-          ? error.message
-          : "Could not load your recent staging assets.",
-      );
+      // A 404 here means the staging API does not expose the asset endpoints yet
+      // (Phase 2A backend not deployed); that is not a user-facing error.
+      if (error instanceof AssetApiError && error.code === "asset_not_found") {
+        setRecent([]);
+        setRecentError(null);
+      } else {
+        setRecentError(
+          error instanceof AssetApiError
+            ? error.message
+            : "Could not load your recent staging assets.",
+        );
+      }
     } finally {
       setLoadingRecent(false);
     }
