@@ -4,6 +4,7 @@ import {
   AssetApiError,
   createUploadAuthorization,
   finalizeAsset,
+  getAsset,
   newAssetIdempotencyKey,
   uploadToAuthorization,
   validateFileLocally,
@@ -74,7 +75,20 @@ export function useAssetUpload(getAccessToken: () => string | null | undefined) 
         }
 
         setState((prev) => ({ ...prev, phase: "finalizing" }));
-        const asset = await finalizeAsset(authorization.asset_id, token);
+        const finalized = await finalizeAsset(authorization.asset_id, token);
+
+        // finalize is the write/validate step and does not mint read credentials.
+        // Fetch once more to obtain a short-lived signed preview URL. A failure here
+        // is non-fatal: the asset is still ready, it just renders without a thumbnail.
+        let asset = finalized;
+        if (finalized.status === "ready" && !finalized.read_url) {
+          try {
+            asset = await getAsset(authorization.asset_id, token);
+          } catch {
+            asset = finalized;
+          }
+        }
+
         setState({
           phase: asset.status === "ready" ? "ready" : "rejected",
           fileName: file.name,

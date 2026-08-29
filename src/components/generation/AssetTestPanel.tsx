@@ -118,9 +118,11 @@ export function AssetTestPanel({ accessToken }: AssetTestPanelProps) {
           Asset Test (internal)
         </h2>
         <p className="mt-1 text-left text-sm text-muted-foreground">
-          Prepares a controlled private input asset for future asset-to-asset workflows. PNG, JPEG or
-          WebP, up to {formatBytes(ASSET_MAX_BYTES)}, max 4096 x 4096. Uploads go straight to private
-          storage under a short-lived authorization; the API validates and finalizes them.
+          Prepares a controlled private input asset for future asset-to-asset workflows. Only PNG, JPEG
+          and WebP can be selected — other formats such as GIF are greyed out by the file picker and are
+          also rejected server-side. Up to {formatBytes(ASSET_MAX_BYTES)}, max 4096 x 4096. Uploads go
+          straight to private storage under a short-lived authorization; the API validates and finalizes
+          them.
         </p>
       </div>
 
