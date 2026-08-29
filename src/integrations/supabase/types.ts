@@ -35,6 +35,96 @@ export type Database = {
         }
         Relationships: []
       }
+      generation_assets: {
+        Row: {
+          bucket: string
+          content_type: string | null
+          created_at: string
+          deleted_at: string | null
+          expires_at: string | null
+          file_size: number | null
+          finalized_at: string | null
+          height: number | null
+          id: string
+          idempotency_key: string | null
+          job_id: string | null
+          kind: string
+          owner_id: string
+          provenance: Json
+          sha256: string | null
+          source_asset_id: string | null
+          status: string
+          storage_path: string
+          width: number | null
+          workflow_key: string | null
+          workflow_version: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          bucket: string
+          content_type?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          expires_at?: string | null
+          file_size?: number | null
+          finalized_at?: string | null
+          height?: number | null
+          id?: string
+          idempotency_key?: string | null
+          job_id?: string | null
+          kind?: string
+          owner_id: string
+          provenance?: Json
+          sha256?: string | null
+          source_asset_id?: string | null
+          status?: string
+          storage_path: string
+          width?: number | null
+          workflow_key?: string | null
+          workflow_version?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          bucket?: string
+          content_type?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          expires_at?: string | null
+          file_size?: number | null
+          finalized_at?: string | null
+          height?: number | null
+          id?: string
+          idempotency_key?: string | null
+          job_id?: string | null
+          kind?: string
+          owner_id?: string
+          provenance?: Json
+          sha256?: string | null
+          source_asset_id?: string | null
+          status?: string
+          storage_path?: string
+          width?: number | null
+          workflow_key?: string | null
+          workflow_version?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_assets_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "generation_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generation_assets_source_asset_id_fkey"
+            columns: ["source_asset_id"]
+            isOneToOne: false
+            referencedRelation: "generation_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generation_jobs: {
         Row: {
           completed_at: string | null
@@ -150,7 +240,15 @@ export type Database = {
           workflow_version?: string | null
           workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "generation_jobs_usage_ledger_fk"
+            columns: ["usage_ledger_id"]
+            isOneToOne: false
+            referencedRelation: "usage_ledger"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       generation_usage: {
         Row: {
@@ -181,6 +279,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      usage_ledger: {
+        Row: {
+          actual_provider_cost: number | null
+          created_at: string
+          estimated_credits: number | null
+          estimated_provider_cost: number | null
+          gpu_seconds: number | null
+          id: string
+          job_id: string | null
+          provider: string
+          settled_at: string | null
+          status: string
+          user_id: string
+          workflow_key: string
+          workflow_version: string
+          workspace_id: string | null
+        }
+        Insert: {
+          actual_provider_cost?: number | null
+          created_at?: string
+          estimated_credits?: number | null
+          estimated_provider_cost?: number | null
+          gpu_seconds?: number | null
+          id?: string
+          job_id?: string | null
+          provider: string
+          settled_at?: string | null
+          status?: string
+          user_id: string
+          workflow_key: string
+          workflow_version: string
+          workspace_id?: string | null
+        }
+        Update: {
+          actual_provider_cost?: number | null
+          created_at?: string
+          estimated_credits?: number | null
+          estimated_provider_cost?: number | null
+          gpu_seconds?: number | null
+          id?: string
+          job_id?: string | null
+          provider?: string
+          settled_at?: string | null
+          status?: string
+          user_id?: string
+          workflow_key?: string
+          workflow_version?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_ledger_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "generation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflow_definitions: {
         Row: {
