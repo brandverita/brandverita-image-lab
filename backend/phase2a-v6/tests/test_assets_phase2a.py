@@ -6,6 +6,7 @@ Run from `modal-project/phase1-v6-staging` with two distinct staging user tokens
     export V6=https://brandverita--brandverita-api-v6-fastapi-app.modal.run
     export TOK_A="<user A supabase access token>"
     export TOK_B="<user B supabase access token>"
+    export SUPABASE_URL="https://thspgkedjkiltrcimond.supabase.co"
     python tests/test_assets_phase2a.py
 
 Requires: httpx, pillow. Read-only with respect to generation: it never submits a
