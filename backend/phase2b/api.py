@@ -385,13 +385,15 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
     raw_inputs = body.get("inputs") if isinstance(body.get("inputs"), dict) else body
 
     row = registry.resolve_workflow(str(workflow_id), workflow_version)
-    registry.assert_dispatch_allowed(row, origin="lab")
 
     # ------------------------------------------------------------------
     # Phase 2B WP0: shared Image Transformation Framework gate.
-    # Runs BEFORE GenerationInputs parsing — advanced requests carry
-    # source_asset_id / output_preset / params instead of a prompt, and no
-    # candidate exists in WP0, so this gate always resolves to a refusal.
+    # Runs BEFORE the generic dispatch assertion and before GenerationInputs
+    # parsing. Advanced rows are seeded draft/testing on purpose, so the
+    # generic "workflow is not active" check would mask the framework's own
+    # (stricter) refusal. resolve_advanced_request enforces a superset:
+    # flags, module flag, research_only, staging env, internal visibility,
+    # status in (draft, testing), asset ownership/readiness, envelope, params.
     # ------------------------------------------------------------------
     resolved_advanced = None
     if row.get("requires_source_asset"):
@@ -405,12 +407,14 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             environment=registry.ENVIRONMENT,
         )
     else:
+        registry.assert_dispatch_allowed(row, origin="lab")
         # Flux and other non-asset workflows: an asset must never be attached.
         if body.get("source_asset_id"):
             raise HTTPException(
                 status_code=400,
                 detail="invalid_request: This workflow does not accept a source asset.",
             )
+
 
     try:
         inputs = GenerationInputs(**raw_inputs)
