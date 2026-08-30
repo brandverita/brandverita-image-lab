@@ -349,17 +349,23 @@ def auth_check(user_id: str = Depends(get_verified_user_id)):
 
 
 @web_app.get("/v1/workflows")
-def list_workflows(user_id: str = Depends(get_verified_user_id)):
-    """Safe, server-filtered registry view for authenticated Lab users.
+def list_workflows(origin: str = "lab", user_id: str = Depends(get_verified_user_id)):
+    """Safe, server-filtered registry view for authenticated users.
 
-    Raw graphs, provider workflow references, model file paths, deployment
-    references, and infrastructure internals are never returned. Studio
-    visibility filtering applies once a Studio origin exists (Phase 2+).
+    origin=lab (default) returns the internal Lab view for this environment.
+    origin=studio applies the shared studio-safe predicate plus an
+    active-status check, so research_only / internal / not-production-enabled
+    rows can never appear. Raw graphs, provider workflow references, model
+    file paths, deployment references, and infrastructure internals are never
+    returned for either origin.
     """
+    resolved_origin = "studio" if str(origin).lower() == "studio" else "lab"
     return {
         "environment": registry.ENVIRONMENT,
-        "workflows": registry.list_visible_workflows(origin="lab"),
+        "origin": resolved_origin,
+        "workflows": registry.list_visible_workflows(origin=resolved_origin),
     }
+
 
 
 @web_app.post("/v1/generations", response_model=JobResponse)
