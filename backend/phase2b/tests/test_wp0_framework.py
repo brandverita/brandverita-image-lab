@@ -24,8 +24,7 @@ import json
 import os
 import sys
 import uuid
-import urllib.request
-import urllib.error
+import httpx
 
 from PIL import Image
 
@@ -54,23 +53,40 @@ def check(label: str, ok: bool, detail: str = "") -> None:
         print(f"FAIL  {label}  {detail}")
 
 
-def call(method: str, url: str, token: str | None = None, body: dict | None = None):
-    req = urllib.request.Request(url, method=method)
+def call(
+    method: str,
+    url: str,
+    token: str | None = None,
+    body: dict | None = None,
+):
+    headers = {}
+
     if token:
-        req.add_header("Authorization", f"Bearer {token}")
-    data = None
+        headers["Authorization"] = f"Bearer {token}"
+
     if body is not None:
-        data = json.dumps(body).encode()
-        req.add_header("Content-Type", "application/json")
+        headers["Content-Type"] = "application/json"
+
     try:
-        with urllib.request.urlopen(req, data=data, timeout=30) as resp:
-            return resp.status, json.loads(resp.read() or b"{}")
-    except urllib.error.HTTPError as exc:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.request(
+                method,
+                url,
+                headers=headers,
+                json=body,
+            )
+
         try:
-            payload = json.loads(exc.read() or b"{}")
-        except Exception:
+            payload = response.json()
+        except ValueError:
             payload = {}
-        return exc.code, payload
+
+        return response.status_code, payload
+
+    except httpx.RequestError as exc:
+        raise RuntimeError(
+            f"HTTP request failed for {url}: {type(exc).__name__}"
+        ) from exc
 
 
 def error_code(payload: dict) -> str:
@@ -96,9 +112,15 @@ def upload_ready_asset(token: str) -> str:
         "idempotency_key": str(uuid.uuid4()),
     })
     assert status < 300, f"upload-authorizations failed: {status} {auth}"
-    put = urllib.request.Request(auth["upload_url"], method="PUT", data=data)
-    put.add_header("Content-Type", "image/png")
-    urllib.request.urlopen(put, timeout=30)
+    with httpx.Client(timeout=30.0) as client:
+        upload_response = client.put(
+            auth["upload_url"],
+            content=data,
+            headers={"Content-Type": "image/png"},
+        )
+
+    upload_response.raise_for_status()
+
     status, fin = call("POST", f"{V6}/v1/assets/{auth['asset_id']}/finalize", token)
     assert status < 300 and fin.get("status") == "ready", f"finalize failed: {status} {fin}"
     return auth["asset_id"]
