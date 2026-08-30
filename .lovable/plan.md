@@ -1,27 +1,45 @@
-# WP0: the 25/28 run used the pre-fix files, not the amended ones
+# Check 3: the outpaint registry row was never flagged as an asset workflow
 
-The three failures are the exact same three as before the fix, and the output shows two signs that the run did not exercise the amended code:
+17/18 confirm the amended `api.py` is live. Check 3 is a **data** gap, not a code gap.
 
-1. **Check 17's label in your log is `no research_only/requires_source_asset row is reachable`.** The amended test in this project reads `... is reachable from Studio` and calls `GET /v1/workflows?origin=studio`. Your log's label (and the fact that it printed a full internal row) is the old test body, which read the default Lab-origin list — where an allow-listed operator seeing the internal research row is intended behaviour.
-2. **Check 3 still returns `workflow_unavailable: workflow 'outpaint:v1' is not active`.** That string can only come from `registry.assert_dispatch_allowed` running *before* the advanced gate. The amended `backend/phase2b/api.py` (lines 394–410) runs `advanced.resolve_advanced_request` first for `requires_source_asset` rows, so it must answer `workflow_not_available`. `/health` does not distinguish the two revisions — `advanced_framework: true` was already true in the previous deploy.
+Queried the staging registry just now:
 
-`backend/phase2b/api.py` and `backend/phase2b/registry.py` in this project are correct as delivered (gate reorder present, `?origin=studio|lab` param present, Studio filter delegated to `advanced.studio_safe_row`). Nothing further needs changing in them.
+```text
+key                version                    status  requires_source_asset  allowed_output_presets
+flux_text_to_image v1                         active  false                  []
+flux_text_to_image v1-commercial-candidate     draft   false                  []
+outpaint           v1                          draft   false                  []
+```
 
-## Steps for you
+`outpaint:v1` has `requires_source_asset = false`, so `POST /v1/generations` takes the non-asset branch in `api.py` (line 410) and `registry.assert_dispatch_allowed` answers `workflow_unavailable: ... is not active` — never reaching `advanced.resolve_advanced_request`, which is what emits `workflow_not_available`. WP0's migration added the columns but did not populate this row.
 
-1. Copy the current `backend/phase2b/api.py` into `modal-project/phase1-v6-staging/api.py`, overwriting. Confirm with:
-   `grep -n "resolved_origin\|requires_source_asset" api.py` — you should see `resolved_origin` in `list_workflows` and the `if row.get("requires_source_asset"):` branch above `assert_dispatch_allowed`.
-2. Confirm `registry.py` on the Modal side contains `advanced.studio_safe_row` (`grep -n studio_safe_row registry.py`).
-3. `python -c "import api"`, then `modal deploy api.py`.
-4. Confirm the new routing is live without a token:
-   `curl -i "https://brandverita--brandverita-api-v6-fastapi-app.modal.run/v1/workflows?origin=studio"` — a 401 is fine; a 422 would mean the old build (unknown query param handling differs) — the definitive check is step 5.
-5. Copy the current `backend/phase2b/tests/test_wp0_framework.py` over your local copy, overwriting. Confirm with `grep -n "origin=studio" test_wp0_framework.py` (should match twice: the request and the checks).
-6. Re-run with `V6`, `TOK_A`, `TOK_B`, `SUPABASE_URL` set. Expected: 28/28, with check 3 reporting `workflow_not_available`.
+`allowed_output_presets` is also empty, and `input_envelope` unset — both are needed by the framework gate (`advanced.py` lines 288–302), which expects preset strings like `"1080x1080"`.
 
-## If check 3 still fails after a confirmed redeploy
+## Fix — one small data migration (no code change)
 
-Then the deployed `advanced.py` is refusing before returning the framework error, or `advanced.py` is stale on the Modal side. Paste the full JSON body of check 3 and I will trace it against `backend/phase2b/advanced.py` — no guessing.
+Update only the `outpaint:v1` row. The immutability trigger freezes these fields once `status` is `active/deprecated/disabled`; this row is `draft`, so the update is permitted.
+
+- `requires_source_asset = true`
+- `allowed_output_presets = ["1080x1080","1200x627","1600x900","1080x1350","1080x1920"]` (matches the approved absolute presets and the existing `allowed_dimensions`)
+- `input_envelope = {"max_width": 4096, "max_height": 4096, "max_pixels": 16777216, "allowed_content_types": ["image/png","image/jpeg","image/webp"]}`
+- `status = 'testing'` — aligns the row with the approved decision set (`testing`, `research_only`, `internal`, `production_enabled=false`, `enabled_for_studio=false`, `allowed_envs=[staging]`); the advanced gate accepts both `draft` and `testing`, so this is cosmetic but matches the record.
+- `candidate_id` / `candidate_notes`: leave null in WP0 (populated per candidate in WP1/WP2).
+
+Everything else stays exactly as is. All five `*_ENABLED` flags remain `false`, so the request still ends at the master-flag gate — the only change is that it is now refused by the framework with the correct `workflow_not_available` code instead of the generic lifecycle check.
+
+## Expected results after the migration
+
+- Check 3 → `403 workflow_not_available`.
+- Checks 5, 7–9, 12–16 keep passing, now via the framework gate rather than the lifecycle check (same statuses).
+- Check 17/18 unchanged: the row stays `internal` + `research_only`, so a Studio-origin read still returns nothing new. `safe_workflow_view` does not expose `requires_source_asset`, and the Studio filter rejects the row on `registry_visibility` regardless.
+- Check 6 (Flux + stray `source_asset_id` → 400) unchanged; Flux rows keep `requires_source_asset = false`.
+
+No Modal redeploy is needed — the registry cache is 60s TTL, so wait a minute (or the container recycles) and re-run the suite. Expected 28/28.
+
+## Rollback
+
+Single-row update; reverting means setting `requires_source_asset` back to `false`, `allowed_output_presets` to `[]`, `input_envelope` to null, and `status` back to `draft`.
 
 ## Close-out
 
-Once your output shows 28/28 I write `backend/phase2b/wp0-build-manifest.md` (deployed revision, flag values, migration id, test result, rollback). WP1 and WP2 still require your separate approval.
+Once your run shows 28/28 I write `backend/phase2b/wp0-build-manifest.md` (deployed revision, flag values, migration ids, test result, rollback). WP1 and WP2 still need your separate approval.
