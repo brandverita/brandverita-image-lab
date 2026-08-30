@@ -429,13 +429,35 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             )
 
 
-    try:
-        inputs = GenerationInputs(**raw_inputs)
-    except ValidationError as exc:
-        first = exc.errors()[0]
-        raise HTTPException(status_code=400, detail=f"invalid_request: {first.get('msg', 'invalid inputs')}")
+    if resolved_advanced is not None:
+        # Advanced (asset-to-asset) requests carry NO prompt and NO dimensions:
+        # the canvas is derived server-side from the validated preset, and the
+        # conditioning is a fixed constant in the pinned graph. We synthesize
+        # the normalized input record from server-owned values only, so a
+        # client can never smuggle text or geometry through this path.
+        try:
+            canvas_w, canvas_h = advanced_preset_size(resolved_advanced["output_preset"])
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="invalid_request: This output preset is not allowed for the workflow.",
+            )
+        inputs = GenerationInputs(
+            prompt="[server-owned transformation]",
+            negative_prompt="",
+            width=canvas_w,
+            height=canvas_h,
+            seed=None,
+            idempotency_key=str(raw_inputs.get("idempotency_key") or uuid.uuid4()),
+        )
+    else:
+        try:
+            inputs = GenerationInputs(**raw_inputs)
+        except ValidationError as exc:
+            first = exc.errors()[0]
+            raise HTTPException(status_code=400, detail=f"invalid_request: {first.get('msg', 'invalid inputs')}")
 
-    registry.validate_inputs(row, inputs)
+        registry.validate_inputs(row, inputs)
 
     # Immutability tripwire: the DB trigger blocks edits to activated configs;
     # if a config_hash ever disagrees with a recompute, someone bypassed it.
