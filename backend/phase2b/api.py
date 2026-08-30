@@ -73,7 +73,7 @@ import jwks_auth
 import jobs
 import registry
 import supabase_rest
-from adapters import bfl_api, modal_comfyui, replicate
+from adapters import bfl_api, modal_comfyui, modal_research_outpaint, replicate
 
 APP_NAME = os.environ.get("MODAL_APP_NAME", "brandverita-api-v6")
 app = modal.App(APP_NAME)
@@ -100,6 +100,7 @@ api_image = (
     .add_local_file("assets.py", "/root/assets.py", copy=True)
     .add_local_file("usage.py", "/root/usage.py", copy=True)
     .add_local_file("advanced.py", "/root/advanced.py", copy=True)
+    .add_local_file("outpaint_geometry.py", "/root/outpaint_geometry.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
 )
 
@@ -114,6 +115,7 @@ API_VERSION = "v6"
 
 ADAPTERS = {
     "modal_comfyui": modal_comfyui,
+    "modal_research_2b": modal_research_outpaint,
     "replicate": replicate,
     "bfl_api": bfl_api,
 }
