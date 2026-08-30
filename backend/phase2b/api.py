@@ -360,6 +360,11 @@ def health_check():
         "assets": True,
         "assets_bucket": "generation-assets",
         "advanced_framework": True,
+        # WP1 markers: the adapter is wired, but every advanced request still
+        # stops at the flag gate until the flags are flipped for a run.
+        "outpaint_adapter": modal_research_outpaint.PROVIDER,
+        "research_worker_app": modal_research_outpaint.WORKER_APP,
+        "advanced_flags_enabled": advanced.advanced_enabled(),
     }
 
 
