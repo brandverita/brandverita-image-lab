@@ -1,43 +1,27 @@
-# WP0 acceptance: resolve the 3 remaining failures (25/28 → 28/28)
+# WP0: the 25/28 run used the pre-fix files, not the amended ones
 
-All three failures are assertion/ordering issues, not safety holes. Every advanced request is still refused, nothing dispatchable leaked, and Flux is unchanged.
+The three failures are the exact same three as before the fix, and the output shows two signs that the run did not exercise the amended code:
 
-## Failure 3 — right refusal, wrong error code
+1. **Check 17's label in your log is `no research_only/requires_source_asset row is reachable`.** The amended test in this project reads `... is reachable from Studio` and calls `GET /v1/workflows?origin=studio`. Your log's label (and the fact that it printed a full internal row) is the old test body, which read the default Lab-origin list — where an allow-listed operator seeing the internal research row is intended behaviour.
+2. **Check 3 still returns `workflow_unavailable: workflow 'outpaint:v1' is not active`.** That string can only come from `registry.assert_dispatch_allowed` running *before* the advanced gate. The amended `backend/phase2b/api.py` (lines 394–410) runs `advanced.resolve_advanced_request` first for `requires_source_asset` rows, so it must answer `workflow_not_available`. `/health` does not distinguish the two revisions — `advanced_framework: true` was already true in the previous deploy.
 
-`api.py` calls `registry.assert_dispatch_allowed(row, origin="lab")` (line 382) before the advanced gate (line 391). The outpaint row is `status = draft`, so the generic lifecycle check fires first and returns `403 workflow_unavailable: workflow 'outpaint:v1' is not active`, never reaching `advanced.resolve_advanced_request`, which is what emits `workflow_not_available`.
+`backend/phase2b/api.py` and `backend/phase2b/registry.py` in this project are correct as delivered (gate reorder present, `?origin=studio|lab` param present, Studio filter delegated to `advanced.studio_safe_row`). Nothing further needs changing in them.
 
-Fix (api.py only): move the advanced branch above the dispatch assertion for asset workflows.
+## Steps for you
 
-```text
-resolve_workflow(...)
-if row.requires_source_asset:      # advanced gate first -> workflow_not_available
-    advanced.resolve_advanced_request(...)
-else:
-    assert_dispatch_allowed(row, origin="lab")
-    reject stray source_asset_id
-```
+1. Copy the current `backend/phase2b/api.py` into `modal-project/phase1-v6-staging/api.py`, overwriting. Confirm with:
+   `grep -n "resolved_origin\|requires_source_asset" api.py` — you should see `resolved_origin` in `list_workflows` and the `if row.get("requires_source_asset"):` branch above `assert_dispatch_allowed`.
+2. Confirm `registry.py` on the Modal side contains `advanced.studio_safe_row` (`grep -n studio_safe_row registry.py`).
+3. `python -c "import api"`, then `modal deploy api.py`.
+4. Confirm the new routing is live without a token:
+   `curl -i "https://brandverita--brandverita-api-v6-fastapi-app.modal.run/v1/workflows?origin=studio"` — a 401 is fine; a 422 would mean the old build (unknown query param handling differs) — the definitive check is step 5.
+5. Copy the current `backend/phase2b/tests/test_wp0_framework.py` over your local copy, overwriting. Confirm with `grep -n "origin=studio" test_wp0_framework.py` (should match twice: the request and the checks).
+6. Re-run with `V6`, `TOK_A`, `TOK_B`, `SUPABASE_URL` set. Expected: 28/28, with check 3 reporting `workflow_not_available`.
 
-`resolve_advanced_request` already enforces a stricter superset for advanced rows (flags, module flag, research_only, staging env, internal visibility, `status in (draft, testing)`), so no gate is lost. The Flux path keeps `assert_dispatch_allowed` exactly as today.
+## If check 3 still fails after a confirmed redeploy
 
-## Failures 17 and 18 — the test asserts against a Lab-origin read
+Then the deployed `advanced.py` is refusing before returning the framework error, or `advanced.py` is stale on the Modal side. Paste the full JSON body of check 3 and I will trace it against `backend/phase2b/advanced.py` — no guessing.
 
-`GET /v1/workflows` calls `list_visible_workflows(origin="lab")`. By design an allow-listed Lab user sees internal rows, so the outpaint research row appearing there is correct behavior — the test wrongly assumed either no list endpoint or a Studio-shaped one. Check 18 also fails because the safe view has no `registry_visibility` field (`SAFE_FIELDS` deliberately omits it).
+## Close-out
 
-Fix in two parts:
-
-1. `api.py`: accept an optional `?origin=studio|lab` query param on `GET /v1/workflows` (default `lab`, anything else than `studio` treated as `lab`) and pass it through to `list_visible_workflows`. No filtering logic changes; `registry.py` and `advanced.studio_safe_row` stay as delivered.
-2. `backend/phase2b/tests/test_wp0_framework.py`: rewrite checks 17–18 to assert the security property that actually matters:
-   - 17: `GET /v1/workflows?origin=studio` returns zero rows with `commercial_status == "research_only"` and zero rows whose key is a known advanced candidate.
-   - 18: the same Studio read returns only rows with `enabled_for_studio` and `production_enabled` true and `status == "active"` (fields already present in `SAFE_FIELDS`), and the Lab read is additionally asserted to expose the research row *only* as non-dispatchable (Lab visibility is intentional and documented).
-
-Optional registry hygiene (separate, needs your go-ahead): the approved decision set `status = testing` for candidates, but the seeded outpaint row is `status = draft`. Both are accepted by the advanced gate, so this changes nothing functionally; I can leave it or align it in a tiny migration.
-
-## Deliverables
-
-- Updated `backend/phase2b/api.py` (gate reorder + `origin` query param) — you copy into `modal-project/phase1-v6-staging/` and `modal deploy api.py`.
-- Updated `backend/phase2b/tests/test_wp0_framework.py` (checks 17–18 rewritten).
-- Then re-run the suite; expected 28/28. I write `backend/phase2b/wp0-build-manifest.md` on your confirmation.
-
-## Rollback
-
-Both edits are confined to `api.py` request routing and the test file. Reverting to the previous `api.py` revision restores current behavior; flags stay `false`, so no advanced path is reachable either way.
+Once your output shows 28/28 I write `backend/phase2b/wp0-build-manifest.md` (deployed revision, flag values, migration id, test result, rollback). WP1 and WP2 still require your separate approval.
