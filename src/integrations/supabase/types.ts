@@ -141,8 +141,10 @@ export type Database = {
           internal_error_ref: string | null
           modal_call_id: string | null
           negative_prompt: string | null
+          output_asset_id: string | null
           output_asset_ids: string[] | null
           output_path: string | null
+          output_preset: string | null
           progress: number
           prompt: string | null
           prompt_hash: string | null
@@ -150,8 +152,10 @@ export type Database = {
           provider_job_reference: string | null
           provider_model: string | null
           queued_at: string | null
+          request_params: Json
           result_url: string | null
           seed: number | null
+          source_asset_id: string | null
           started_at: string | null
           status: string
           updated_at: string
@@ -179,8 +183,10 @@ export type Database = {
           internal_error_ref?: string | null
           modal_call_id?: string | null
           negative_prompt?: string | null
+          output_asset_id?: string | null
           output_asset_ids?: string[] | null
           output_path?: string | null
+          output_preset?: string | null
           progress?: number
           prompt?: string | null
           prompt_hash?: string | null
@@ -188,8 +194,10 @@ export type Database = {
           provider_job_reference?: string | null
           provider_model?: string | null
           queued_at?: string | null
+          request_params?: Json
           result_url?: string | null
           seed?: number | null
+          source_asset_id?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -217,8 +225,10 @@ export type Database = {
           internal_error_ref?: string | null
           modal_call_id?: string | null
           negative_prompt?: string | null
+          output_asset_id?: string | null
           output_asset_ids?: string[] | null
           output_path?: string | null
+          output_preset?: string | null
           progress?: number
           prompt?: string | null
           prompt_hash?: string | null
@@ -226,8 +236,10 @@ export type Database = {
           provider_job_reference?: string | null
           provider_model?: string | null
           queued_at?: string | null
+          request_params?: Json
           result_url?: string | null
           seed?: number | null
+          source_asset_id?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -241,6 +253,20 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "generation_jobs_output_asset_id_fkey"
+            columns: ["output_asset_id"]
+            isOneToOne: false
+            referencedRelation: "generation_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generation_jobs_source_asset_id_fkey"
+            columns: ["source_asset_id"]
+            isOneToOne: false
+            referencedRelation: "generation_assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "generation_jobs_usage_ledger_fk"
             columns: ["usage_ledger_id"]
@@ -279,6 +305,178 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      transformation_eval_runs: {
+        Row: {
+          actual_provider_cost: number | null
+          blinded: boolean
+          candidate_id: string | null
+          cold_start: boolean | null
+          commercial_status: string | null
+          completed_at: string | null
+          config_hash: string | null
+          cost_currency: string | null
+          created_at: string
+          data_retention_finding: string | null
+          dispatched_at: string | null
+          error_code: string | null
+          error_message: string | null
+          estimated_cost: number | null
+          first_byte_at: string | null
+          gpu_seconds: number | null
+          id: string
+          job_id: string | null
+          legal_reviewed_at: string | null
+          legal_reviewed_by: string | null
+          legal_status: string
+          license_ref: string | null
+          module: string
+          notes: string | null
+          operator_user_id: string
+          output_asset_id: string | null
+          output_bytes: number | null
+          output_height: number | null
+          output_preset: string | null
+          output_sha256: string | null
+          output_width: number | null
+          provider: string
+          provider_call_id: string | null
+          provider_latency_ms: number | null
+          provider_model: string | null
+          queued_at: string | null
+          request_params: Json
+          reviewer_scores: Json
+          rubric_mean: number | null
+          source_asset_id: string | null
+          source_region_verified: boolean | null
+          status: string
+          total_latency_ms: number | null
+          training_on_input: boolean | null
+          worker_version: string | null
+          workflow_key: string
+          workflow_version: string
+        }
+        Insert: {
+          actual_provider_cost?: number | null
+          blinded?: boolean
+          candidate_id?: string | null
+          cold_start?: boolean | null
+          commercial_status?: string | null
+          completed_at?: string | null
+          config_hash?: string | null
+          cost_currency?: string | null
+          created_at?: string
+          data_retention_finding?: string | null
+          dispatched_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          estimated_cost?: number | null
+          first_byte_at?: string | null
+          gpu_seconds?: number | null
+          id?: string
+          job_id?: string | null
+          legal_reviewed_at?: string | null
+          legal_reviewed_by?: string | null
+          legal_status?: string
+          license_ref?: string | null
+          module: string
+          notes?: string | null
+          operator_user_id: string
+          output_asset_id?: string | null
+          output_bytes?: number | null
+          output_height?: number | null
+          output_preset?: string | null
+          output_sha256?: string | null
+          output_width?: number | null
+          provider: string
+          provider_call_id?: string | null
+          provider_latency_ms?: number | null
+          provider_model?: string | null
+          queued_at?: string | null
+          request_params?: Json
+          reviewer_scores?: Json
+          rubric_mean?: number | null
+          source_asset_id?: string | null
+          source_region_verified?: boolean | null
+          status?: string
+          total_latency_ms?: number | null
+          training_on_input?: boolean | null
+          worker_version?: string | null
+          workflow_key: string
+          workflow_version: string
+        }
+        Update: {
+          actual_provider_cost?: number | null
+          blinded?: boolean
+          candidate_id?: string | null
+          cold_start?: boolean | null
+          commercial_status?: string | null
+          completed_at?: string | null
+          config_hash?: string | null
+          cost_currency?: string | null
+          created_at?: string
+          data_retention_finding?: string | null
+          dispatched_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          estimated_cost?: number | null
+          first_byte_at?: string | null
+          gpu_seconds?: number | null
+          id?: string
+          job_id?: string | null
+          legal_reviewed_at?: string | null
+          legal_reviewed_by?: string | null
+          legal_status?: string
+          license_ref?: string | null
+          module?: string
+          notes?: string | null
+          operator_user_id?: string
+          output_asset_id?: string | null
+          output_bytes?: number | null
+          output_height?: number | null
+          output_preset?: string | null
+          output_sha256?: string | null
+          output_width?: number | null
+          provider?: string
+          provider_call_id?: string | null
+          provider_latency_ms?: number | null
+          provider_model?: string | null
+          queued_at?: string | null
+          request_params?: Json
+          reviewer_scores?: Json
+          rubric_mean?: number | null
+          source_asset_id?: string | null
+          source_region_verified?: boolean | null
+          status?: string
+          total_latency_ms?: number | null
+          training_on_input?: boolean | null
+          worker_version?: string | null
+          workflow_key?: string
+          workflow_version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transformation_eval_runs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "generation_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transformation_eval_runs_output_asset_id_fkey"
+            columns: ["output_asset_id"]
+            isOneToOne: false
+            referencedRelation: "generation_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transformation_eval_runs_source_asset_id_fkey"
+            columns: ["source_asset_id"]
+            isOneToOne: false
+            referencedRelation: "generation_assets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usage_ledger: {
         Row: {
@@ -343,7 +541,11 @@ export type Database = {
         Row: {
           allowed_dimensions: Json
           allowed_envs: string[]
+          allowed_output_presets: Json
           allowed_workspace_ids: string[] | null
+          artifact_pins: Json
+          candidate_id: string | null
+          candidate_notes: string | null
           comfyui_ref: string | null
           commercial_status: string
           config_hash: string | null
@@ -355,6 +557,7 @@ export type Database = {
           estimated_credits: number | null
           feature_flag: string | null
           id: string
+          input_envelope: Json
           input_schema: Json
           key: string
           model_manifest_ref: string | null
@@ -366,6 +569,7 @@ export type Database = {
           provider_terms_verified_at: string | null
           provider_workflow_reference: string | null
           registry_visibility: string
+          requires_source_asset: boolean
           retired_at: string | null
           rollout_percentage: number
           status: string
@@ -375,7 +579,11 @@ export type Database = {
         Insert: {
           allowed_dimensions?: Json
           allowed_envs?: string[]
+          allowed_output_presets?: Json
           allowed_workspace_ids?: string[] | null
+          artifact_pins?: Json
+          candidate_id?: string | null
+          candidate_notes?: string | null
           comfyui_ref?: string | null
           commercial_status?: string
           config_hash?: string | null
@@ -387,6 +595,7 @@ export type Database = {
           estimated_credits?: number | null
           feature_flag?: string | null
           id?: string
+          input_envelope?: Json
           input_schema?: Json
           key: string
           model_manifest_ref?: string | null
@@ -398,6 +607,7 @@ export type Database = {
           provider_terms_verified_at?: string | null
           provider_workflow_reference?: string | null
           registry_visibility?: string
+          requires_source_asset?: boolean
           retired_at?: string | null
           rollout_percentage?: number
           status?: string
@@ -407,7 +617,11 @@ export type Database = {
         Update: {
           allowed_dimensions?: Json
           allowed_envs?: string[]
+          allowed_output_presets?: Json
           allowed_workspace_ids?: string[] | null
+          artifact_pins?: Json
+          candidate_id?: string | null
+          candidate_notes?: string | null
           comfyui_ref?: string | null
           commercial_status?: string
           config_hash?: string | null
@@ -419,6 +633,7 @@ export type Database = {
           estimated_credits?: number | null
           feature_flag?: string | null
           id?: string
+          input_envelope?: Json
           input_schema?: Json
           key?: string
           model_manifest_ref?: string | null
@@ -430,6 +645,7 @@ export type Database = {
           provider_terms_verified_at?: string | null
           provider_workflow_reference?: string | null
           registry_visibility?: string
+          requires_source_asset?: boolean
           retired_at?: string | null
           rollout_percentage?: number
           status?: string
