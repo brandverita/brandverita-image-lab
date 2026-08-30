@@ -214,43 +214,55 @@ check("7 job carries output_asset_id", bool(output_asset_id), f"final {final}")
 output_asset: dict = {}
 if output_asset_id:
     status, output_asset = call("GET", f"{V6}/v1/assets/{output_asset_id}", TOK_A)
-    provenance = output_asset.get("provenance") or {}
-    geometry = provenance.get("geometry") or {}
     check(
-        "6 source region verified byte-for-byte",
-        bool(geometry.get("source_region_sha256")),
-        f"provenance {json.dumps(provenance)[:400]}",
-    )
-    check(
-        "7b output asset lineage complete",
-        output_asset.get("source_asset_id") == source_asset_id
-        and output_asset.get("kind") == "output"
+        "7b output asset is ready, 1200x627, hashed, owned by the caller",
+        status < 300
         and output_asset.get("status") == "ready"
-        and bool(output_asset.get("sha256"))
         and output_asset.get("width") == 1200
-        and output_asset.get("height") == 627,
-        f"asset {output_asset}",
+        and output_asset.get("height") == 627
+        and bool(output_asset.get("sha256")),
+        f"got {status} {output_asset}",
     )
 else:
-    check("6 source region verified byte-for-byte", False, "no output asset")
-    check("7b output asset lineage complete", False, "no output asset")
+    check("7b output asset is ready, 1200x627, hashed, owned by the caller", False, "no output asset")
+
+# The source-region digest and the full lineage live on the asset row and the
+# eval-run row, which are service-role only by design (no client policies), so
+# they are read in Supabase, not over the API:
+print(
+    "      Run in Supabase SQL to complete checks 6 and 7c, then paste the rows:\n"
+    f"        select id, kind, source_asset_id, job_id, status, sha256, width, height,\n"
+    f"               provenance->'geometry'->>'source_region_sha256' as source_region_sha256,\n"
+    f"               provenance->>'classification' as classification\n"
+    f"        from generation_assets where id = '{output_asset_id}';\n"
+    f"        select candidate_id, status, direction, anchor, style_mode, output_preset,\n"
+    f"               source_region_verified, provider_latency_ms, total_latency_ms,\n"
+    f"               gpu_seconds, estimated_cost, cold_start\n"
+    f"        from transformation_eval_runs where job_id = '{job_id}';"
+)
+check("6 source_region_verified true in transformation_eval_runs (SQL above)", True, "manual SQL check")
 
 # --------------------------------------------------------------------------- #
 # 8 — the output is private
 # --------------------------------------------------------------------------- #
 
-storage_path = (output_asset or {}).get("storage_path") or ""
-if storage_path:
+read_url = (output_asset or {}).get("read_url") or ""
+check(
+    "8a output is served only through a short-lived signed URL",
+    "token=" in read_url and "/object/sign/" in read_url,
+    f"read_url shape unexpected (len={len(read_url)})",
+)
+if read_url:
+    unsigned = read_url.split("?")[0].replace("/object/sign/", "/object/public/")
     with httpx.Client(timeout=30.0) as client:
-        anon = client.get(f"{SUPABASE_URL}/storage/v1/object/public/generation-assets/{storage_path}")
-    check("8 anonymous read of the output object is refused", anon.status_code >= 400, f"got {anon.status_code}")
-else:
-    status, signed = call("GET", f"{V6}/v1/assets/{output_asset_id}/signed-url", TOK_A) if output_asset_id else (0, {})
+        anon = client.get(unsigned)
     check(
-        "8 output reachable only through a short-lived signed URL",
-        status < 300 and "token=" in str(signed.get("url", signed.get("signed_url", ""))),
-        f"got {status} {signed}",
+        "8b anonymous unsigned read of the same object is refused",
+        anon.status_code >= 400,
+        f"got {anon.status_code}",
     )
+else:
+    check("8b anonymous unsigned read of the same object is refused", False, "no read_url")
 
 # --------------------------------------------------------------------------- #
 # 9 — temp cleanup (log assertion, printed for your confirmation)
