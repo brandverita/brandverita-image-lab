@@ -184,6 +184,14 @@ class GenerationInputs(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=200)
 
 
+def advanced_preset_size(output_preset: str) -> tuple[int, int]:
+    """Canvas size for an advanced request — resolved from the server-owned
+    preset table, never from the request body."""
+    import outpaint_geometry
+
+    return outpaint_geometry.resolve_preset(output_preset)
+
+
 class JobResponse(BaseModel):
     job_id: str
     status: str
