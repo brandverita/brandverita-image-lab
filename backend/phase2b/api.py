@@ -73,7 +73,7 @@ import jwks_auth
 import jobs
 import registry
 import supabase_rest
-from adapters import bfl_api, modal_comfyui, replicate
+from adapters import bfl_api, modal_comfyui, modal_research_outpaint, replicate
 
 APP_NAME = os.environ.get("MODAL_APP_NAME", "brandverita-api-v6")
 app = modal.App(APP_NAME)
@@ -100,6 +100,7 @@ api_image = (
     .add_local_file("assets.py", "/root/assets.py", copy=True)
     .add_local_file("usage.py", "/root/usage.py", copy=True)
     .add_local_file("advanced.py", "/root/advanced.py", copy=True)
+    .add_local_file("outpaint_geometry.py", "/root/outpaint_geometry.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
 )
 
@@ -114,6 +115,7 @@ API_VERSION = "v6"
 
 ADAPTERS = {
     "modal_comfyui": modal_comfyui,
+    "modal_research_2b": modal_research_outpaint,
     "replicate": replicate,
     "bfl_api": bfl_api,
 }
@@ -180,6 +182,14 @@ class GenerationInputs(BaseModel):
     height: int = 1024
     seed: Optional[int] = None
     idempotency_key: str = Field(min_length=1, max_length=200)
+
+
+def advanced_preset_size(output_preset: str) -> tuple[int, int]:
+    """Canvas size for an advanced request — resolved from the server-owned
+    preset table, never from the request body."""
+    import outpaint_geometry
+
+    return outpaint_geometry.resolve_preset(output_preset)
 
 
 class JobResponse(BaseModel):
@@ -307,6 +317,17 @@ def run_generation(
 modal_comfyui.set_dispatcher(run_generation)
 
 
+# Phase 2B WP1 — outpaint orchestration. Runs in the API app (it owns the
+# Supabase service role and the storage bucket); the isolated research worker
+# comfyui-research-worker-2b only ever receives bytes.
+@app.function(image=api_image, secrets=[supabase_secret], timeout=3600)
+def run_outpaint_job(job_id: str, user_id: str) -> None:
+    modal_research_outpaint.run_outpaint(job_id=job_id, user_id=user_id)
+
+
+modal_research_outpaint.set_dispatcher(run_outpaint_job)
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -339,6 +360,11 @@ def health_check():
         "assets": True,
         "assets_bucket": "generation-assets",
         "advanced_framework": True,
+        # WP1 markers: the adapter is wired, but every advanced request still
+        # stops at the flag gate until the flags are flipped for a run.
+        "outpaint_adapter": modal_research_outpaint.PROVIDER,
+        "research_worker_app": modal_research_outpaint.WORKER_APP,
+        "advanced_flags_enabled": advanced.advanced_enabled(),
     }
 
 
@@ -416,13 +442,35 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             )
 
 
-    try:
-        inputs = GenerationInputs(**raw_inputs)
-    except ValidationError as exc:
-        first = exc.errors()[0]
-        raise HTTPException(status_code=400, detail=f"invalid_request: {first.get('msg', 'invalid inputs')}")
+    if resolved_advanced is not None:
+        # Advanced (asset-to-asset) requests carry NO prompt and NO dimensions:
+        # the canvas is derived server-side from the validated preset, and the
+        # conditioning is a fixed constant in the pinned graph. We synthesize
+        # the normalized input record from server-owned values only, so a
+        # client can never smuggle text or geometry through this path.
+        try:
+            canvas_w, canvas_h = advanced_preset_size(resolved_advanced["output_preset"])
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="invalid_request: This output preset is not allowed for the workflow.",
+            )
+        inputs = GenerationInputs(
+            prompt="[server-owned transformation]",
+            negative_prompt="",
+            width=canvas_w,
+            height=canvas_h,
+            seed=None,
+            idempotency_key=str(raw_inputs.get("idempotency_key") or uuid.uuid4()),
+        )
+    else:
+        try:
+            inputs = GenerationInputs(**raw_inputs)
+        except ValidationError as exc:
+            first = exc.errors()[0]
+            raise HTTPException(status_code=400, detail=f"invalid_request: {first.get('msg', 'invalid inputs')}")
 
-    registry.validate_inputs(row, inputs)
+        registry.validate_inputs(row, inputs)
 
     # Immutability tripwire: the DB trigger blocks edits to activated configs;
     # if a config_hash ever disagrees with a recompute, someone bypassed it.
@@ -475,9 +523,17 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
         # Persist the VALIDATED values returned by the framework gate, never
         # the raw request body. output_asset_id stays null until dispatch
         # completes (WP1/WP2).
-        payload["source_asset_id"] = resolved_advanced.get("source_asset_id")
+        payload["source_asset_id"] = (resolved_advanced.get("asset") or {}).get("id")
         payload["output_preset"] = resolved_advanced.get("output_preset")
         payload["request_params"] = resolved_advanced.get("request_params") or {}
+        payload["input_asset_ids"] = [(resolved_advanced.get("asset") or {}).get("id")]
+        # No prompt is ever stored for a transformation job: the conditioning
+        # lives in the pinned graph, not in user input.
+        payload["prompt"] = None
+        payload["inputs"] = {
+            "output_preset": resolved_advanced.get("output_preset"),
+            "params": resolved_advanced.get("request_params") or {},
+        }
     inserted = supabase_rest.rest_insert("generation_jobs", payload)
     if not inserted:
         raise HTTPException(status_code=500, detail="Could not create generation job")
