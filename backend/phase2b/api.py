@@ -518,9 +518,17 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
         # Persist the VALIDATED values returned by the framework gate, never
         # the raw request body. output_asset_id stays null until dispatch
         # completes (WP1/WP2).
-        payload["source_asset_id"] = resolved_advanced.get("source_asset_id")
+        payload["source_asset_id"] = (resolved_advanced.get("asset") or {}).get("id")
         payload["output_preset"] = resolved_advanced.get("output_preset")
         payload["request_params"] = resolved_advanced.get("request_params") or {}
+        payload["input_asset_ids"] = [(resolved_advanced.get("asset") or {}).get("id")]
+        # No prompt is ever stored for a transformation job: the conditioning
+        # lives in the pinned graph, not in user input.
+        payload["prompt"] = None
+        payload["inputs"] = {
+            "output_preset": resolved_advanced.get("output_preset"),
+            "params": resolved_advanced.get("request_params") or {},
+        }
     inserted = supabase_rest.rest_insert("generation_jobs", payload)
     if not inserted:
         raise HTTPException(status_code=500, detail="Could not create generation job")
