@@ -1,75 +1,60 @@
-# Fix the WP1 API import error
+# How to flip the two WP1 flags for the controlled test
 
-## Confirmed cause
+The test script is paused waiting for `ADVANCED_WORKFLOWS_ENABLED` and `OUTPAINT_EVAL_ENABLED`
+to be true on `brandverita-api-v6`.
 
-`api.py` line 76 imports `modal_research_outpaint` from the `adapters` package, but that
-file was never copied into `phase1-v6-staging/adapters/`. The traceback names
-`adapters/__init__.py` as the resolution point, which means the package exists and only the
-new module is missing. This is a missing-file problem, not a code problem — `api.py` is the
-correct WP1 version (it already has the `outpaint_geometry.py` and `adapters/` image copy
-layers).
+## Where the flags come from
 
-Step 1 of the WP1 README lists two files for `phase1-v6-staging/` that are easy to miss:
-`outpaint_geometry.py` and `adapters/modal_research_outpaint.py`. If the adapter is missing,
-the geometry module is very likely missing too.
+`advanced.py` reads them with `os.environ.get(...)`, defaulting to false. The deployed
+`api.py` sets no env values anywhere, so both are currently false — which is exactly why
+check 1 passed. All three Modal functions (the web app, the generation background function,
+and the outpaint background function) share the single `api_image`, so one env layer on the
+image covers every path.
 
-## Fix
+## Turn them on (temporary, for the duration of the run)
 
-Copy both missing files from the repo download into the staging folder:
+In `phase1-v6-staging/api.py`, add one `.env(...)` call at the end of the `api_image` chain,
+immediately after `.add_local_dir("adapters", "/root/adapters", copy=True)`:
 
-- `backend/phase2b/adapters/modal_research_outpaint.py` → `phase1-v6-staging/adapters/modal_research_outpaint.py`
-- `backend/phase2b/outpaint_geometry.py` → `phase1-v6-staging/outpaint_geometry.py`
+```python
+    .env({
+        "ADVANCED_WORKFLOWS_ENABLED": "true",
+        "OUTPAINT_EVAL_ENABLED": "true",
+        "OUTPAINT_DISPATCH_ENABLED": "false",
+        "PRODUCT_SCENE_EVAL_ENABLED": "false",
+        "PROVIDER_BFL_ENABLED": "false",
+        "PROVIDER_REPLICATE_ENABLED": "false",
+    })
+```
 
-Then clear stale caches so Python does not resolve an old package listing:
+The three false flags stay false throughout WP1. Then, in a second terminal (leave the test
+script paused — do not press Enter yet):
 
 ```bash
 cd ~/Desktop/modal-project/phase1-v6-staging
-rm -rf __pycache__ adapters/__pycache__
-```
-
-No edit to `api.py`, `adapters/__init__.py`, the worker, the registry, secrets, or V5 is
-required.
-
-## Re-verify before deploying
-
-```bash
-cd ~/Desktop/modal-project/phase1-v6-staging
-source ../venv/bin/activate
-ls adapters/            # expect modal_research_outpaint.py present
-ls outpaint_geometry.py
-python -c "import api, outpaint_geometry; import adapters.modal_research_outpaint; print('WP1 import graph OK')"
-```
-
-Expect the run to end with `WP1 import graph OK`. If a different `ModuleNotFoundError`
-appears (for example `PIL`), install that package in the local venv — `modal deploy` imports
-the whole graph locally before building the image.
-
-## Deploy and confirm
-
-```bash
 modal deploy api.py
 curl --fail-with-body --max-time 30 \
   https://brandverita--brandverita-api-v6-fastapi-app.modal.run/health
 ```
 
-Expect in the health payload:
+Wait for `"advanced_flags_enabled": true` in the health payload before returning to the test
+terminal and pressing Enter. Pressing Enter early makes check 3 fail with a 403.
 
-- `"outpaint_adapter": "modal_research_2b"`
-- `"research_worker_app": "comfyui-research-worker-2b"`
-- `"advanced_flags_enabled": false`
+Note: this rebuilds the image layer above the copies, so the deploy is fast but not instant.
+The first outpaint job will also be a cold start on the research worker — the script expects
+that and prints the latency separately.
 
-The deploy output should now list `outpaint_geometry.py` and the `adapters` directory among
-the copied image layers.
+## Turn them back off at the end
 
-## Then
+The script pauses a second time (step 12) and asks for the flags to be false. At that point,
+edit the same block back to `"false"` for both, redeploy, confirm `/health` reports
+`"advanced_flags_enabled": false`, then press Enter. Check 12 verifies the 403 returns.
 
-Once `/health` reports those three markers, run the WP1 controlled test
-(`backend/phase2b/tests/test_wp1_outpaint.py`, step 7 of the README) and paste the output so
-the WP1 build manifest can be recorded. Flags stay false until the script tells you which two
-to flip.
+The deployed steady state for WP1 is all five flags false — the flag-on window exists only
+for the duration of this test run.
 
-## Rollback
+## After the run
 
-Nothing deployed changes state until `modal deploy api.py` succeeds. The already-deployed
-`comfyui-research-worker-2b` is isolated and can be stopped independently; V5, V6 Flux, and
-the Phase 1 worker are untouched.
+Paste the full script output plus the two SQL result sets it prints (the
+`generation_assets` row and the `transformation_eval_runs` row) and the two cleanup log
+lines, so the WP1 build manifest can be recorded.
