@@ -1,60 +1,65 @@
-# How to flip the two WP1 flags for the controlled test
+# WP1 first run: what "stuck after check 3" means and how to confirm
 
-The test script is paused waiting for `ADVANCED_WORKFLOWS_ENABLED` and `OUTPAINT_EVAL_ENABLED`
-to be true on `brandverita-api-v6`.
+Check 3 passing means the API accepted the job and spawned the background outpaint function.
+The script now polls `GET /v1/generations/{job_id}` every 3 seconds with a 900-second
+deadline, printing nothing until the job reaches `completed` or `failed`. Silence here is the
+expected output shape, not a hang in the script.
 
-## Where the flags come from
+The first run is a full cold start on `comfyui-research-worker-2b`: container boot, A10G
+allocation, ComfyUI server startup, and the SD-1.5-inpainting checkpoint loading from the
+volume into VRAM. Several minutes is normal. The worker has a 1800s function timeout and a
+60s scaledown window, so it will not be killed mid-run.
 
-`advanced.py` reads them with `os.environ.get(...)`, defaulting to false. The deployed
-`api.py` sets no env values anywhere, so both are currently false — which is exactly why
-check 1 passed. All three Modal functions (the web app, the generation background function,
-and the outpaint background function) share the single `api_image`, so one env layer on the
-image covers every path.
+## Let it poll — no action for now
 
-## Turn them on (temporary, for the duration of the run)
+Give it the full 15 minutes. If it completes, the script continues to checks 5 through 12 on
+its own and prints the latency line (the p95 ≤ 90s target applies to warm runs, not this one).
 
-In `phase1-v6-staging/api.py`, add one `.env(...)` call at the end of the `api_image` chain,
-immediately after `.add_local_dir("adapters", "/root/adapters", copy=True)`:
+## While waiting, watch the two log streams
 
-```python
-    .env({
-        "ADVANCED_WORKFLOWS_ENABLED": "true",
-        "OUTPAINT_EVAL_ENABLED": "true",
-        "OUTPAINT_DISPATCH_ENABLED": "false",
-        "PRODUCT_SCENE_EVAL_ENABLED": "false",
-        "PROVIDER_BFL_ENABLED": "false",
-        "PROVIDER_REPLICATE_ENABLED": "false",
-    })
-```
-
-The three false flags stay false throughout WP1. Then, in a second terminal (leave the test
-script paused — do not press Enter yet):
+In separate terminals:
 
 ```bash
-cd ~/Desktop/modal-project/phase1-v6-staging
-modal deploy api.py
-curl --fail-with-body --max-time 30 \
-  https://brandverita--brandverita-api-v6-fastapi-app.modal.run/health
+modal app logs brandverita-api-v6
+modal app logs comfyui-research-worker-2b
 ```
 
-Wait for `"advanced_flags_enabled": true` in the health payload before returning to the test
-terminal and pressing Enter. Pressing Enter early makes check 3 fail with a 403.
+What each stream should show, in order:
 
-Note: this rebuilds the image layer above the copies, so the deploy is fast but not instant.
-The first outpaint job will also be a cold start on the research worker — the script expects
-that and prints the latency separately.
+- API: the job moving to `processing`, then eventually `wp1_outpaint_completed job=... verified=True`
+  and `wp1_temp_cleanup ... dir_exists=False`.
+- Worker: ComfyUI boot lines, then the graph executing, then `wp1_worker_cleanup files=... dir_removed=1`.
 
-## Turn them back off at the end
+Also useful, read-only:
 
-The script pauses a second time (step 12) and asks for the flags to be false. At that point,
-edit the same block back to `"false"` for both, redeploy, confirm `/health` reports
-`"advanced_flags_enabled": false`, then press Enter. Check 12 verifies the 403 returns.
+```sql
+select status, error_code, error_message, started_at, completed_at, worker_version
+from generation_jobs order by created_at desc limit 1;
+```
 
-The deployed steady state for WP1 is all five flags false — the flag-on window exists only
-for the duration of this test run.
+`status = processing` with no error confirms it is genuinely running.
 
-## After the run
+## If it times out or fails
 
-Paste the full script output plus the two SQL result sets it prints (the
-`generation_assets` row and the `transformation_eval_runs` row) and the two cleanup log
-lines, so the WP1 build manifest can be recorded.
+Do not re-run the script from the top. Capture, in this order:
+
+1. The last 100 lines of each of the two log streams.
+2. The `generation_jobs` row above (status, `error_code`, `error_message`).
+3. The `transformation_eval_runs` row for that `job_id` — the failure path writes one with
+   `status = failed` and an `error_message`.
+
+The likely first-run failure modes, distinguishable from those three sources:
+
+- worker log shows ComfyUI never reaching `system_stats` -> boot/checkpoint problem in the worker image
+- API log shows `wp1_outpaint_failed ... source_region_integrity_failed` -> geometry/composite mismatch
+- API log shows a Modal lookup error naming `ResearchOutpaintWorker` -> class/app name mismatch between adapter and worker
+- job stays `queued` with nothing in either log -> the background function never spawned
+
+Paste those three items and the fix will be scoped to whichever of the above it actually is.
+No flags change and no redeploy while diagnosing; the flag-off step 12 still runs at the end.
+
+## Flags reminder
+
+Both flags are true right now. Whatever the outcome, set `ADVANCED_WORKFLOWS_ENABLED` and
+`OUTPAINT_EVAL_ENABLED` back to `"false"` and redeploy before finishing for the day — the
+steady state for WP1 is all five flags false.
