@@ -1,65 +1,45 @@
-# WP1 first run: what "stuck after check 3" means and how to confirm
+# The log shows the test is near the end, not stuck
 
-Check 3 passing means the API accepted the job and spawned the background outpaint function.
-The script now polls `GET /v1/generations/{job_id}` every 3 seconds with a 900-second
-deadline, printing nothing until the job reaches `completed` or `failed`. Silence here is the
-expected output shape, not a hang in the script.
+Reading the sequence in the API log:
 
-The first run is a full cold start on `comfyui-research-worker-2b`: container boot, A10G
-allocation, ComfyUI server startup, and the SD-1.5-inpainting checkpoint loading from the
-volume into VRAM. Several minutes is normal. The worker has a 1800s function timeout and a
-60s scaledown window, so it will not be killed mid-run.
-
-## Let it poll — no action for now
-
-Give it the full 15 minutes. If it completes, the script continues to checks 5 through 12 on
-its own and prints the latency line (the p95 ≤ 90s target applies to warm runs, not this one).
-
-## While waiting, watch the two log streams
-
-In separate terminals:
-
-```bash
-modal app logs brandverita-api-v6
-modal app logs comfyui-research-worker-2b
+```text
+3 x POST /v1/generations -> 400      = checks 10a, 10b, 10c (disallowed preset,
+                                       invalid direction/anchor pair, injected prompt)
+1 x POST /v1/generations -> 200      = check 11a, the Flux regression job
+GET  /v1/generations/f0e5fcdd... x7  = the script polling that Flux job every 2s
 ```
 
-What each stream should show, in order:
+The `AsyncUsageWarning` comes from `adapters/modal_comfyui.py` — the Flux adapter — which
+confirms the 200 is the text-to-image regression probe, not an outpaint request. The three
+400s are the rejection checks passing, and they can only run after the outpaint job reached
+`completed` and checks 5 through 9 executed. So the outpaint run finished; the terminal simply
+prints all of it at once as it goes.
 
-- API: the job moving to `processing`, then eventually `wp1_outpaint_completed job=... verified=True`
-  and `wp1_temp_cleanup ... dir_exists=False`.
-- Worker: ComfyUI boot lines, then the graph executing, then `wp1_worker_cleanup files=... dir_removed=1`.
+Nothing to do but let it finish. Remaining: the Flux poll completes (check 11a), the optional
+V5 health check (11b, skipped unless `V5` was set), then the script pauses and asks you to set
+both flags back to `false`.
 
-Also useful, read-only:
+## Final step when it pauses
 
-```sql
-select status, error_code, error_message, started_at, completed_at, worker_version
-from generation_jobs order by created_at desc limit 1;
-```
+1. In `phase1-v6-staging/api.py`, set `ADVANCED_WORKFLOWS_ENABLED` and `OUTPAINT_EVAL_ENABLED`
+   back to `"false"` in the `.env({...})` block.
+2. `modal deploy api.py`
+3. Confirm `/health` reports `"advanced_flags_enabled": false`.
+4. Press Enter. Check 12 verifies the 403 returns.
 
-`status = processing` with no error confirms it is genuinely running.
+## Then paste for the build manifest
 
-## If it times out or fails
+- The full script output, including the scroll-back for checks 4 through 9 and the latency line.
+- The two SQL result sets the script printed: the `generation_assets` row (`source_region_sha256`,
+  `classification`) and the `transformation_eval_runs` row (`source_region_verified`,
+  `provider_latency_ms`, `total_latency_ms`, `gpu_seconds`, `estimated_cost`, `cold_start`).
+- The two cleanup log lines: `wp1_temp_cleanup ... dir_exists=False` from the API and
+  `wp1_worker_cleanup files=... dir_removed=1` from `comfyui-research-worker-2b`.
 
-Do not re-run the script from the top. Capture, in this order:
+## Note on the async warning
 
-1. The last 100 lines of each of the two log streams.
-2. The `generation_jobs` row above (status, `error_code`, `error_message`).
-3. The `transformation_eval_runs` row for that `job_id` — the failure path writes one with
-   `status = failed` and an `error_message`.
-
-The likely first-run failure modes, distinguishable from those three sources:
-
-- worker log shows ComfyUI never reaching `system_stats` -> boot/checkpoint problem in the worker image
-- API log shows `wp1_outpaint_failed ... source_region_integrity_failed` -> geometry/composite mismatch
-- API log shows a Modal lookup error naming `ResearchOutpaintWorker` -> class/app name mismatch between adapter and worker
-- job stays `queued` with nothing in either log -> the background function never spawned
-
-Paste those three items and the fix will be scoped to whichever of the above it actually is.
-No flags change and no redeploy while diagnosing; the flag-off step 12 still runs at the end.
-
-## Flags reminder
-
-Both flags are true right now. Whatever the outcome, set `ADVANCED_WORKFLOWS_ENABLED` and
-`OUTPAINT_EVAL_ENABLED` back to `"false"` and redeploy before finishing for the day — the
-steady state for WP1 is all five flags false.
+`modal_comfyui.py` calls `_dispatcher.spawn(...)` synchronously inside FastAPI's async
+handler. It is pre-existing V6 Flux behaviour, harmless, and unrelated to WP1 — Flux returned
+200 and dispatched normally. Switching it to `await spawn.aio(...)` is a small optional
+cleanup for a later pass; it is deliberately not touched during a test run whose whole point
+is that the Flux path is unchanged.
