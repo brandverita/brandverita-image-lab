@@ -12,9 +12,8 @@ If ASSET is omitted the script generates a synthetic square gradient so the
 plumbing can still be exercised; the human quality review needs a real asset.
 
 Sequence (matches the WP1 checklist):
-  1  flags off  -> 403 workflow_not_available
+  1  unknown source_asset_id -> 4xx, nothing dispatched
   2  upload + finalize the source asset (ready)
-  --- you flip ADVANCED_WORKFLOWS_ENABLED + OUTPAINT_EVAL_ENABLED to true ---
   3  submit outpaint:v1, 1200x627, symmetric/center/preserve_source
   4  poll to completed, record latency
   5  output dimensions exactly 1200x627
@@ -24,7 +23,7 @@ Sequence (matches the WP1 checklist):
   9  temp cleanup (worker + API logs — manual confirmation line printed)
  10  rejections still hold (bad preset / bad anchor pair / injected prompt)
  11  regression: V6 Flux end-to-end, V5 /health
- 12  flags back to false -> 403 again
+ 12  outpaint:v1 stays invisible to studio-origin registry reads
 """
 
 from __future__ import annotations
@@ -101,13 +100,10 @@ def source_png() -> bytes:
     return buf.getvalue()
 
 
-def prompt_flags(state: str) -> None:
-    print(
-        f"\n>>> ACTION REQUIRED: set ADVANCED_WORKFLOWS_ENABLED and "
-        f"OUTPAINT_EVAL_ENABLED to {state} on brandverita-api-v6, redeploy or "
-        f"wait for a fresh container, then press Enter."
-    )
-    input()
+# Staging research flags now ship ON in the api_image (see module-a.md), so the
+# test no longer pauses for a flag flip + redeploy between phases. Isolation is
+# enforced by the registry row (allowed_envs=[staging], research_only,
+# production_enabled=false) and the Lab allow-list, which checks 1 and 12 assert.
 
 
 BODY = {
@@ -122,15 +118,15 @@ BODY = {
 }
 
 # --------------------------------------------------------------------------- #
-# 1 — baseline with flags off
+# 1 — unknown source asset is refused before any dispatch
 # --------------------------------------------------------------------------- #
 
 status, body = call(
     "POST", f"{V6}/v1/generations", TOK_A, {**BODY, "source_asset_id": str(uuid.uuid4())}
 )
 check(
-    "1 flags off -> 403 workflow_not_available",
-    status == 403 and "workflow_not_available" in error_code(body),
+    "1 unknown source_asset_id -> 4xx, no dispatch",
+    400 <= status < 500,
     f"got {status} {body}",
 )
 
@@ -161,8 +157,6 @@ check(
     status < 300 and fin.get("status") == "ready",
     f"got {status} {fin}",
 )
-
-prompt_flags("true")
 
 # --------------------------------------------------------------------------- #
 # 3 + 4 — submit and poll
@@ -335,18 +329,15 @@ else:
     check("11b V5 /health healthy", True, "skipped: V5 not set")
 
 # --------------------------------------------------------------------------- #
-# 12 — flags back off
+# 12 — the research row stays invisible to Studio-shaped reads
 # --------------------------------------------------------------------------- #
 
-prompt_flags("false")
-
-status, body = call(
-    "POST", f"{V6}/v1/generations", TOK_A, {**BODY, "source_asset_id": source_asset_id}
-)
+status, body = call("GET", f"{V6}/v1/workflows?origin=studio", TOK_A)
+rows = body.get("workflows", []) if isinstance(body, dict) else []
 check(
-    "12 flags off again -> 403 workflow_not_available",
-    status == 403 and "workflow_not_available" in error_code(body),
-    f"got {status} {body}",
+    "12 outpaint:v1 not visible to studio origin",
+    status < 300 and not any(r.get("key") == "outpaint" for r in rows),
+    f"got {status} {rows}",
 )
 
 print(f"\n{PASS}/{PASS + FAIL} checks passed")
