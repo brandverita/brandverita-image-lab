@@ -334,7 +334,7 @@ modal_comfyui.set_dispatcher(run_generation)
 # Phase 2B WP1 — outpaint orchestration. Runs in the API app (it owns the
 # Supabase service role and the storage bucket); the isolated research worker
 # comfyui-research-worker-2b only ever receives bytes.
-@app.function(image=api_image, secrets=[supabase_secret], timeout=3600)
+@app.function(image=api_image, secrets=[supabase_secret], timeout=1200)
 def run_outpaint_job(job_id: str, user_id: str) -> None:
     modal_research_outpaint.run_outpaint(job_id=job_id, user_id=user_id)
 
