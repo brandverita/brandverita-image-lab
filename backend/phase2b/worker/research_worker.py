@@ -63,24 +63,29 @@ COMFY_PORT = 8188
 
 app = modal.App(APP_NAME)
 model_volume = modal.Volume.from_name("research-2b-models", create_if_missing=True)
-hf_secret = modal.Secret.from_name("huggingface-research-2b")
+
+CHECKPOINT_PATH = f"{MODEL_DIR}/checkpoints/{CHECKPOINT_FILE}"
 
 
 def _fetch_checkpoint() -> None:
-    """Build-time download of the pinned, gated checkpoint, verified by SHA256.
-    A digest mismatch fails the image build rather than shipping unknown
-    weights."""
+    """Download the pinned checkpoint into the volume, verified by SHA256.
+
+    This runs at IMAGE BUILD time (`.run_function`), not at request time: a
+    download or digest failure now fails `modal deploy` loudly instead of
+    crash-looping every container while a submitted job hangs.
+    """
     from huggingface_hub import hf_hub_download
 
     os.makedirs(f"{MODEL_DIR}/checkpoints", exist_ok=True)
-    target = f"{MODEL_DIR}/checkpoints/{CHECKPOINT_FILE}"
-    if os.path.exists(target):
+    if os.path.exists(CHECKPOINT_PATH):
+        print(f"wp1_checkpoint_present path={CHECKPOINT_PATH}")
         return
+    print(f"wp1_checkpoint_download repo={CHECKPOINT_REPO} file={CHECKPOINT_FILE}")
     path = hf_hub_download(
         repo_id=CHECKPOINT_REPO,
         filename=CHECKPOINT_FILE,
         revision=CHECKPOINT_REVISION,
-        token=os.environ["HF_TOKEN"],
+        token=os.environ.get("HF_TOKEN") or None,  # ungated repo: token optional
     )
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -88,7 +93,9 @@ def _fetch_checkpoint() -> None:
             digest.update(chunk)
     if digest.hexdigest() != CHECKPOINT_SHA256:
         raise RuntimeError("checkpoint sha256 mismatch — refusing to build image")
-    shutil.copyfile(path, target)
+    shutil.copyfile(path, CHECKPOINT_PATH)
+    model_volume.commit()
+    print(f"wp1_checkpoint_ready sha256={CHECKPOINT_SHA256}")
 
 
 research_image = (
