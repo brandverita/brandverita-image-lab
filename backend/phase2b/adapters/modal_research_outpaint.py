@@ -35,6 +35,9 @@ from typing import Any, Optional
 PROVIDER = "modal_research_2b"
 WORKER_APP = "comfyui-research-worker-2b"
 WORKER_CLASS = "ResearchOutpaintWorker"
+# Cold start (A10G alloc + ComfyUI boot) plus one graph run. Anything past this
+# is a stuck worker, not slow generation.
+WORKER_CALL_TIMEOUT_S = 900
 
 _dispatcher = None
 
