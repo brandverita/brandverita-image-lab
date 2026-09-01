@@ -1,10 +1,16 @@
 # WP1 integration steps — Module A Smart Resize / Outpaint
 
-Everything below is staging only, `research_only`, and stays behind flags that are
-false by default. No Studio, no production, no customer data, no WP2 / BFL / Replicate.
+> **Superseded 2026-09-01 — read `backend/phase2b/module-a.md` first.** Two steps below
+> are now obsolete: the `huggingface-research-2b` Modal secret is no longer needed (the
+> checkpoint moved to an ungated repo), and the manual flag-flip pauses are gone (staging
+> research flags ship ON in the `api_image`). The file-copy list and the SQL steps still apply.
 
-Pins and licences: `backend/phase2b/wp1-research-manifest.md` (option **A** chosen —
-`sd-v1-5-inpainting.safetensors`, verified by SHA256 at image build time).
+Everything below is staging only and `research_only`. No Studio, no production, no customer
+data, no WP2 / BFL / Replicate.
+
+Pins and licences: `backend/phase2b/wp1-research-manifest.md` — in use:
+`sd-v1-5-inpainting.ckpt` from the ungated `stable-diffusion-v1-5/stable-diffusion-inpainting`
+repo, SHA256-verified at image build time, no Hugging Face token.
 
 ## 1. New files
 
