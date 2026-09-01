@@ -35,6 +35,9 @@ from typing import Any, Optional
 PROVIDER = "modal_research_2b"
 WORKER_APP = "comfyui-research-worker-2b"
 WORKER_CLASS = "ResearchOutpaintWorker"
+# Cold start (A10G alloc + ComfyUI boot) plus one graph run. Anything past this
+# is a stuck worker, not slow generation.
+WORKER_CALL_TIMEOUT_S = 900
 
 _dispatcher = None
 
@@ -164,7 +167,17 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         seed = random.randint(0, 2**31 - 1)
         worker = modal.Cls.from_name(WORKER_APP, WORKER_CLASS)()
         started = time.time()
-        result = worker.outpaint.remote(canvas_png, mask_png, seed)
+        # Bounded call. A blocking .remote() on a crash-looping worker hung one
+        # job for the full 3600s function timeout with no diagnosable error;
+        # spawn + get(timeout=...) fails the job fast with a real error code.
+        call = worker.outpaint.spawn(canvas_png, mask_png, seed)
+        try:
+            result = call.get(timeout=WORKER_CALL_TIMEOUT_S)
+        except TimeoutError as exc:  # modal raises builtin TimeoutError
+            raise RuntimeError(
+                f"worker_timeout: no result from {WORKER_APP} within "
+                f"{WORKER_CALL_TIMEOUT_S}s"
+            ) from exc
         provider_latency_ms = int((time.time() - started) * 1000)
 
         generated_png = result["image"]

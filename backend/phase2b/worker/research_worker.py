@@ -22,9 +22,9 @@ a seed. It has no Supabase credentials, no storage access, no asset ids, and no
 way to receive a prompt or a graph — the graph is compiled in-image from
 outpaint_graph.py.
 
-Secrets: `huggingface-research-2b` containing HF_TOKEN (read scope) — used ONCE
-at image build time to download the gated checkpoint. It is not used at
-request time and never leaves the worker.
+Secrets: none. The checkpoint comes from an ungated Hugging Face repo and is
+downloaded + SHA256-verified at image build time, so no token exists in this
+app at request time.
 """
 
 from __future__ import annotations
@@ -47,10 +47,15 @@ WORKER_VERSION = "research-2b-outpaint-1"
 COMFYUI_REPO = "https://github.com/comfyanonymous/ComfyUI"
 COMFYUI_COMMIT = "3d0003c24c1aec9f0c021dbc70ffb7cd8cf0685c"  # tag v0.3.69
 
-CHECKPOINT_REPO = "benjamin-paine/stable-diffusion-v1-5-inpainting"
-CHECKPOINT_REVISION = "705090e310335d0cf1586d032130fa9f09a6fa00"
-CHECKPOINT_FILE = "sd-v1-5-inpainting.safetensors"
-CHECKPOINT_SHA256 = "ef97ac1fe87ed0406433ad8710ff1da6e07e873de9a1a107b828844336d015ec"
+# Ungated source. The previous pin (benjamin-paine/...) is a gated repo: the
+# HF token was valid but the account was not on its authorized list, so every
+# container crashed in @modal.enter() with GatedRepoError. This repo is the
+# community-maintained continuation of the removed runwayml repo, is not gated,
+# and needs no token at all.
+CHECKPOINT_REPO = "stable-diffusion-v1-5/stable-diffusion-inpainting"
+CHECKPOINT_REVISION = "8a4288a76071f7280aedbdb3253bdb9e9d5d84bb"
+CHECKPOINT_FILE = "sd-v1-5-inpainting.ckpt"
+CHECKPOINT_SHA256 = "c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19"
 
 MODEL_DIR = "/models"
 COMFY_DIR = "/opt/ComfyUI"
@@ -58,24 +63,29 @@ COMFY_PORT = 8188
 
 app = modal.App(APP_NAME)
 model_volume = modal.Volume.from_name("research-2b-models", create_if_missing=True)
-hf_secret = modal.Secret.from_name("huggingface-research-2b")
+
+CHECKPOINT_PATH = f"{MODEL_DIR}/checkpoints/{CHECKPOINT_FILE}"
 
 
 def _fetch_checkpoint() -> None:
-    """Build-time download of the pinned, gated checkpoint, verified by SHA256.
-    A digest mismatch fails the image build rather than shipping unknown
-    weights."""
+    """Download the pinned checkpoint into the volume, verified by SHA256.
+
+    This runs at IMAGE BUILD time (`.run_function`), not at request time: a
+    download or digest failure now fails `modal deploy` loudly instead of
+    crash-looping every container while a submitted job hangs.
+    """
     from huggingface_hub import hf_hub_download
 
     os.makedirs(f"{MODEL_DIR}/checkpoints", exist_ok=True)
-    target = f"{MODEL_DIR}/checkpoints/{CHECKPOINT_FILE}"
-    if os.path.exists(target):
+    if os.path.exists(CHECKPOINT_PATH):
+        print(f"wp1_checkpoint_present path={CHECKPOINT_PATH}")
         return
+    print(f"wp1_checkpoint_download repo={CHECKPOINT_REPO} file={CHECKPOINT_FILE}")
     path = hf_hub_download(
         repo_id=CHECKPOINT_REPO,
         filename=CHECKPOINT_FILE,
         revision=CHECKPOINT_REVISION,
-        token=os.environ["HF_TOKEN"],
+        token=os.environ.get("HF_TOKEN") or None,  # ungated repo: token optional
     )
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -83,7 +93,9 @@ def _fetch_checkpoint() -> None:
             digest.update(chunk)
     if digest.hexdigest() != CHECKPOINT_SHA256:
         raise RuntimeError("checkpoint sha256 mismatch — refusing to build image")
-    shutil.copyfile(path, target)
+    shutil.copyfile(path, CHECKPOINT_PATH)
+    model_volume.commit()
+    print(f"wp1_checkpoint_ready sha256={CHECKPOINT_SHA256}")
 
 
 research_image = (
@@ -129,6 +141,9 @@ research_image = (
         f"rm -rf {COMFY_DIR}/custom_nodes/* || true",
     )
     .add_local_file("outpaint_graph.py", "/root/outpaint_graph.py", copy=True)
+    # Weights are fetched and digest-verified at BUILD time, so a bad pin or a
+    # gated repo fails `modal deploy` instead of hanging a submitted job.
+    .run_function(_fetch_checkpoint, volumes={MODEL_DIR: model_volume})
 )
 
 
@@ -136,8 +151,7 @@ research_image = (
     image=research_image,
     gpu="A10G",
     volumes={MODEL_DIR: model_volume},
-    secrets=[hf_secret],
-    timeout=1800,
+    timeout=1200,
     scaledown_window=60,
     max_containers=2,
 )
@@ -146,8 +160,12 @@ class ResearchOutpaintWorker:
 
     @modal.enter()
     def start(self) -> None:
-        _fetch_checkpoint()
-        model_volume.commit()
+        boot_started = time.time()
+        if not os.path.exists(CHECKPOINT_PATH):
+            # Should be impossible: the build step put it there. Fail fast and
+            # loudly rather than trying to download at request time.
+            raise RuntimeError(f"checkpoint missing at {CHECKPOINT_PATH}")
+        print(f"wp1_worker_boot_start checkpoint={CHECKPOINT_FILE}")
 
         with open(f"{COMFY_DIR}/extra_model_paths.yaml", "w") as handle:
             handle.write(
@@ -171,16 +189,21 @@ class ResearchOutpaintWorker:
             ],
             cwd=COMFY_DIR,
         )
-        deadline = time.time() + 300
+        deadline = time.time() + 240
         while time.time() < deadline:
+            if self.process.poll() is not None:
+                raise RuntimeError(
+                    f"ComfyUI exited during boot with code {self.process.returncode}"
+                )
             try:
                 urllib.request.urlopen(
                     f"http://127.0.0.1:{COMFY_PORT}/system_stats", timeout=2
                 )
+                print(f"wp1_worker_boot_ready seconds={round(time.time() - boot_started, 1)}")
                 return
             except Exception:  # noqa: BLE001
                 time.sleep(1)
-        raise RuntimeError("ComfyUI did not become ready")
+        raise RuntimeError("ComfyUI did not become ready within 240s")
 
     @modal.exit()
     def stop(self) -> None:
@@ -243,8 +266,9 @@ class ResearchOutpaintWorker:
             prompt_id = queued.get("prompt_id")
             if not prompt_id:
                 raise RuntimeError("ComfyUI rejected the graph")
+            print(f"wp1_worker_graph_queued prompt_id={prompt_id}")
 
-            deadline = time.time() + 900
+            deadline = time.time() + 420
             image_meta = None
             while time.time() < deadline:
                 history = json.loads(self._get(f"/history/{prompt_id}") or b"{}")
@@ -259,7 +283,10 @@ class ResearchOutpaintWorker:
                         break
                 time.sleep(1)
             if image_meta is None:
-                raise RuntimeError("graph execution timed out")
+                raise RuntimeError("graph execution timed out after 420s")
+            print(
+                f"wp1_worker_graph_done seconds={round(time.time() - started, 1)}"
+            )
 
             query = (
                 f"/view?filename={image_meta['filename']}"

@@ -12,15 +12,16 @@ extends texture and background rather than inventing subjects.
 
 Pins (see backend/phase2b/wp1-research-manifest.md):
     ComfyUI  comfyanonymous/ComfyUI @ 3d0003c24c1aec9f0c021dbc70ffb7cd8cf0685c (v0.3.69)
-    model    sd-v1-5-inpainting.safetensors
-             sha256 ef97ac1fe87ed0406433ad8710ff1da6e07e873de9a1a107b828844336d015ec
+    model    sd-v1-5-inpainting.ckpt (ungated mirror stable-diffusion-v1-5/
+             stable-diffusion-inpainting @ 8a4288a76071f7280aedbdb3253bdb9e9d5d84bb)
+             sha256 c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19
     nodes    built-in only, zero custom nodes
 """
 
 from __future__ import annotations
 
-CHECKPOINT = "sd-v1-5-inpainting.safetensors"
-CHECKPOINT_SHA256 = "ef97ac1fe87ed0406433ad8710ff1da6e07e873de9a1a107b828844336d015ec"
+CHECKPOINT = "sd-v1-5-inpainting.ckpt"
+CHECKPOINT_SHA256 = "c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19"
 COMFYUI_COMMIT = "3d0003c24c1aec9f0c021dbc70ffb7cd8cf0685c"
 GRAPH_VERSION = "outpaint-v1-preserve-source-1"
 
