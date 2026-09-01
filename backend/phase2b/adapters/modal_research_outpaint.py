@@ -158,7 +158,9 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         )
 
         # 2 + 3 — download into the job dir and verify the digest before use.
+        _stage(job_id, "gate_passed", asset=asset["id"], preset=preset)
         source_bytes = advanced.acquire_source_bytes(asset)
+        _stage(job_id, "source_downloaded", bytes=len(source_bytes))
         source_path = os.path.join(job_dir, "source.bin")
         with open(source_path, "wb") as handle:
             handle.write(source_bytes)
