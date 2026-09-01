@@ -204,6 +204,12 @@ def run_outpaint(job_id: str, user_id: str) -> None:
                 f"{WORKER_CALL_TIMEOUT_S}s"
             ) from exc
         provider_latency_ms = int((time.time() - started) * 1000)
+        # Recorded immediately: a failure after this point must not erase the
+        # fact that the provider call itself succeeded.
+        eval_row["provider_latency_ms"] = provider_latency_ms
+        eval_row["gpu_seconds"] = result.get("gpu_seconds")
+        eval_row["worker_version"] = result.get("worker_version")
+        _stage(job_id, "worker_returned", ms=provider_latency_ms, bytes=len(result["image"] or b""))
 
         generated_png = result["image"]
         generated_path = os.path.join(job_dir, "generated.png")
