@@ -387,8 +387,8 @@ def write_ready_output(
                 "workflow_key": workflow_key,
                 "workflow_version": workflow_version,
                 "provenance": provenance,
-                "finalized_at": assets._iso(assets._now()),
-                "expires_at": assets._iso(assets._now() + assets.READY_TTL),
+                "finalized_at": assets._iso(stamped),
+                "expires_at": assets._iso(stamped + assets.READY_TTL),
             }
         )
     except Exception:
