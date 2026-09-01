@@ -246,6 +246,13 @@ def run_outpaint(job_id: str, user_id: str) -> None:
             "artifact_pins": row.get("artifact_pins") or [],
             "classification": "research_only/staging",
         }
+        _stage(
+            job_id,
+            "composited",
+            verified=verified,
+            output_bytes=len(output_png),
+            size=f"{placement.canvas_width}x{placement.canvas_height}",
+        )
         output_asset = advanced.write_ready_output(
             data=output_png,
             content_type="image/png",
