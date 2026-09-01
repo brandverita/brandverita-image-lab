@@ -301,8 +301,11 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         print(f"wp1_outpaint_completed job={job_id} verified={verified}")
 
     except Exception as exc:  # noqa: BLE001
-        code = getattr(exc, "detail", None)
-        print(f"wp1_outpaint_failed job={job_id} type={type(exc).__name__}")
+        described = _describe(exc)
+        # Server-side diagnostics only. The client still receives the generic
+        # 'transformation_failed' message set on the job row below.
+        print(f"wp1_outpaint_failed job={job_id} detail={described}")
+        print(traceback.format_exc())
         try:
             import jobs as _jobs
 
