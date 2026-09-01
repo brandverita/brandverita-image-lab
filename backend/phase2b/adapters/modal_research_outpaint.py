@@ -328,7 +328,7 @@ def run_outpaint(job_id: str, user_id: str) -> None:
                 {
                     "status": "failed",
                     "error_code": "transformation_failed",
-                    "error_message": str(code) if isinstance(code, str) else type(exc).__name__,
+                    "error_message": described,
                     "completed_at": _iso(datetime.now(timezone.utc)),
                 }
             )
