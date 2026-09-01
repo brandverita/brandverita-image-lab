@@ -65,7 +65,7 @@ possible quality upgrade if licensing is ever cleared.
 
 ## 3. VAE and text encoders
 
-- **Option A / B:** none needed — the SD-1.5-inpainting checkpoint embeds VAE + CLIP-L.
+- **In-use checkpoint:** none needed — the SD-1.5-inpainting checkpoint embeds VAE + CLIP-L.
 - **Only if option C is chosen:** `comfyanonymous/flux_text_encoders`, repo commit
   `6af2a98e3f615bdfa612fbd85da93d1ed5f69ef5` — `clip_l.safetensors` SHA256
   `660c6f5b1abae9dc498ac2d21e1347d2abdb0cf6c0c0c8576cd796491d9a6cdd`,
@@ -105,20 +105,11 @@ graph later needs one, it gets its own repo + commit + license row here before i
 with `comfyui-generation-worker`, `comfyui-generation-worker-v6`, `brandverita-api`, or
 `brandverita-api-v6`. Deploying, breaking, or deleting it cannot affect V5, V6, or Flux.
 
-## 7. Open decision — one item, needs your call
+## 7. Resolved — checkpoint decision (closed 2026-09-01)
 
-Every credible ComfyUI-native inpainting checkpoint is either **gated** (option A, option C)
-or ships as a **pickle `.ckpt`** (option B). To use option A the research worker needs a
-**Hugging Face read token as a Modal secret on `comfyui-research-worker-2b` only** —
-server-side, never in the frontend bundle, never in Supabase, never in the API app.
-
-Pick one:
-
-- **A (recommended)** — SD-1.5-inpainting safetensors + an HF read token secret scoped to the
-  research worker. Safest file format, smallest attack surface, ~4.3 GB.
-- **B** — ungated `.ckpt`, no token, but a pickle load. Not recommended.
-- **C** — FLUX.1-Fill-dev, best output quality, non-commercial license, still needs an HF token
-  **and** you must accept BFL's license on the HF account that owns it.
-
-Once you choose, I build the worker, adapter, graph, and test script against exactly these pins
-and record the chosen row in the WP1 build manifest.
+Originally decided as option A (gated SD-1.5-inpainting safetensors + HF read token). That
+repo's gate rejected our token at runtime, so WP1 now runs the **ungated
+`stable-diffusion-v1-5/stable-diffusion-inpainting` `.ckpt`** pinned in §2, with no Hugging
+Face token required anywhere. The `huggingface-research-2b` Modal secret is no longer read by
+the worker and can be deleted. FLUX.1-Fill-dev remains the only quality upgrade path and stays
+blocked on licensing.
