@@ -35,36 +35,33 @@ share no image, no volume, and no code path.
 
 ## 2. Inpainting / outpainting checkpoint
 
-**Recommended — option A (ComfyUI-native single-file safetensors):**
+**In use (revised 2026-09-01 after the gated-repo failure):**
 
 | Field | Value |
 | --- | --- |
-| Repo | https://huggingface.co/benjamin-paine/stable-diffusion-v1-5-inpainting |
-| Repo commit | `705090e310335d0cf1586d032130fa9f09a6fa00` |
-| Filename | `sd-v1-5-inpainting.safetensors` |
-| SHA256 | `ef97ac1fe87ed0406433ad8710ff1da6e07e873de9a1a107b828844336d015ec` |
-| Size | 4,265,216,468 bytes |
+| Repo | https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting |
+| Repo commit | `8a4288a76071f7280aedbdb3253bdb9e9d5d84bb` |
+| Filename | `sd-v1-5-inpainting.ckpt` |
+| SHA256 | `c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19` |
+| Size | 4,265,437,280 bytes |
 | License | CreativeML OpenRAIL-M (use-based restrictions; research use permitted) |
-| Access | **Gated (`gated: auto`)** — requires an HF read token to download |
-| Contains | UNet + CLIP text encoder + VAE in one file (no separate VAE/encoder download needed) |
+| Access | **Ungated** (`gated: false`) — no Hugging Face token required |
+| Contains | UNet + CLIP text encoder + VAE in one file |
 
-`fp16` variant, if we prefer a smaller cold start:
-`sd-v1-5-inpainting.fp16.safetensors`,
-SHA256 `1a33284f5a9be288d1d97c4b1d66d186b1eda8d3703506318e3358bf05914cee`, 2,132,692,100 bytes.
+Why this replaced the original pin: `benjamin-paine/stable-diffusion-v1-5-inpainting` is
+gated (`gated: auto`). The research token was valid but the account was not on the repo's
+authorized list, so `hf_hub_download` raised `GatedRepoError (403)` inside
+`@modal.enter()`; every container crash-looped and the submitted job sat blocked until the
+3600s function timeout. Trade-off accepted: this file is a pickle `.ckpt` rather than
+safetensors. Mitigations — the digest above is verified at **image build time** before the
+file is written to the volume, the worker holds no credentials and no network egress path
+to our data, and the build fails outright on any mismatch.
 
-**Option B (ungated, but worse):** `botp/stable-diffusion-v1-5-inpainting`, commit
-`069f0782bc637fcbf3310d985b3d0ebffc668535`, file `sd-v1-5-inpainting.ckpt`,
-SHA256 `c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19`,
-CreativeML OpenRAIL-M. Ungated, so no token — **but it is a pickle `.ckpt`, not safetensors.**
-I do not recommend loading a pickle checkpoint into our infrastructure.
-
-**Option C (higher quality, blocked today):** `black-forest-labs/FLUX.1-Fill-dev`, repo commit
-`358293da0354175698b67ec8299acf928313a78a`, `flux1-fill-dev.safetensors` SHA256
-`03e289f530df51d014f48e675a9ffa2141bc003259bf5f25d75b957e920a41ca` (23,804,922408 bytes),
-`ae.safetensors` SHA256 `afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38`.
-License: **FLUX.1 [dev] Non-Commercial License** — acceptable for `research_only` evaluation,
-never for production. Repo is **access-restricted**: it requires accepting the license on a
-Hugging Face account and a token with granted access. Flagged, not chosen.
+Rejected alternatives: `benjamin-paine/...` (gated, cause of the outage);
+`black-forest-labs/FLUX.1-Fill-dev` (access-restricted and non-commercial —
+`flux1-fill-dev.safetensors` SHA256
+`03e289f530df51d014f48e675a9ffa2141bc003259bf5f25d75b957e920a41ca`), kept on file only as a
+possible quality upgrade if licensing is ever cleared.
 
 ## 3. VAE and text encoders
 
