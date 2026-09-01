@@ -65,6 +65,28 @@ def _iso(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).isoformat()
 
 
+def _describe(exc: BaseException) -> str:
+    """Server-side only: the most specific text we can get out of an exception.
+
+    HTTPException carries its useful information in `.detail` (often a dict with
+    error_code), and `str(exc)` on it is just the status code — which is how the
+    first WP1 failure recorded only 'HTTPException' and told us nothing.
+    """
+    detail = getattr(exc, "detail", None)
+    status = getattr(exc, "status_code", None)
+    if detail is not None:
+        text = f"{type(exc).__name__}({status}): {detail}"
+    else:
+        text = f"{type(exc).__name__}: {exc}"
+    return text[:900]
+
+
+def _stage(job_id: str, name: str, **fields: Any) -> None:
+    extra = " ".join(f"{k}={v}" for k, v in fields.items())
+    print(f"wp1_stage job={job_id} step={name} {extra}".rstrip())
+
+
+
 def run_outpaint(job_id: str, user_id: str) -> None:
     """Background execution. Any failure marks the job failed and leaves no
     storage object and no asset row behind."""
