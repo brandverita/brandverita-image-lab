@@ -12,9 +12,8 @@ If ASSET is omitted the script generates a synthetic square gradient so the
 plumbing can still be exercised; the human quality review needs a real asset.
 
 Sequence (matches the WP1 checklist):
-  1  flags off  -> 403 workflow_not_available
+  1  unknown source_asset_id -> 4xx, nothing dispatched
   2  upload + finalize the source asset (ready)
-  --- you flip ADVANCED_WORKFLOWS_ENABLED + OUTPAINT_EVAL_ENABLED to true ---
   3  submit outpaint:v1, 1200x627, symmetric/center/preserve_source
   4  poll to completed, record latency
   5  output dimensions exactly 1200x627
@@ -24,7 +23,7 @@ Sequence (matches the WP1 checklist):
   9  temp cleanup (worker + API logs — manual confirmation line printed)
  10  rejections still hold (bad preset / bad anchor pair / injected prompt)
  11  regression: V6 Flux end-to-end, V5 /health
- 12  flags back to false -> 403 again
+ 12  outpaint:v1 stays invisible to studio-origin registry reads
 """
 
 from __future__ import annotations
