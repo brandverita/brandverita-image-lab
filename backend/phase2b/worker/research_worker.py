@@ -22,9 +22,9 @@ a seed. It has no Supabase credentials, no storage access, no asset ids, and no
 way to receive a prompt or a graph — the graph is compiled in-image from
 outpaint_graph.py.
 
-Secrets: `huggingface-research-2b` containing HF_TOKEN (read scope) — used ONCE
-at image build time to download the gated checkpoint. It is not used at
-request time and never leaves the worker.
+Secrets: none. The checkpoint comes from an ungated Hugging Face repo and is
+downloaded + SHA256-verified at image build time, so no token exists in this
+app at request time.
 """
 
 from __future__ import annotations
