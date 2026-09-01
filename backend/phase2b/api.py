@@ -102,6 +102,20 @@ api_image = (
     .add_local_file("advanced.py", "/root/advanced.py", copy=True)
     .add_local_file("outpaint_geometry.py", "/root/outpaint_geometry.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
+    # Staging research flags. This deployment is isolated from Studio and the
+    # main app (allowed_envs=[staging], internal registry visibility, Lab
+    # allow-list), so the advanced modules stay on rather than requiring a
+    # redeploy per test. Production dispatch is still refused by the registry:
+    # commercial_status=research_only + production_enabled=false.
+    .env(
+        {
+            "ADVANCED_WORKFLOWS_ENABLED": "true",
+            "OUTPAINT_EVAL_ENABLED": "true",
+            "MODULE_A_ENABLED": "true",
+            "MODULE_B_ENABLED": "false",
+            "HOSTED_PROVIDER_DISPATCH_ENABLED": "false",
+        }
+    )
 )
 
 
