@@ -47,10 +47,15 @@ WORKER_VERSION = "research-2b-outpaint-1"
 COMFYUI_REPO = "https://github.com/comfyanonymous/ComfyUI"
 COMFYUI_COMMIT = "3d0003c24c1aec9f0c021dbc70ffb7cd8cf0685c"  # tag v0.3.69
 
-CHECKPOINT_REPO = "benjamin-paine/stable-diffusion-v1-5-inpainting"
-CHECKPOINT_REVISION = "705090e310335d0cf1586d032130fa9f09a6fa00"
-CHECKPOINT_FILE = "sd-v1-5-inpainting.safetensors"
-CHECKPOINT_SHA256 = "ef97ac1fe87ed0406433ad8710ff1da6e07e873de9a1a107b828844336d015ec"
+# Ungated source. The previous pin (benjamin-paine/...) is a gated repo: the
+# HF token was valid but the account was not on its authorized list, so every
+# container crashed in @modal.enter() with GatedRepoError. This repo is the
+# community-maintained continuation of the removed runwayml repo, is not gated,
+# and needs no token at all.
+CHECKPOINT_REPO = "stable-diffusion-v1-5/stable-diffusion-inpainting"
+CHECKPOINT_REVISION = "8a4288a76071f7280aedbdb3253bdb9e9d5d84bb"
+CHECKPOINT_FILE = "sd-v1-5-inpainting.ckpt"
+CHECKPOINT_SHA256 = "c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19"
 
 MODEL_DIR = "/models"
 COMFY_DIR = "/opt/ComfyUI"
