@@ -361,10 +361,17 @@ def write_ready_output(
     )
     if resp.status_code >= 300:
         raise advanced_error("storage_unavailable", "Could not store the output image.")
+    # created_at is written explicitly from the same instant as finalized_at.
+    # Letting the DB default fill created_at made it a few ms LATER than the
+    # app-computed finalized_at, and the validate_generation_asset_expiry
+    # trigger rejects finalized_at < created_at — which is what failed the
+    # first WP1 outpaint job after a successful generate + composite.
+    stamped = assets._now()
     try:
         return assets.table_insert(
             {
                 "id": output_asset_id,
+                "created_at": assets._iso(stamped),
                 "owner_id": owner_id,
                 "bucket": assets.BUCKET,
                 "storage_path": path,
