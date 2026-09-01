@@ -288,7 +288,11 @@ class ResearchOutpaintWorker:
                 if entry:
                     status = (entry.get("status") or {}).get("status_str")
                     if status == "error":
-                        raise RuntimeError("graph execution failed")
+                        messages = (entry.get("status") or {}).get("messages") or []
+                        raise RuntimeError(
+                            "graph execution failed: "
+                            + json.dumps(messages)[:1500]
+                        )
                     images = (entry.get("outputs", {}).get("9", {}) or {}).get("images")
                     if images:
                         image_meta = images[0]
