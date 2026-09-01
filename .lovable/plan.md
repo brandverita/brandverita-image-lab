@@ -1,39 +1,43 @@
-# Local layout check — phase2b-research-worker
+# WP1 test run — you are running the old test script
 
-## Verdict: your local structure is correct
+## What the output actually shows
 
-The screenshot shows `modal-project/phase2b-research-worker/` containing `research_worker.py` and `outpaint_graph.py` **side by side** (plus `__pycache__`). That is exactly what is required — there must be **no `worker/` subfolder** on your machine.
+Two lines identify the file as the pre-revision copy:
 
-Reason: `research_worker.py` does `.add_local_file("outpaint_graph.py", "/root/outpaint_graph.py", copy=True)` and later `import outpaint_graph`. Both paths are resolved relative to the file's own directory, so the two files must be flat siblings.
+- `FAIL 1 flags off -> 403 workflow_not_available` — that check no longer exists.
+- `>>> ACTION REQUIRED: set ADVANCED_WORKFLOWS_ENABLED and OUTPAINT_EVAL_ENABLED to true` — the flag-flip pause was removed when staging research flags started shipping ON in the `api_image`.
 
-The `worker/` folder only exists in this repo (`backend/phase2b/worker/`) as the source location to copy from.
+The current `backend/phase2b/tests/test_wp1_outpaint.py` in this repo has check 1 as `1 unknown source_asset_id -> 4xx, no dispatch` and contains no `input()` pause.
 
-## Expected local tree
+So the 404 `asset_not_found` you saw is not a defect — under the current script that response is exactly what check 1 asserts. Your API is behaving correctly; the assertion in your local copy is stale.
 
-```text
-modal-project/
-  phase1-v6-staging/      api.py, registry.py, jobs.py, assets.py, advanced.py,
-                          outpaint_geometry.py, adapters/modal_research_outpaint.py
-  phase2b-research-worker/
-    research_worker.py
-    outpaint_graph.py
-  v5-current/
+## Action
+
+1. Press Ctrl-C to stop the paused run.
+2. Re-download `backend/phase2b/tests/test_wp1_outpaint.py` from the repo, overwriting your local copy in `tests/`.
+3. Delete `tests/__pycache__`.
+4. Re-run, unchanged env:
+
+```bash
+V6=https://brandverita--brandverita-api-v6-fastapi-app.modal.run \
+TOK_A=<staging JWT> \
+SUPABASE_URL=https://thspgkedjkiltrcimond.supabase.co \
+ASSET=/path/to/brandverita-square-source.png \
+python test_wp1_outpaint.py
 ```
 
-## Two things to confirm before deploying
+It runs straight through with no pauses. Checks 6 and 9 print SQL/log lines for you to confirm manually.
 
-1. Delete `phase2b-research-worker/__pycache__` — stale bytecode from the earlier gated-repo build can shadow the re-pinned graph module.
-2. Confirm both files are the latest versions (ungated `sd-v1-5-inpainting.ckpt`, sha256 `c6bbc15e…`, build-time weight fetch). If unsure, re-download both from the repo.
+## Before re-running, confirm the deploy is current
+
+`curl -s $V6/health` should show:
+
+- `advanced_flags_enabled: true`
+- `outpaint_adapter: modal_research_2b`
+- `research_worker_app: comfyui-research-worker-2b`
+
+If `advanced_flags_enabled` is false, your `api.py` is also the older copy — re-download `backend/phase2b/api.py` and `backend/phase2b/adapters/modal_research_outpaint.py` and redeploy. Same for the worker pair (`research_worker.py`, `outpaint_graph.py`) if `modal deploy research_worker.py` did not pull ~4.3 GB and print a digest check — that build-time fetch is what the fix added.
 
 ## Then
 
-```bash
-cd modal-project/phase2b-research-worker
-modal deploy research_worker.py     # ~4.3 GB fetch, fails loudly on digest mismatch
-
-cd ../phase1-v6-staging
-modal deploy api.py
-curl -s .../health                  # expect advanced_flags_enabled: true
-```
-
-Then run `tests/test_wp1_outpaint.py` end to end — it no longer pauses for flag flips — and paste the output so the WP1 build manifest can be recorded.
+Paste the full run output plus the two SQL result sets it prints (the `generation_assets` row and the `transformation_eval_runs` row) and the WP1 build manifest gets recorded in `backend/phase2b/module-a.md`.
