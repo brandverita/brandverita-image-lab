@@ -75,3 +75,24 @@ Credits, plan allowance, and user privileges are owned by
 `myaccount.brandverita.io`. This deployment only records metering rows
 (`usage_ledger`, `transformation_eval_runs`) so the main app can consume them
 later; it never enforces limits.
+
+## 2026-09-01 — WP1 run 2: job failed after a successful generation
+
+Symptom: job `2823988f` reached 51.4s, output was exactly 1200x627, source-region
+integrity verified — then `transformation_failed` with eval `error_message = "HTTPException"`.
+
+Root cause: `advanced.write_ready_output` sent an app-computed `finalized_at` but
+let Postgres default `created_at`, so `created_at` landed a few milliseconds later
+and the `validate_generation_asset_expiry` trigger raised
+`finalized_at cannot precede created_at`. The insert failed, the uploaded bytes
+were rolled back, and no output asset row was created.
+
+Fixes:
+- `advanced.write_ready_output` now stamps `created_at`, `finalized_at` and
+  `expires_at` from one instant.
+- Adapter records `provider_latency_ms`, `gpu_seconds` and `worker_version` as
+  soon as the worker returns, prints `wp1_stage` markers per step, and writes the
+  real exception text (HTTPException `.detail` included) plus a traceback. Clients
+  still receive only the generic `transformation_failed` message.
+- Worker surfaces ComfyUI 400 bodies and per-node history error messages instead
+  of bare `HTTP Error 400` / `graph execution failed`.

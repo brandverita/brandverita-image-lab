@@ -29,6 +29,7 @@ import random
 import shutil
 import tempfile
 import time
+import traceback
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -62,6 +63,28 @@ def submit_generation(job: dict, _inputs: dict, _row: dict) -> Optional[str]:
 
 def _iso(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).isoformat()
+
+
+def _describe(exc: BaseException) -> str:
+    """Server-side only: the most specific text we can get out of an exception.
+
+    HTTPException carries its useful information in `.detail` (often a dict with
+    error_code), and `str(exc)` on it is just the status code — which is how the
+    first WP1 failure recorded only 'HTTPException' and told us nothing.
+    """
+    detail = getattr(exc, "detail", None)
+    status = getattr(exc, "status_code", None)
+    if detail is not None:
+        text = f"{type(exc).__name__}({status}): {detail}"
+    else:
+        text = f"{type(exc).__name__}: {exc}"
+    return text[:900]
+
+
+def _stage(job_id: str, name: str, **fields: Any) -> None:
+    extra = " ".join(f"{k}={v}" for k, v in fields.items())
+    print(f"wp1_stage job={job_id} step={name} {extra}".rstrip())
+
 
 
 def run_outpaint(job_id: str, user_id: str) -> None:
@@ -135,7 +158,9 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         )
 
         # 2 + 3 — download into the job dir and verify the digest before use.
+        _stage(job_id, "gate_passed", asset=asset["id"], preset=preset)
         source_bytes = advanced.acquire_source_bytes(asset)
+        _stage(job_id, "source_downloaded", bytes=len(source_bytes))
         source_path = os.path.join(job_dir, "source.bin")
         with open(source_path, "wb") as handle:
             handle.write(source_bytes)
@@ -179,6 +204,12 @@ def run_outpaint(job_id: str, user_id: str) -> None:
                 f"{WORKER_CALL_TIMEOUT_S}s"
             ) from exc
         provider_latency_ms = int((time.time() - started) * 1000)
+        # Recorded immediately: a failure after this point must not erase the
+        # fact that the provider call itself succeeded.
+        eval_row["provider_latency_ms"] = provider_latency_ms
+        eval_row["gpu_seconds"] = result.get("gpu_seconds")
+        eval_row["worker_version"] = result.get("worker_version")
+        _stage(job_id, "worker_returned", ms=provider_latency_ms, bytes=len(result["image"] or b""))
 
         generated_png = result["image"]
         generated_path = os.path.join(job_dir, "generated.png")
@@ -215,6 +246,13 @@ def run_outpaint(job_id: str, user_id: str) -> None:
             "artifact_pins": row.get("artifact_pins") or [],
             "classification": "research_only/staging",
         }
+        _stage(
+            job_id,
+            "composited",
+            verified=verified,
+            output_bytes=len(output_png),
+            size=f"{placement.canvas_width}x{placement.canvas_height}",
+        )
         output_asset = advanced.write_ready_output(
             data=output_png,
             content_type="image/png",
@@ -263,8 +301,11 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         print(f"wp1_outpaint_completed job={job_id} verified={verified}")
 
     except Exception as exc:  # noqa: BLE001
-        code = getattr(exc, "detail", None)
-        print(f"wp1_outpaint_failed job={job_id} type={type(exc).__name__}")
+        described = _describe(exc)
+        # Server-side diagnostics only. The client still receives the generic
+        # 'transformation_failed' message set on the job row below.
+        print(f"wp1_outpaint_failed job={job_id} detail={described}")
+        print(traceback.format_exc())
         try:
             import jobs as _jobs
 
@@ -287,7 +328,7 @@ def run_outpaint(job_id: str, user_id: str) -> None:
                 {
                     "status": "failed",
                     "error_code": "transformation_failed",
-                    "error_message": str(code) if isinstance(code, str) else type(exc).__name__,
+                    "error_message": described,
                     "completed_at": _iso(datetime.now(timezone.utc)),
                 }
             )
