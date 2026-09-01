@@ -220,8 +220,20 @@ class ResearchOutpaintWorker:
             data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(request, timeout=60) as response:
-            return json.loads(response.read() or b"{}")
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return json.loads(response.read() or b"{}")
+        except urllib.error.HTTPError as exc:
+            # ComfyUI puts per-node validation errors in the 400 body; without
+            # this the caller only ever sees 'HTTP Error 400'.
+            body = b""
+            try:
+                body = exc.read()[:1500]
+            except Exception:  # noqa: BLE001
+                pass
+            raise RuntimeError(
+                f"comfy_http_{exc.code} on {path}: {body.decode('utf-8', 'replace')}"
+            ) from exc
 
     def _get(self, path: str) -> bytes:
         with urllib.request.urlopen(
