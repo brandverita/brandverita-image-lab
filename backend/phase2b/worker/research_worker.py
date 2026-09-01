@@ -141,6 +141,9 @@ research_image = (
         f"rm -rf {COMFY_DIR}/custom_nodes/* || true",
     )
     .add_local_file("outpaint_graph.py", "/root/outpaint_graph.py", copy=True)
+    # Weights are fetched and digest-verified at BUILD time, so a bad pin or a
+    # gated repo fails `modal deploy` instead of hanging a submitted job.
+    .run_function(_fetch_checkpoint, volumes={MODEL_DIR: model_volume})
 )
 
 
@@ -148,8 +151,7 @@ research_image = (
     image=research_image,
     gpu="A10G",
     volumes={MODEL_DIR: model_volume},
-    secrets=[hf_secret],
-    timeout=1800,
+    timeout=1200,
     scaledown_window=60,
     max_containers=2,
 )
@@ -158,8 +160,12 @@ class ResearchOutpaintWorker:
 
     @modal.enter()
     def start(self) -> None:
-        _fetch_checkpoint()
-        model_volume.commit()
+        boot_started = time.time()
+        if not os.path.exists(CHECKPOINT_PATH):
+            # Should be impossible: the build step put it there. Fail fast and
+            # loudly rather than trying to download at request time.
+            raise RuntimeError(f"checkpoint missing at {CHECKPOINT_PATH}")
+        print(f"wp1_worker_boot_start checkpoint={CHECKPOINT_FILE}")
 
         with open(f"{COMFY_DIR}/extra_model_paths.yaml", "w") as handle:
             handle.write(
