@@ -189,16 +189,21 @@ class ResearchOutpaintWorker:
             ],
             cwd=COMFY_DIR,
         )
-        deadline = time.time() + 300
+        deadline = time.time() + 240
         while time.time() < deadline:
+            if self.process.poll() is not None:
+                raise RuntimeError(
+                    f"ComfyUI exited during boot with code {self.process.returncode}"
+                )
             try:
                 urllib.request.urlopen(
                     f"http://127.0.0.1:{COMFY_PORT}/system_stats", timeout=2
                 )
+                print(f"wp1_worker_boot_ready seconds={round(time.time() - boot_started, 1)}")
                 return
             except Exception:  # noqa: BLE001
                 time.sleep(1)
-        raise RuntimeError("ComfyUI did not become ready")
+        raise RuntimeError("ComfyUI did not become ready within 240s")
 
     @modal.exit()
     def stop(self) -> None:
