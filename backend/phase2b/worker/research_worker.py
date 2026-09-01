@@ -266,8 +266,9 @@ class ResearchOutpaintWorker:
             prompt_id = queued.get("prompt_id")
             if not prompt_id:
                 raise RuntimeError("ComfyUI rejected the graph")
+            print(f"wp1_worker_graph_queued prompt_id={prompt_id}")
 
-            deadline = time.time() + 900
+            deadline = time.time() + 420
             image_meta = None
             while time.time() < deadline:
                 history = json.loads(self._get(f"/history/{prompt_id}") or b"{}")
@@ -282,7 +283,10 @@ class ResearchOutpaintWorker:
                         break
                 time.sleep(1)
             if image_meta is None:
-                raise RuntimeError("graph execution timed out")
+                raise RuntimeError("graph execution timed out after 420s")
+            print(
+                f"wp1_worker_graph_done seconds={round(time.time() - started, 1)}"
+            )
 
             query = (
                 f"/view?filename={image_meta['filename']}"
