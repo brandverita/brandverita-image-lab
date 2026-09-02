@@ -9,7 +9,7 @@
 -- provider_workflow_reference, input_schema, output_schema, allowed_dimensions.
 
 insert into public.workflow_definitions (
-  key, version, title, description,
+  key, version, display_name, description,
   provider, provider_model, provider_workflow_reference,
   status, commercial_status, registry_visibility,
   production_enabled, enabled_for_studio, allowed_envs,
