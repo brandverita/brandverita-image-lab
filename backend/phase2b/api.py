@@ -73,7 +73,14 @@ import jwks_auth
 import jobs
 import registry
 import supabase_rest
-from adapters import bfl_api, modal_comfyui, modal_research_outpaint, replicate
+from adapters import (
+    bfl_api,
+    bfl_product_scene,
+    modal_comfyui,
+    modal_research_outpaint,
+    replicate,
+)
+
 
 APP_NAME = os.environ.get("MODAL_APP_NAME", "brandverita-api-v6")
 app = modal.App(APP_NAME)
