@@ -96,3 +96,18 @@ Fixes:
   still receive only the generic `transformation_failed` message.
 - Worker surfaces ComfyUI 400 bodies and per-node history error messages instead
   of bare `HTTP Error 400` / `graph execution failed`.
+
+## 2026-09-01 — WP1 accepted
+
+17/17 checks passed. Latency 44.7s end-to-end (target p95 ≤ 90s), output exactly
+1200x627, `source_region_verified = true`, output served only via short-lived
+signed URL, temp dirs removed on both sides, `outpaint:v1` invisible to
+studio-origin registry reads, Flux text-to-image unaffected.
+
+Pinned artifact in effect: `sd-v1-5-inpainting.ckpt` from the ungated mirror
+`stable-diffusion-v1-5/stable-diffusion-inpainting`, SHA256 `c6bbc15e...`,
+fetched at image build time (a bad pin now fails `modal deploy`, not a job).
+
+Module A is the reference implementation for the shared framework: Module B
+follows the same gate → download → verify → transform → validate → upload → hash
+→ ready-row → cleanup order.
