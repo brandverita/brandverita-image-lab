@@ -410,12 +410,19 @@ def health_check():
         "assets": True,
         "assets_bucket": "generation-assets",
         "advanced_framework": True,
-        # WP1 markers: the adapter is wired, but every advanced request still
-        # stops at the flag gate until the flags are flipped for a run.
+        # Module markers. Flag state is coarse on purpose: which module is armed,
+        # never any credential or provider reference beyond the registry key.
         "outpaint_adapter": modal_research_outpaint.PROVIDER,
         "research_worker_app": modal_research_outpaint.WORKER_APP,
         "advanced_flags_enabled": advanced.advanced_enabled(),
+        "modules": {
+            "outpaint": advanced.module_flag("outpaint"),
+            "product_scene": advanced.module_flag("product_scene"),
+        },
+        "product_scene_adapter": bfl_product_scene.PROVIDER,
+        "hosted_dispatch_enabled": bfl_product_scene.hosted_dispatch_enabled(),
     }
+
 
 
 @web_app.get("/v1/auth/check")
