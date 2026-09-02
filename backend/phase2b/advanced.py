@@ -155,9 +155,7 @@ _OUTPAINT_DIRECTION_ANCHOR = {
 }
 
 _PRODUCT_SCENE_ALLOWED = {"scene_direction", "background_style", "preserve_subject"}
-_PRODUCT_SCENE_SCENE_DIRECTIONS = {
-    "clean_studio", "premium_neutral", "warm_lifestyle", "natural_surface",
-}
+
 
 
 def parse_outpaint_params(params: dict[str, Any]) -> dict[str, Any]:
