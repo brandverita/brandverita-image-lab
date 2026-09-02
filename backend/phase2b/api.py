@@ -367,6 +367,17 @@ def run_outpaint_job(job_id: str, user_id: str) -> None:
 modal_research_outpaint.set_dispatcher(run_outpaint_job)
 
 
+# Phase 2B WP2 — Module B product scene orchestration. Hosted provider call, so
+# this is the only function carrying the BFL credential.
+@app.function(image=api_image, secrets=[supabase_secret, bfl_secret], timeout=900)
+def run_product_scene_job(job_id: str, user_id: str) -> None:
+    bfl_product_scene.run_product_scene(job_id=job_id, user_id=user_id)
+
+
+bfl_product_scene.set_dispatcher(run_product_scene_job)
+
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
