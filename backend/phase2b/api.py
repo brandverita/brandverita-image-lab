@@ -108,6 +108,7 @@ api_image = (
     .add_local_file("usage.py", "/root/usage.py", copy=True)
     .add_local_file("advanced.py", "/root/advanced.py", copy=True)
     .add_local_file("outpaint_geometry.py", "/root/outpaint_geometry.py", copy=True)
+    .add_local_file("scene_presets.py", "/root/scene_presets.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
     # Staging research flags. This deployment is isolated from Studio and the
     # main app (allowed_envs=[staging], internal registry visibility, Lab
@@ -119,8 +120,13 @@ api_image = (
             "ADVANCED_WORKFLOWS_ENABLED": "true",
             "OUTPAINT_EVAL_ENABLED": "true",
             "MODULE_A_ENABLED": "true",
-            "MODULE_B_ENABLED": "false",
-            "HOSTED_PROVIDER_DISPATCH_ENABLED": "false",
+            # Module B (product scene) is a hosted-provider module: two separate
+            # switches must be on before any request can leave this deployment.
+            "MODULE_B_ENABLED": "true",
+            "PRODUCT_SCENE_EVAL_ENABLED": "true",
+            "HOSTED_PROVIDER_DISPATCH_ENABLED": "true",
+            "PROVIDER_BFL_ENABLED": "true",
+            "PROVIDER_REPLICATE_ENABLED": "false",
         }
     )
 )
@@ -137,9 +143,11 @@ API_VERSION = "v6"
 ADAPTERS = {
     "modal_comfyui": modal_comfyui,
     "modal_research_2b": modal_research_outpaint,
+    "bfl_product_scene": bfl_product_scene,
     "replicate": replicate,
     "bfl_api": bfl_api,
 }
+
 
 web_app = FastAPI(title="BrandVerita Generation API")
 
