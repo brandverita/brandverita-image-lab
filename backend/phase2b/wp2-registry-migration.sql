@@ -24,7 +24,7 @@ insert into public.workflow_definitions (
   'testing', 'research_only', 'internal',
   false, false, array['staging'],
   true,
-  array['1080x1080','1080x1350','1200x627','1600x900'],
+  jsonb_build_array('1080x1080','1080x1350','1200x627','1600x900'),
   jsonb_build_object(
     'scene_direction_enum', jsonb_build_array('clean_studio','premium_neutral','warm_lifestyle','natural_surface'),
     'background_style_enum', jsonb_build_array('neutral','soft_shadow','high_key','editorial'),
