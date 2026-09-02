@@ -73,12 +73,23 @@ import jwks_auth
 import jobs
 import registry
 import supabase_rest
-from adapters import bfl_api, modal_comfyui, modal_research_outpaint, replicate
+from adapters import (
+    bfl_api,
+    bfl_product_scene,
+    modal_comfyui,
+    modal_research_outpaint,
+    replicate,
+)
+
 
 APP_NAME = os.environ.get("MODAL_APP_NAME", "brandverita-api-v6")
 app = modal.App(APP_NAME)
 
 supabase_secret = modal.Secret.from_name("brandverita-supabase-comfy-ui")
+# Module B research credential (BFL_API_KEY). Attached ONLY to the product-scene
+# background function — never to the web app, so no request path can read it.
+bfl_secret = modal.Secret.from_name("bfl-research-2b")
+
 
 # httpx only — no supabase-py, so nothing here can fail at import/construction time.
 api_image = (
@@ -101,6 +112,7 @@ api_image = (
     .add_local_file("usage.py", "/root/usage.py", copy=True)
     .add_local_file("advanced.py", "/root/advanced.py", copy=True)
     .add_local_file("outpaint_geometry.py", "/root/outpaint_geometry.py", copy=True)
+    .add_local_file("scene_presets.py", "/root/scene_presets.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
     # Staging research flags. This deployment is isolated from Studio and the
     # main app (allowed_envs=[staging], internal registry visibility, Lab
@@ -112,8 +124,13 @@ api_image = (
             "ADVANCED_WORKFLOWS_ENABLED": "true",
             "OUTPAINT_EVAL_ENABLED": "true",
             "MODULE_A_ENABLED": "true",
-            "MODULE_B_ENABLED": "false",
-            "HOSTED_PROVIDER_DISPATCH_ENABLED": "false",
+            # Module B (product scene) is a hosted-provider module: two separate
+            # switches must be on before any request can leave this deployment.
+            "MODULE_B_ENABLED": "true",
+            "PRODUCT_SCENE_EVAL_ENABLED": "true",
+            "HOSTED_PROVIDER_DISPATCH_ENABLED": "true",
+            "PROVIDER_BFL_ENABLED": "true",
+            "PROVIDER_REPLICATE_ENABLED": "false",
         }
     )
 )
@@ -130,9 +147,11 @@ API_VERSION = "v6"
 ADAPTERS = {
     "modal_comfyui": modal_comfyui,
     "modal_research_2b": modal_research_outpaint,
+    "bfl_product_scene": bfl_product_scene,
     "replicate": replicate,
     "bfl_api": bfl_api,
 }
+
 
 web_app = FastAPI(title="BrandVerita Generation API")
 
@@ -198,12 +217,18 @@ class GenerationInputs(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=200)
 
 
-def advanced_preset_size(output_preset: str) -> tuple[int, int]:
+def advanced_preset_size(module: str, output_preset: str) -> tuple[int, int]:
     """Canvas size for an advanced request — resolved from the server-owned
-    preset table, never from the request body."""
+    preset table for that module, never from the request body."""
+    if module == "product_scene":
+        import scene_presets
+
+        return scene_presets.resolve_output_preset(output_preset)
+
     import outpaint_geometry
 
     return outpaint_geometry.resolve_preset(output_preset)
+
 
 
 class JobResponse(BaseModel):
@@ -342,6 +367,17 @@ def run_outpaint_job(job_id: str, user_id: str) -> None:
 modal_research_outpaint.set_dispatcher(run_outpaint_job)
 
 
+# Phase 2B WP2 — Module B product scene orchestration. Hosted provider call, so
+# this is the only function carrying the BFL credential.
+@app.function(image=api_image, secrets=[supabase_secret, bfl_secret], timeout=900)
+def run_product_scene_job(job_id: str, user_id: str) -> None:
+    bfl_product_scene.run_product_scene(job_id=job_id, user_id=user_id)
+
+
+bfl_product_scene.set_dispatcher(run_product_scene_job)
+
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -374,12 +410,19 @@ def health_check():
         "assets": True,
         "assets_bucket": "generation-assets",
         "advanced_framework": True,
-        # WP1 markers: the adapter is wired, but every advanced request still
-        # stops at the flag gate until the flags are flipped for a run.
+        # Module markers. Flag state is coarse on purpose: which module is armed,
+        # never any credential or provider reference beyond the registry key.
         "outpaint_adapter": modal_research_outpaint.PROVIDER,
         "research_worker_app": modal_research_outpaint.WORKER_APP,
         "advanced_flags_enabled": advanced.advanced_enabled(),
+        "modules": {
+            "outpaint": advanced.module_flag("outpaint"),
+            "product_scene": advanced.module_flag("product_scene"),
+        },
+        "product_scene_adapter": bfl_product_scene.PROVIDER,
+        "hosted_dispatch_enabled": bfl_product_scene.hosted_dispatch_enabled(),
     }
+
 
 
 @web_app.get("/v1/auth/check")
@@ -404,6 +447,21 @@ def list_workflows(origin: str = "lab", user_id: str = Depends(get_verified_user
         "environment": registry.ENVIRONMENT,
         "origin": resolved_origin,
         "workflows": registry.list_visible_workflows(origin=resolved_origin),
+    }
+
+
+@web_app.get("/v1/scene-presets")
+def list_scene_presets(user_id: str = Depends(get_verified_user_id)):
+    """Module B option catalog for the Lab UI: keys, labels and output presets
+    only. The instruction text behind each scene stays server-side."""
+    import scene_presets
+
+    if not (advanced.advanced_enabled() and advanced.module_flag("product_scene")):
+        raise HTTPException(status_code=403, detail="workflow_not_available")
+    return {
+        "scene_directions": scene_presets.public_catalog(),
+        "background_styles": sorted(scene_presets.BACKGROUND_STYLES.keys()),
+        "output_presets": sorted(scene_presets.OUTPUT_PRESETS.keys()),
     }
 
 
@@ -463,7 +521,10 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
         # the normalized input record from server-owned values only, so a
         # client can never smuggle text or geometry through this path.
         try:
-            canvas_w, canvas_h = advanced_preset_size(resolved_advanced["output_preset"])
+            canvas_w, canvas_h = advanced_preset_size(
+                resolved_advanced["module"], resolved_advanced["output_preset"]
+            )
+
         except ValueError:
             raise HTTPException(
                 status_code=400,
