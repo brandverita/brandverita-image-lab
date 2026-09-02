@@ -450,6 +450,21 @@ def list_workflows(origin: str = "lab", user_id: str = Depends(get_verified_user
     }
 
 
+@web_app.get("/v1/scene-presets")
+def list_scene_presets(user_id: str = Depends(get_verified_user_id)):
+    """Module B option catalog for the Lab UI: keys, labels and output presets
+    only. The instruction text behind each scene stays server-side."""
+    import scene_presets
+
+    if not (advanced.advanced_enabled() and advanced.module_flag("product_scene")):
+        raise HTTPException(status_code=403, detail="workflow_not_available")
+    return {
+        "scene_directions": scene_presets.public_catalog(),
+        "background_styles": sorted(scene_presets.BACKGROUND_STYLES.keys()),
+        "output_presets": sorted(scene_presets.OUTPUT_PRESETS.keys()),
+    }
+
+
 
 @web_app.post("/v1/generations", response_model=JobResponse)
 async def start_generation(request: Request, user_id: str = Depends(get_verified_user_id)):
