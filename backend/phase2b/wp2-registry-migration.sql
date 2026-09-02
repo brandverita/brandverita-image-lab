@@ -33,8 +33,18 @@ insert into public.workflow_definitions (
     'preset_table_version', 'wp2-scene-presets-1'
   ),
   jsonb_build_object('format', 'png', 'exact_preset_size', true),
-  null,
-  jsonb_build_object('max_width', 4096, 'max_height', 4096, 'max_pixels', 16777216),
+  jsonb_build_array(
+    jsonb_build_object('width', 1080, 'height', 1080),
+    jsonb_build_object('width', 1080, 'height', 1350),
+    jsonb_build_object('width', 1200, 'height', 627),
+    jsonb_build_object('width', 1600, 'height', 900)
+  ),
+  jsonb_build_object(
+    'max_width', 4096,
+    'max_height', 4096,
+    'max_pixels', 16777216,
+    'allowed_content_types', jsonb_build_array('image/png','image/jpeg','image/webp')
+  ),
   jsonb_build_array(
     jsonb_build_object(
       'component', 'hosted_model',
