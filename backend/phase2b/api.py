@@ -86,6 +86,10 @@ APP_NAME = os.environ.get("MODAL_APP_NAME", "brandverita-api-v6")
 app = modal.App(APP_NAME)
 
 supabase_secret = modal.Secret.from_name("brandverita-supabase-comfy-ui")
+# Module B research credential (BFL_API_KEY). Attached ONLY to the product-scene
+# background function — never to the web app, so no request path can read it.
+bfl_secret = modal.Secret.from_name("bfl-research-2b")
+
 
 # httpx only — no supabase-py, so nothing here can fail at import/construction time.
 api_image = (
