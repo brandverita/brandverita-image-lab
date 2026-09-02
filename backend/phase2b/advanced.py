@@ -185,15 +185,26 @@ def parse_outpaint_params(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def parse_product_scene_params(params: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
+    """Module B accepts enums only. The scene instruction text lives in the
+    server-owned `scene_presets` table, so a valid request cannot influence a
+    single word of what the hosted provider is asked to do."""
+    import scene_presets
+
     if not isinstance(params, dict):
         raise advanced_error("invalid_request", "params must be an object.")
     for key in params:
         if key in FORBIDDEN_KEYS or key not in _PRODUCT_SCENE_ALLOWED:
             raise advanced_error("invalid_request", f"Unsupported parameter: {key!r}.")
     scene_direction = params.get("scene_direction")
-    if scene_direction not in _PRODUCT_SCENE_SCENE_DIRECTIONS:
+    if scene_direction not in scene_presets.SCENE_PRESETS:
         raise advanced_error("invalid_request", "Invalid scene_direction.")
-    background_style = params.get("background_style")
+    # The registry row may narrow the code-level enum, never widen it.
+    allowed_scenes = ((row.get("input_schema") or {}).get("scene_direction_enum")) or []
+    if allowed_scenes and scene_direction not in allowed_scenes:
+        raise advanced_error("invalid_request", "Invalid scene_direction.")
+    background_style = params.get("background_style") or scene_presets.DEFAULT_BACKGROUND_STYLE
+    if background_style not in scene_presets.BACKGROUND_STYLES:
+        raise advanced_error("invalid_request", "Invalid background_style.")
     allowed_bg = ((row.get("input_schema") or {}).get("background_style_enum")) or []
     if allowed_bg and background_style not in allowed_bg:
         raise advanced_error("invalid_request", "Invalid background_style.")
@@ -204,6 +215,7 @@ def parse_product_scene_params(params: dict[str, Any], row: dict[str, Any]) -> d
         "background_style": background_style,
         "preserve_subject": True,
     }
+
 
 
 def parse_params(module: str, params: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
