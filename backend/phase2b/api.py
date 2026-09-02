@@ -499,7 +499,10 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
         # the normalized input record from server-owned values only, so a
         # client can never smuggle text or geometry through this path.
         try:
-            canvas_w, canvas_h = advanced_preset_size(resolved_advanced["output_preset"])
+            canvas_w, canvas_h = advanced_preset_size(
+                resolved_advanced["module"], resolved_advanced["output_preset"]
+            )
+
         except ValueError:
             raise HTTPException(
                 status_code=400,
