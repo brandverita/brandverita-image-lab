@@ -45,15 +45,38 @@ a separate approval. This step only removes the auth wall.
 
 ## Your action (one step)
 
-Add the env var to the Modal V6 API app and redeploy:
+The value is a **public URL** (JWKS keys are fetched from the public
+`.well-known` endpoint), so it belongs in the image's `.env({...})` block — the
+same mechanism the staging advanced flags already use — not in a Modal Secret.
 
-```text
-EXTRA_JWT_ISSUER_URLS=https://bowhzbhwrflbsefxpucn.supabase.co
+In `api.py`, inside the existing `api_image = ... .env({...})` block, add one
+entry alongside the flags:
+
+```python
+.env(
+    {
+        "ADVANCED_WORKFLOWS_ENABLED": "true",
+        # ...existing flags...
+        # Studio Supabase project whose login tokens this staging API should
+        # also accept (JWKS only; audience "authenticated"). Public URL; the
+        # API fetches keys from {issuer}/auth/v1/.well-known/jwks.json.
+        "EXTRA_JWT_ISSUER_URLS": "https://bowhzbhwrflbsefxpucn.supabase.co",
+    }
+)
 ```
 
-(Modal → the V6 API app → environment, same place the five advanced flags
-live.) No new secret is needed — JWKS verification uses the public keys from the
-well-known endpoint; nothing private from Studio's project is stored.
+Then `modal deploy api.py` and confirm `/health`.
+
+Why `.env` over a Modal Secret:
+- It matches the pattern the existing staging flags use, so there is one place
+  to read all staging config.
+- Modal Secrets are meant to hide private values; this URL is public and will
+  appear in `/health`'s issuer list anyway, so a secret adds no protection.
+- `.env` values are baked into the image and read at runtime via
+  `os.environ`, exactly how `jwks_auth.py` will read this one.
+
+No new secret is needed — nothing private from Studio's project is stored here;
+the API only reads Studio's public JWKS endpoint.
 
 ## Verification
 
