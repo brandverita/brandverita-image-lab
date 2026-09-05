@@ -5,7 +5,9 @@ Phase 1 modularization. This file is now a THIN ENTRY POINT: Modal app
 definition, web routes, request parsing, and dispatch. All logic lives in:
 
     supabase_rest.py          — Supabase REST helpers (httpx only)
-    jwks_auth.py              — ES256 JWKS token verification (comfy-ui issuer)
+    jwks_auth.py              — ES256 JWKS token verification (comfy-ui issuer,
+                                plus optional extra issuers from
+                                EXTRA_JWT_ISSUER_URLS, e.g. the Studio project)
     registry.py               — workflow registry: gates, hashing, safe views
     jobs.py                   — job state machine + background orchestration
     assets.py                 — Phase 2A: private generation-asset lifecycle
@@ -131,6 +133,11 @@ api_image = (
             "HOSTED_PROVIDER_DISPATCH_ENABLED": "true",
             "PROVIDER_BFL_ENABLED": "true",
             "PROVIDER_REPLICATE_ENABLED": "false",
+            # Studio Supabase project whose login tokens this staging API also
+            # accepts (JWKS only; audience "authenticated"). Public URL; keys
+            # are fetched from {base}/auth/v1/.well-known/jwks.json. Read by
+            # jwks_auth.issuer_bases(). Comma-separated if more are ever added.
+            "EXTRA_JWT_ISSUER_URLS": "https://bowhzbhwrflbsefxpucn.supabase.co",
         }
     )
 )
@@ -323,7 +330,31 @@ def get_verified_user_id(authorization: Optional[str] = Header(default=None)) ->
     user_id = jwks_auth.verify_via_jwks(token, url)
     if user_id:
         return user_id
+
+    # The REST fallback can only check tokens against the primary (comfy-ui)
+    # project — this service holds no anon key for extra issuers. A token that
+    # names a configured extra issuer resolves to token_invalid here rather
+    # than a misleading cross-project REST rejection that reads as "session
+    # expired". Primary-issuer tokens that failed JWKS (e.g. legacy HS256) fall
+    # through to the REST check exactly as before.
+    issuer_base = jwks_auth.token_issuer_base(token)
+    if issuer_base and issuer_base in jwks_auth.extra_issuer_bases():
+        raise HTTPException(status_code=401, detail="token_invalid: token rejected by issuer")
+
     return _verify_via_auth_api(token, url, key)
+
+
+def _jwt_issuer_labels() -> list[str]:
+    """Key-free issuer labels for /health (project refs only, never keys).
+
+    Returns ["unavailable"] if the Supabase config cannot be read, so the
+    health endpoint never fails on an auth-config lookup.
+    """
+    try:
+        url, _key = supabase_rest.supabase_config()
+        return jwks_auth.issuer_labels(url)
+    except Exception:  # noqa: BLE001
+        return ["unavailable"]
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +452,9 @@ def health_check():
         },
         "product_scene_adapter": bfl_product_scene.PROVIDER,
         "hosted_dispatch_enabled": bfl_product_scene.hosted_dispatch_enabled(),
+        # Trusted JWT issuers, as short key-free labels (project refs only).
+        # comfy-ui is always first; extras come from EXTRA_JWT_ISSUER_URLS.
+        "jwt_issuers": _jwt_issuer_labels(),
     }
 
 
