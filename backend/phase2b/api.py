@@ -5,7 +5,9 @@ Phase 1 modularization. This file is now a THIN ENTRY POINT: Modal app
 definition, web routes, request parsing, and dispatch. All logic lives in:
 
     supabase_rest.py          — Supabase REST helpers (httpx only)
-    jwks_auth.py              — ES256 JWKS token verification (comfy-ui issuer)
+    jwks_auth.py              — ES256 JWKS token verification (comfy-ui issuer,
+                                plus optional extra issuers from
+                                EXTRA_JWT_ISSUER_URLS, e.g. the Studio project)
     registry.py               — workflow registry: gates, hashing, safe views
     jobs.py                   — job state machine + background orchestration
     assets.py                 — Phase 2A: private generation-asset lifecycle
