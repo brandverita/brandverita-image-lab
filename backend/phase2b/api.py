@@ -344,6 +344,19 @@ def get_verified_user_id(authorization: Optional[str] = Header(default=None)) ->
     return _verify_via_auth_api(token, url, key)
 
 
+def _jwt_issuer_labels() -> list[str]:
+    """Key-free issuer labels for /health (project refs only, never keys).
+
+    Returns ["unavailable"] if the Supabase config cannot be read, so the
+    health endpoint never fails on an auth-config lookup.
+    """
+    try:
+        url, _key = supabase_rest.supabase_config()
+        return jwks_auth.issuer_labels(url)
+    except Exception:  # noqa: BLE001
+        return ["unavailable"]
+
+
 # ---------------------------------------------------------------------------
 # Background orchestrator (Modal-wrapped; injected into the adapter)
 # ---------------------------------------------------------------------------
