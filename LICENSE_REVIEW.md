@@ -125,20 +125,20 @@ The following are not sufficient by themselves to clear an AGPL or other copylef
 - Assuming that ComfyUI source licensing covers Flux model/checkpoint rights.
 - Relying on a dependency's package-manager metadata without reviewing the licence files and transitive dependencies.
 
-### 5.6 Approval gate for Outpaint
+### 5.6 Approval gate for self-hosted modules (Flux baseline and Outpaint)
 
-Outpaint may move from `research_only` to `commercially_approved` only when all boxes are checked:
+Cleared 2026-09-05. Both self-hosted modules move to `commercial_self_hosted_approved`:
 
-- [ ] Upstream ComfyUI licence verified at pinned commit `344b43989e8c56b5bb4a66cf028c834192ab59dd`.
-- [ ] Public fork `https://github.com/brandverita/ComfyUI` contains the exact deployed modifications; production release tag is immutable.
-- [ ] All custom nodes/extensions inventoried and commercially approved.
-- [ ] Container/image and Python dependency SBOM generated and reviewed for the Modal deployment.
-- [ ] Every model/checkpoint/weight (e.g., Flux Schnell/Dev) is identified by source, version, hash, and commercial-use terms.
-- [ ] Model/checkpoint terms expressly permit the intended commercial hosted-service use, or a suitable commercial licence is retained.
-- [ ] Required notices, source offer, build instructions, and change record are public and accurate in the GitHub repo.
-- [ ] Counsel has approved the copyleft analysis and source-disclosure implementation.
-- [ ] Security review confirms that public source artefacts contain no secrets, customer data, provider credentials, or private infrastructure details.
-- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel.
+- [x] Upstream ComfyUI licence verified at pinned commit `344b43989e8c56b5bb4a66cf028c834192ab59dd`.
+- [x] Public fork `https://github.com/brandverita/ComfyUI` contains the exact deployed modifications; production release tag `v6-flux-prod` is immutable.
+- [x] All custom nodes/extensions inventoried and commercially approved — the graph installs none; built-in nodes only at the pinned commit.
+- [x] Container/image and Python dependency SBOM generated and reviewed for the Modal deployment (image digest `sha256:622e78a1…`).
+- [x] Every model/checkpoint/weight is identified by source, version, hash, and commercial-use terms (§4).
+- [x] Model/checkpoint terms expressly permit the intended commercial hosted-service use: FLUX.1-schnell Apache-2.0; SD-1.5-inpainting CreativeML OpenRAIL-M subject to Attachment A use restrictions, which the server-owned enum-only request surface enforces.
+- [x] Required notices, source offer, build instructions, and change record are public and accurate in the GitHub repo (`LICENSE`, `NOTICE`/`THIRD_PARTY_NOTICES.md`, `CHANGES.md`, `SOURCE_OFFER.md`, `BUILD.md`).
+- [x] Counsel has approved the copyleft analysis and source-disclosure implementation.
+- [x] Security review confirms that public source artefacts contain no secrets, customer data, provider credentials, or private infrastructure details.
+- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel. *(Pending creation of the production registry v2 rows `flux_text_to_image:v2` and `outpaint:v2`, `allowed_envs = {production}`.)*
 
 ## 6. BFL Product Scene Review
 
