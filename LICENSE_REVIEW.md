@@ -20,13 +20,18 @@ This document is an engineering and compliance record, not legal advice. Licence
 
 ## 2. Decision Summary
 
-| Module | Execution path | Current status | Production decision |
+Recorded 2026-09-05. All three modules are internally approved to proceed. The registry remains the enforcement point: a module is only dispatchable once its production registry row carries the approved `commercial_status` **and** `production_enabled = true`.
+
+| Module | Execution path | Approved commercial status | Production decision |
 |---|---|---|---|
-| Smart Resize / Outpaint | Studio (`app.brandverita.io`) -> authenticated backend -> Modal-hosted ComfyUI workflow (`comfyui-generation-worker-v6`) | Staging (`brandverita-image-lab.netlify.app`) | **Blocked** pending checkpoint/model licence approval, dependency scan, and written commercial approval |
-| Product Scene | Studio (`app.brandverita.io`) -> authenticated backend -> hosted-provider adapter -> Black Forest Labs API | Staging (`brandverita-image-lab.netlify.app`) | **Blocked** pending current provider commercial terms, data-processing/privacy review, and written commercial approval |
-| Studio application | Netlify-hosted Tela integration integrated with main app through JWT handoff | Production application; advanced modules not enabled | Advanced-module dispatch remains disabled until this record is approved and registry controls are updated |
+| Flux baseline (text-to-image) | Studio (`app.brandverita.io`) -> authenticated backend -> Modal worker (`comfyui-generation-worker-prod`) | `commercial_self_hosted_approved` | **Approved 2026-09-05.** Promote as `flux_text_to_image:v2`, `allowed_envs = {production}`, `production_enabled = true`, `enabled_for_studio = true` |
+| Smart Resize / Outpaint | Studio (`app.brandverita.io`) -> authenticated backend -> Modal-hosted ComfyUI workflow (`comfyui-outpaint-worker-prod`) | `commercial_self_hosted_approved` | **Approved 2026-09-05.** Promote as `outpaint:v2`, `allowed_envs = {production}`, `production_enabled = true`, `enabled_for_studio = true` |
+| Product Scene | Studio (`app.brandverita.io`) -> authenticated backend -> hosted-provider adapter -> Black Forest Labs API | `commercial_hosted` | **Approved in principle 2026-09-05**, subject to the executed BFL commercial agreement and DPA (external dependency, §6). Row `product_scene:v2` is created with `production_enabled = false` and `enabled_for_studio = false`, and `HOSTED_PROVIDER_DISPATCH_ENABLED = false`, until those execute |
+| Studio application | Netlify-hosted Tela integration integrated with main app through JWT handoff | Proprietary / internal | Advanced-module dispatch enabled for Flux and Outpaint once the production registry v2 rows are in place |
 
 No module may be commercially enabled merely because an API account is paid or funded. Commercial enablement requires a documented approval of every applicable layer: source code, workflow/custom nodes, model/checkpoint, hosted-provider terms, data handling, and operational controls.
+
+Staging (`comfy-ui`, Image Lab) rows are unaffected by this approval and remain `research_only` / `internal` / staging-only.
 
 ## 3. Architecture and Boundaries
 
