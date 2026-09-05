@@ -226,7 +226,7 @@ print(
 
         select module, provider, status, output_preset, request_params,
                provider_latency_ms, total_latency_ms, estimated_cost,
-               provider_request_id, source_region_verified
+               provider_call_id, source_region_verified
         from transformation_eval_runs where job_id = '{job_id}';
 """
 )

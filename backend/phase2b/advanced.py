@@ -123,16 +123,22 @@ def get_asset_row(asset_id: str) -> Optional[dict]:
 
 def write_eval_run(row: dict[str, Any]) -> None:
     """Server-side only eval-run record. Never raises into the request path:
-    an eval-record failure must not fail a user-visible operation."""
+    an eval-record failure must not fail a user-visible operation. It must not
+    fail silently either — log enough to spot a schema/key mismatch."""
     try:
-        _rest_table(
+        resp = _rest_table(
             "transformation_eval_runs",
             "POST",
             json=row,
             headers={"Content-Type": "application/json", "Prefer": "return=minimal"},
         )
-    except Exception:
-        pass
+        if resp.status_code >= 300:
+            print(
+                f"wp_eval_run_write_failed status={resp.status_code} "
+                f"body={resp.text[:300]}"
+            )
+    except Exception as exc:  # noqa: BLE001
+        print(f"wp_eval_run_write_failed exc={type(exc).__name__}: {str(exc)[:300]}")
 
 
 # --------------------------------------------------------------------------- #
