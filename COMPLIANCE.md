@@ -18,4 +18,14 @@ We are committed to open-source compliance and copyleft transparency. Below is t
 * **Release Tag:** `v6-flux-prod`
 * **Upstream Base:** `comfyanonymous/ComfyUI` @ `3d0003c24c1aec9f0c021dbc70ffb7cd8cf0685c` (v0.3.69)
 
+## Approval Status by Module
+
+Recorded 2026-09-05 in [LICENSE_REVIEW.md](./LICENSE_REVIEW.md). The registry, not this document, is the enforcement point.
+
+| Module | Approved commercial status | Production registry row | Enabled |
+|---|---|---|---|
+| Flux baseline (text-to-image) | `commercial_self_hosted_approved` | `flux_text_to_image:v2`, `allowed_envs = {production}` | Yes |
+| Smart Resize / Outpaint | `commercial_self_hosted_approved` | `outpaint:v2`, `allowed_envs = {production}` | Yes |
+| Product Scene (BFL hosted) | `commercial_hosted` | `product_scene:v2` | No — held disabled pending the executed BFL commercial agreement and DPA |
+
 For questions regarding our open-source compliance, reach out to `compliance@brandverita.io`.

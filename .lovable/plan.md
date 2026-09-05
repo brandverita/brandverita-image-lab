@@ -122,8 +122,8 @@ B5. **Production registry v2 rows** (new rows, fresh `config_hash` each):
 
 | Row | status | commercial_status | visibility | envs | prod_enabled | studio_enabled |
 | --- | --- | --- | --- | --- | --- | --- |
-| `flux_text_to_image:v2` | active | `commercial_self_hosted_approved` | `studio_safe` | `{production}` (+`staging` only if also Lab) | true | true |
-| `outpaint:v2` | active | `commercial_self_hosted_approved` | `studio_safe` | `{production}` (+`staging` only if also Lab) | true | true |
+| `flux_text_to_image:v2` | active | `commercial_self_hosted_approved` | `studio_safe` | `{production}` | true | true |
+| `outpaint:v2` | active | `commercial_self_hosted_approved` | `studio_safe` | `{production}` | true | true |
 | `product_scene:v2` | active | `commercial_hosted` | `studio_safe` | `{production}` | **false** until BFL agreement | **false** until BFL agreement |
 
 Run `backend/phase2b/tools/set_config_hash.py <key> <version>` against the
@@ -168,10 +168,18 @@ worker names, and the Studio issuer label.
       still 403 `workflow_not_commercially_approved`.
 - [ ] Staging registry rows unchanged (still research_only/internal).
 
-## Open items I need from you
+## Decisions locked (2026-09-05)
 
-- Confirmation of the production app names in B2, or your own naming.
-- Whether Flux/Outpaint v2 rows should also keep `staging` in `allowed_envs`
-  (so the Lab can exercise the same approved versions) or be production-only.
-- The executed BFL commercial agreement + DPA status, so I can date the
-  Product Scene promotion cut.
+- **Production app names** as proposed in B2: `brandverita-api-prod`,
+  `comfyui-generation-worker-prod`, `comfyui-outpaint-worker-prod`.
+- **Flux and Outpaint v2 rows are production-only**: `allowed_envs = {production}`.
+  Staging keeps its own research rows; the Lab does not exercise the approved
+  production versions.
+- **Product Scene approval recorded 2026-09-05**, subject to the executed BFL
+  commercial agreement and DPA. `product_scene:v2` is created with
+  `production_enabled=false`, `enabled_for_studio=false`, and
+  `HOSTED_PROVIDER_DISPATCH_ENABLED=false` until those close.
+
+Track A is complete in this repo. Remaining work is Track B, executed against
+Modal and the new production Supabase project, plus confirming the fork
+artefacts in `brandverita/ComfyUI`.

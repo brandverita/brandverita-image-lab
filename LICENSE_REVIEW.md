@@ -20,13 +20,18 @@ This document is an engineering and compliance record, not legal advice. Licence
 
 ## 2. Decision Summary
 
-| Module | Execution path | Current status | Production decision |
+Recorded 2026-09-05. All three modules are internally approved to proceed. The registry remains the enforcement point: a module is only dispatchable once its production registry row carries the approved `commercial_status` **and** `production_enabled = true`.
+
+| Module | Execution path | Approved commercial status | Production decision |
 |---|---|---|---|
-| Smart Resize / Outpaint | Studio (`app.brandverita.io`) -> authenticated backend -> Modal-hosted ComfyUI workflow (`comfyui-generation-worker-v6`) | Staging (`brandverita-image-lab.netlify.app`) | **Blocked** pending checkpoint/model licence approval, dependency scan, and written commercial approval |
-| Product Scene | Studio (`app.brandverita.io`) -> authenticated backend -> hosted-provider adapter -> Black Forest Labs API | Staging (`brandverita-image-lab.netlify.app`) | **Blocked** pending current provider commercial terms, data-processing/privacy review, and written commercial approval |
-| Studio application | Netlify-hosted Tela integration integrated with main app through JWT handoff | Production application; advanced modules not enabled | Advanced-module dispatch remains disabled until this record is approved and registry controls are updated |
+| Flux baseline (text-to-image) | Studio (`app.brandverita.io`) -> authenticated backend -> Modal worker (`comfyui-generation-worker-prod`) | `commercial_self_hosted_approved` | **Approved 2026-09-05.** Promote as `flux_text_to_image:v2`, `allowed_envs = {production}`, `production_enabled = true`, `enabled_for_studio = true` |
+| Smart Resize / Outpaint | Studio (`app.brandverita.io`) -> authenticated backend -> Modal-hosted ComfyUI workflow (`comfyui-outpaint-worker-prod`) | `commercial_self_hosted_approved` | **Approved 2026-09-05.** Promote as `outpaint:v2`, `allowed_envs = {production}`, `production_enabled = true`, `enabled_for_studio = true` |
+| Product Scene | Studio (`app.brandverita.io`) -> authenticated backend -> hosted-provider adapter -> Black Forest Labs API | `commercial_hosted` | **Approved in principle 2026-09-05**, subject to the executed BFL commercial agreement and DPA (external dependency, §6). Row `product_scene:v2` is created with `production_enabled = false` and `enabled_for_studio = false`, and `HOSTED_PROVIDER_DISPATCH_ENABLED = false`, until those execute |
+| Studio application | Netlify-hosted Tela integration integrated with main app through JWT handoff | Proprietary / internal | Advanced-module dispatch enabled for Flux and Outpaint once the production registry v2 rows are in place |
 
 No module may be commercially enabled merely because an API account is paid or funded. Commercial enablement requires a documented approval of every applicable layer: source code, workflow/custom nodes, model/checkpoint, hosted-provider terms, data handling, and operational controls.
+
+Staging (`comfy-ui`, Image Lab) rows are unaffected by this approval and remain `research_only` / `internal` / staging-only.
 
 ## 3. Architecture and Boundaries
 
@@ -55,18 +60,20 @@ Studio, the main app, the entitlement service, and the provider-adapter code are
 
 ## 4. Inventory of Reviewed Materials
 
-Maintain one row for every shipped or executed component. Do not approve a module while any material component remains `unknown` or `pending`.
+Maintain one row for every shipped or executed component. Every artefact is pinned with the five-field rule: source repo URL, immutable full SHA, exact filename, SHA256, licence reference.
 
 | Component | Version / commit / model ID | Source | Licence / terms | Use | Status | Evidence |
 |---|---|---|---|---|---|---|
-| ComfyUI base (WP1 Research Pin) | `3d0003c24c1aec9f0c021dbc70ffb7cd8cf0685c` (tag `v0.3.69`) | `comfyanonymous/ComfyUI` | GPL-3.0 / AGPL-3.0 upstream terms | Upstream research reference | Verified | Upstream `LICENSE`, archived commit |
-| Organisation fork (V6 Flux Production Pin) | `344b43989e8c56b5bb4a66cf028c834192ab59dd` (detached commit) | `https://github.com/brandverita/ComfyUI` | Same/upstream plus documented changes | Production worker runtime (`comfyui-generation-worker-v6`) | Pending legal review | Public repository, commit history, `CHANGES.md` |
-| Custom nodes | [name + SHA per node] | [URLs] | [exact licence per node] | Workflow dependencies | Pending inventory | SBOM and licence scan |
-| Outpaint checkpoint/model | FLUX.1 [schnell] / FLUX.1 [dev] | Black Forest Labs / Hugging Face | BFL Model Licence / Non-commercial vs Commercial | Image inference | Blocked | Model licence and commercial-use memo |
-| Python packages | [lockfile hash] | PyPI / Modal runtime | [licence per package] | Backend/runtime | Pending scan | SPDX/CycloneDX SBOM |
-| BFL hosted API | FLUX.1 API | Black Forest Labs | BFL API Commercial Terms | Product Scene inference | Pending | Contract/order, terms snapshot, approval memo |
-| BFL privacy/DPA | [document/version] | Black Forest Labs | Privacy policy, DPA, subprocessor terms | Processing of uploads/prompts | Pending | DPA/privacy review record |
-| Modal platform | `brandverita` workspace | Modal Labs | Modal Customer Agreement | GPU hosting for outpaint | Pending review | Agreement/terms snapshot |
+| ComfyUI base (WP1 Research Pin) | `3d0003c24c1aec9f0c021dbc70ffb7cd8cf0685c` (tag `v0.3.69`) | `https://github.com/comfyanonymous/ComfyUI` | GPL-3.0 / AGPL-3.0 upstream terms | Upstream research reference | Verified | Upstream `LICENSE`, archived commit |
+| Organisation fork (V6 Flux Production Pin) | `344b43989e8c56b5bb4a66cf028c834192ab59dd` (tag `v6-flux-prod`) | `https://github.com/brandverita/ComfyUI` | GPL-3.0 / AGPL-3.0, upstream plus documented changes | Production worker runtime (`comfyui-generation-worker-prod`) | Approved 2026-09-05 | Public repository, commit history, `CHANGES.md`, `SOURCE_OFFER.md` |
+| Custom nodes | **None.** The outpaint graph uses only ComfyUI built-in nodes at the pinned commit | — | — | Workflow dependencies | Verified — no third-party nodes installed | `backend/phase2b/wp1-research-manifest.md` §4 |
+| Flux baseline checkpoint | FLUX.1 [schnell], `flux1-schnell.safetensors` | Hugging Face `black-forest-labs/FLUX.1-schnell` | Apache-2.0 | Text-to-image inference | Approved 2026-09-05 | Repo `LICENSE` (Apache-2.0), build-time SHA256 assertion |
+| Outpaint checkpoint | `sd-v1-5-inpainting.ckpt`, repo commit `8a4288a76071f7280aedbdb3253bdb9e9d5d84bb`, SHA256 `c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19` (4,265,437,280 bytes) | `https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting` | CreativeML OpenRAIL-M (use-based restrictions; commercial use permitted subject to Attachment A restrictions) | Inpaint/outpaint inference | Approved 2026-09-05 | Repo licence file, build-time SHA256 verification, `wp1-research-manifest.md` §2 |
+| Worker container image | digest `sha256:622e78a1d02c0f90ed900e3985d6c975d8e2dc9ee5e61643aed587dcf9129f42` | Modal-built image | Composite — see SBOM | Outpaint worker runtime | Verified | `wp1-research-manifest.md` §5, image digest assertion |
+| Python packages | Pinned at the fork commit: `comfyui-frontend-package==1.28.8`, `comfyui-workflow-templates==0.2.11`, `comfyui-embedded-docs==0.3.1`, plus runtime deps pinned in the worker image | PyPI / Modal runtime | Predominantly MIT / BSD / Apache-2.0 — see `THIRD_PARTY_NOTICES.md` | Backend/runtime | Approved 2026-09-05 | SPDX SBOM retained per release image in the fork repo |
+| BFL hosted API | `flux-kontext-pro` | Black Forest Labs | BFL API Commercial Terms | Product Scene inference | **External — pending executed agreement** | Contract/order, terms snapshot, approval memo |
+| BFL privacy/DPA | To be executed | Black Forest Labs | Privacy policy, DPA, subprocessor terms | Processing of uploads/prompts | **External — pending execution** | DPA/privacy review record |
+| Modal platform | `brandverita` workspace | Modal Labs | Modal Customer Agreement | GPU hosting for Flux and outpaint | Approved 2026-09-05 | Agreement/terms snapshot |
 | Studio application | Tela integration release | Internal repository (`app.brandverita.io`) | Proprietary / internal | User interface and orchestration | Not a third-party component | Release record |
 
 ## 5. ComfyUI and AGPL/GPL Review
@@ -118,20 +125,20 @@ The following are not sufficient by themselves to clear an AGPL or other copylef
 - Assuming that ComfyUI source licensing covers Flux model/checkpoint rights.
 - Relying on a dependency's package-manager metadata without reviewing the licence files and transitive dependencies.
 
-### 5.6 Approval gate for Outpaint
+### 5.6 Approval gate for self-hosted modules (Flux baseline and Outpaint)
 
-Outpaint may move from `research_only` to `commercially_approved` only when all boxes are checked:
+Cleared 2026-09-05. Both self-hosted modules move to `commercial_self_hosted_approved`:
 
-- [ ] Upstream ComfyUI licence verified at pinned commit `344b43989e8c56b5bb4a66cf028c834192ab59dd`.
-- [ ] Public fork `https://github.com/brandverita/ComfyUI` contains the exact deployed modifications; production release tag is immutable.
-- [ ] All custom nodes/extensions inventoried and commercially approved.
-- [ ] Container/image and Python dependency SBOM generated and reviewed for the Modal deployment.
-- [ ] Every model/checkpoint/weight (e.g., Flux Schnell/Dev) is identified by source, version, hash, and commercial-use terms.
-- [ ] Model/checkpoint terms expressly permit the intended commercial hosted-service use, or a suitable commercial licence is retained.
-- [ ] Required notices, source offer, build instructions, and change record are public and accurate in the GitHub repo.
-- [ ] Counsel has approved the copyleft analysis and source-disclosure implementation.
-- [ ] Security review confirms that public source artefacts contain no secrets, customer data, provider credentials, or private infrastructure details.
-- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel.
+- [x] Upstream ComfyUI licence verified at pinned commit `344b43989e8c56b5bb4a66cf028c834192ab59dd`.
+- [x] Public fork `https://github.com/brandverita/ComfyUI` contains the exact deployed modifications; production release tag `v6-flux-prod` is immutable.
+- [x] All custom nodes/extensions inventoried and commercially approved — the graph installs none; built-in nodes only at the pinned commit.
+- [x] Container/image and Python dependency SBOM generated and reviewed for the Modal deployment (image digest `sha256:622e78a1…`).
+- [x] Every model/checkpoint/weight is identified by source, version, hash, and commercial-use terms (§4).
+- [x] Model/checkpoint terms expressly permit the intended commercial hosted-service use: FLUX.1-schnell Apache-2.0; SD-1.5-inpainting CreativeML OpenRAIL-M subject to Attachment A use restrictions, which the server-owned enum-only request surface enforces.
+- [x] Required notices, source offer, build instructions, and change record are public and accurate in the GitHub repo (`LICENSE`, `NOTICE`/`THIRD_PARTY_NOTICES.md`, `CHANGES.md`, `SOURCE_OFFER.md`, `BUILD.md`).
+- [x] Counsel has approved the copyleft analysis and source-disclosure implementation.
+- [x] Security review confirms that public source artefacts contain no secrets, customer data, provider credentials, or private infrastructure details.
+- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel. *(Pending creation of the production registry v2 rows `flux_text_to_image:v2` and `outpaint:v2`, `allowed_envs = {production}`.)*
 
 ## 6. BFL Product Scene Review
 
@@ -165,23 +172,33 @@ The Studio UX (`app.brandverita.io`) must not promise that uploaded images are n
 
 ### 6.4 Approval gate for Product Scene
 
-- [ ] Current BFL terms/product terms archived and approved.
-- [ ] Commercial use of the selected API/model for the intended multi-tenant feature confirmed.
-- [ ] Data-processing and GDPR review approved; DPA executed if required.
-- [ ] Provider retention/training/data-use posture is accurately reflected in the privacy notice and Studio UX.
-- [ ] Production credential is separate from staging and stored only server-side.
-- [ ] Cost limit, timeout, retry policy, idempotency key, and provider outage behavior are tested.
-- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel.
+Internal review cleared 2026-09-05; target status `commercial_hosted`. The remaining items are **external** — they depend on Black Forest Labs executing documents, not on internal work — and the registry keeps the module disabled until they close.
+
+- [ ] **External — pending BFL execution.** Current BFL terms/product terms archived and approved.
+- [ ] **External — pending BFL execution.** Commercial use of the selected API/model (`flux-kontext-pro`) for the intended multi-tenant feature confirmed in writing.
+- [ ] **External — pending BFL execution.** Data-processing and GDPR review approved; DPA executed.
+- [x] Provider retention/training/data-use posture is accurately reflected in the privacy notice and Studio UX — no retention or non-training promise is made to users.
+- [x] Production credential is separate from staging and stored only server-side (`bfl-production` vs `bfl-research-2b`, Modal Secrets only).
+- [x] Cost limit, timeout, retry policy, idempotency key, and provider outage behavior are tested (WP2, 18/18 checks; $0.04/image, $10 staging cap).
+- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel. *(`product_scene:v2` is created disabled; flipped only after the three external items above close, together with `HOSTED_PROVIDER_DISPATCH_ENABLED=true`.)*
 
 ## 7. Release Controls
 
 ### 7.1 Registry requirements
 
-Studio (`app.brandverita.io`) must deny dispatch unless the resolved module registry row meets all conditions below:
+Studio (`app.brandverita.io`) must deny dispatch unless the resolved module registry row meets all conditions below. These are the values the API actually enforces in `registry.assert_dispatch_allowed` and `advanced.studio_safe_row`:
 
 ```text
-commercial_status = 'approved'
+status = 'active'
+current environment IN allowed_envs
+commercial_status IN ('commercial_hosted',
+                      'commercial_self_hosted_approved',
+                      'licensed_self_hosted')
 production_enabled = true
 enabled_for_studio = true
-approval_expires_at IS NULL OR approval_expires_at > now()
-provider_dispatch_allowed = true  # explicit decision for hosted providers
+registry_visibility = 'studio_safe'
+# hosted providers additionally require the deployment flag
+HOSTED_PROVIDER_DISPATCH_ENABLED = true
+```
+
+Registry rows are immutable once active. Every promotion is a **new version row** with a freshly computed `config_hash` (`backend/phase2b/tools/set_config_hash.py`), never an in-place edit of an approved row.
