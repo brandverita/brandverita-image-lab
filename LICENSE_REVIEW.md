@@ -172,13 +172,15 @@ The Studio UX (`app.brandverita.io`) must not promise that uploaded images are n
 
 ### 6.4 Approval gate for Product Scene
 
-- [ ] Current BFL terms/product terms archived and approved.
-- [ ] Commercial use of the selected API/model for the intended multi-tenant feature confirmed.
-- [ ] Data-processing and GDPR review approved; DPA executed if required.
-- [ ] Provider retention/training/data-use posture is accurately reflected in the privacy notice and Studio UX.
-- [ ] Production credential is separate from staging and stored only server-side.
-- [ ] Cost limit, timeout, retry policy, idempotency key, and provider outage behavior are tested.
-- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel.
+Internal review cleared 2026-09-05; target status `commercial_hosted`. The remaining items are **external** — they depend on Black Forest Labs executing documents, not on internal work — and the registry keeps the module disabled until they close.
+
+- [ ] **External — pending BFL execution.** Current BFL terms/product terms archived and approved.
+- [ ] **External — pending BFL execution.** Commercial use of the selected API/model (`flux-kontext-pro`) for the intended multi-tenant feature confirmed in writing.
+- [ ] **External — pending BFL execution.** Data-processing and GDPR review approved; DPA executed.
+- [x] Provider retention/training/data-use posture is accurately reflected in the privacy notice and Studio UX — no retention or non-training promise is made to users.
+- [x] Production credential is separate from staging and stored only server-side (`bfl-production` vs `bfl-research-2b`, Modal Secrets only).
+- [x] Cost limit, timeout, retry policy, idempotency key, and provider outage behavior are tested (WP2, 18/18 checks; $0.04/image, $10 staging cap).
+- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel. *(`product_scene:v2` is created disabled; flipped only after the three external items above close, together with `HOSTED_PROVIDER_DISPATCH_ENABLED=true`.)*
 
 ## 7. Release Controls
 
