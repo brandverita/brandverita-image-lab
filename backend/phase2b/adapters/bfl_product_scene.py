@@ -310,7 +310,7 @@ def run_product_scene(job_id: str, user_id: str) -> None:
         provider_latency_ms = int((time.time() - started) * 1000)
         eval_row["provider_latency_ms"] = provider_latency_ms
         eval_row["estimated_cost"] = COST_PER_IMAGE
-        eval_row["provider_request_id"] = provider_result.get("request_id")
+        eval_row["provider_call_id"] = provider_result.get("request_id")
         _stage(
             job_id,
             "provider_returned",
