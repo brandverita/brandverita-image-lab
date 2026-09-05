@@ -186,11 +186,19 @@ Internal review cleared 2026-09-05; target status `commercial_hosted`. The remai
 
 ### 7.1 Registry requirements
 
-Studio (`app.brandverita.io`) must deny dispatch unless the resolved module registry row meets all conditions below:
+Studio (`app.brandverita.io`) must deny dispatch unless the resolved module registry row meets all conditions below. These are the values the API actually enforces in `registry.assert_dispatch_allowed` and `advanced.studio_safe_row`:
 
 ```text
-commercial_status = 'approved'
+status = 'active'
+current environment IN allowed_envs
+commercial_status IN ('commercial_hosted',
+                      'commercial_self_hosted_approved',
+                      'licensed_self_hosted')
 production_enabled = true
 enabled_for_studio = true
-approval_expires_at IS NULL OR approval_expires_at > now()
-provider_dispatch_allowed = true  # explicit decision for hosted providers
+registry_visibility = 'studio_safe'
+# hosted providers additionally require the deployment flag
+HOSTED_PROVIDER_DISPATCH_ENABLED = true
+```
+
+Registry rows are immutable once active. Every promotion is a **new version row** with a freshly computed `config_hash` (`backend/phase2b/tools/set_config_hash.py`), never an in-place edit of an approved row.
