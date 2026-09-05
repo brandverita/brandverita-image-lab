@@ -1,8 +1,11 @@
 # Run the config-hash tool for product_scene:v1
 
-This is a local, one-off script run. It talks only to Supabase over HTTPS — it does
-not touch Modal, so it does **not** run from `modal-project`. Run it from the folder
-where you keep this repo's `backend/` files (the same place the SQL file came from).
+I run this from the Lovable workspace, not from your local machine or a GitHub
+codespace. The script `backend/phase2b/tools/set_config_hash.py`, the
+service-role key, and `SUPABASE_URL` are all already present in this workspace,
+and it can reach Supabase over HTTPS. No codespace, no Supabase re-linking, and
+no service-role key handling on your side. The only missing piece is `httpx`,
+which I install before running.
 
 ## Steps
 
