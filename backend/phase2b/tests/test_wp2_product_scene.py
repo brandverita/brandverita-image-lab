@@ -235,7 +235,12 @@ print(
 # 8 — private storage
 # --------------------------------------------------------------------------- #
 
-signed_url = output_asset.get("download_url") or output_asset.get("url") or ""
+signed_url = (
+    output_asset.get("read_url")
+    or output_asset.get("download_url")
+    or output_asset.get("url")
+    or ""
+)
 signed_ok = False
 if signed_url:
     with httpx.Client(timeout=60.0) as client:
@@ -244,11 +249,19 @@ check("8a output served only through a short-lived signed URL", signed_ok, f"url
 
 storage_path = output_asset.get("storage_path") or ""
 if storage_path:
+    unsigned_url = f"{SUPABASE_URL}/storage/v1/object/generation-assets/{storage_path}"
+elif signed_url:
+    unsigned_url = signed_url.split("?", 1)[0].replace("/object/sign/", "/object/public/")
+else:
+    unsigned_url = ""
+
+if unsigned_url:
     with httpx.Client(timeout=30.0) as client:
-        anon = client.get(f"{SUPABASE_URL}/storage/v1/object/generation-assets/{storage_path}")
+        anon = client.get(unsigned_url)
     check("8b anonymous unsigned read refused", anon.status_code >= 400, f"got {anon.status_code}")
 else:
-    check("8b anonymous unsigned read refused", signed_ok, "storage_path not exposed by the API (also acceptable)")
+    check("8b anonymous unsigned read refused", False, "no signed link returned, cannot derive object URL")
+
 
 # --------------------------------------------------------------------------- #
 # 9 — no server-owned instruction text in any client response
