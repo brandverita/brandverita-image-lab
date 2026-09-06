@@ -413,8 +413,45 @@ def write_ready_output(
 
 
 # --------------------------------------------------------------------------- #
+# Output asset -> short-lived signed result URL
+# --------------------------------------------------------------------------- #
+
+
+def output_result_url(output_asset_id: Optional[str], owner_id: str) -> Optional[str]:
+    """Mint a short-lived signed read URL for a job's stored output asset.
+
+    Advanced modules (outpaint, product_scene) persist their result as a
+    `generation_assets` row instead of the legacy `output_path`, so the job
+    response had no `result_url` and clients rendered an empty result box.
+
+    Only the caller's own `ready`, non-deleted asset is ever signed. Any
+    failure returns None (never raises, never logs a URL) so a job response
+    stays valid and the client's refresh action remains available.
+    """
+    if not output_asset_id:
+        return None
+    try:
+        rows = assets.table_select(
+            "select=storage_path,status,deleted_at"
+            f"&id=eq.{output_asset_id}&owner_id=eq.{owner_id}&limit=1"
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    if not rows:
+        return None
+    row = rows[0]
+    if row.get("status") != "ready" or row.get("deleted_at"):
+        return None
+    try:
+        return assets.storage_signed_read_url(row["storage_path"])
+    except Exception:  # noqa: BLE001
+        return None
+
+
+# --------------------------------------------------------------------------- #
 # Studio-safe registry filter (API layer, not the client)
 # --------------------------------------------------------------------------- #
+
 
 
 def studio_safe_row(row: dict[str, Any]) -> bool:

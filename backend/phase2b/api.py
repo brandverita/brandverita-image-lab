@@ -599,7 +599,7 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
     )
     if existing:
         # Idempotent replay: return the current state, not a fresh "queued".
-        return jobs.job_to_response_dict(existing[0])
+        return _job_response(existing[0], user_id)
 
     job_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
@@ -716,7 +716,22 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             detail="dispatch_failed: the image worker could not be started. Please retry.",
         )
 
-    return jobs.job_to_response_dict(inserted[0])
+    return _job_response(inserted[0], user_id)
+
+
+def _job_response(row: dict, user_id: str) -> dict:
+    """Job response plus a signed result_url for advanced-module outputs.
+
+    Legacy flux jobs carry `output_path`; outpaint/product_scene instead store
+    the result as a generation_assets row referenced by `output_asset_id`.
+    Without this, `result_url` stayed null and clients showed an empty result.
+    """
+    payload = jobs.job_to_response_dict(row)
+    if not payload.get("result_url") and row.get("status") == "completed":
+        signed = advanced.output_result_url(row.get("output_asset_id"), user_id)
+        if signed:
+            payload["result_url"] = signed
+    return payload
 
 
 @web_app.get("/v1/generations/{job_id}", response_model=JobResponse)
@@ -727,7 +742,7 @@ def get_generation(job_id: str, user_id: str = Depends(get_verified_user_id)):
     )
     if not rows:
         raise HTTPException(status_code=404, detail="This generation job could not be found.")
-    return jobs.job_to_response_dict(rows[0])
+    return _job_response(rows[0], user_id)
 
 
 @web_app.get("/v1/generations/{job_id}/result")
@@ -735,7 +750,7 @@ def refresh_result_url(job_id: str, user_id: str = Depends(get_verified_user_id)
     rows = supabase_rest.rest_get(
         "generation_jobs",
         {
-            "select": "id,status,output_path",
+            "select": "id,status,output_path,output_asset_id",
             "id": f"eq.{job_id}",
             "user_id": f"eq.{user_id}",
             "limit": 1,
@@ -745,13 +760,17 @@ def refresh_result_url(job_id: str, user_id: str = Depends(get_verified_user_id)
         raise HTTPException(status_code=404, detail="This generation job could not be found.")
 
     job = rows[0]
-    if job["status"] != "completed" or not job.get("output_path"):
+    if job["status"] != "completed":
         raise HTTPException(status_code=409, detail="Generation result is not available.")
 
-    signed_url = supabase_rest.sign_output_path(job["output_path"])
+    if job.get("output_path"):
+        signed_url = supabase_rest.sign_output_path(job["output_path"])
+    else:
+        signed_url = advanced.output_result_url(job.get("output_asset_id"), user_id)
     if not signed_url:
         raise HTTPException(status_code=500, detail="Could not create result URL.")
     return {"job_id": job_id, "result_url": signed_url}
+
 
 
 # Phase 2A asset routes
