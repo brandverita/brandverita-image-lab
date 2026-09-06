@@ -161,3 +161,13 @@ Eval row for job `ff911678-bc2b-4cd1-8b36-9fc3bafcfc26`:
 - output_preset=1080x1080, provider_call_id `f9826009-bf7f-46c6-819e-af4209ba26a5`
 - provider_latency_ms=9251, total_latency_ms=16729, estimated_cost=$0.04
 - source_region_verified=null (expected — not byte-verifiable for this module)
+
+## 2026-09-06 — empty result box fix (api.py, advanced.py)
+
+Completed outpaint/product_scene jobs stored their result as a `generation_assets`
+row (`output_asset_id`) and left `output_path`/`result_url` null, so clients had no
+address to load and rendered an empty result panel. Added
+`advanced.output_result_url()` (owner-scoped, `ready`-only, short-lived signed
+read URL, never raises) and `api._job_response()`, applied to POST /v1/generations,
+GET /v1/generations/{id}, and GET /v1/generations/{id}/result. Legacy flux path
+unchanged. Requires redeploy of the Modal V6 API.

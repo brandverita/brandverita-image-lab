@@ -128,3 +128,13 @@ Fix (`outpaint_geometry.py` only): new `pixel_digest()` hashes
 stronger — compares pixels, not encoder output. Verified locally on an
 ICC-profile source: `verified = True`, and a 5x5 tampered region is still
 rejected. No adapter, worker, graph, registry or Studio change.
+
+## 2026-09-06 — empty result box fix (api.py, advanced.py)
+
+Completed outpaint/product_scene jobs stored their result as a `generation_assets`
+row (`output_asset_id`) and left `output_path`/`result_url` null, so clients had no
+address to load and rendered an empty result panel. Added
+`advanced.output_result_url()` (owner-scoped, `ready`-only, short-lived signed
+read URL, never raises) and `api._job_response()`, applied to POST /v1/generations,
+GET /v1/generations/{id}, and GET /v1/generations/{id}/result. Legacy flux path
+unchanged. Requires redeploy of the Modal V6 API.
