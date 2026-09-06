@@ -56,43 +56,33 @@ modal deploy api.py
 curl -s https://brandverita--brandverita-api-v6-fastapi-app.modal.run/health
 ```
 
-## 2. Supabase Storage CORS — action in the Supabase dashboard
+## 2. Supabase Storage CORS — NO ACTION NEEDED (verified)
 
-This is the part that actually fixes the upload `PUT`. Supabase Storage CORS is
-**not** settable from this repo or via SQL; it lives on the hosted project.
+The Studio team flagged this as a "worth checking both at once" risk. It is
+already safe: I probed the Storage host directly and it returns
+`Access-Control-Allow-Origin: *` with `PUT` allowed on signed upload URLs, for
+every origin (Studio, Lab, anything). The dashboard has no CORS UI under
+Settings or Policies — there is nothing to configure, and nothing to change.
 
-Project: `comfy-ui` (`thspgkedjkiltrcimond`).
+Probe result (OPTIONS preflight to
+`https://thspgkedjkiltrcimond.supabase.co/storage/v1/object/upload/...`):
 
-In the Supabase Dashboard:
+```
+access-control-allow-origin: *
+access-control-allow-headers: content-type
+access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS,TRACE,CONNECT
+access-control-max-age: 3600
+```
 
-1. Open project `thspgkedjkiltrcimond` → **Storage** → **Settings** (or
-   **Configuration** → **CORS** in newer dashboard layouts).
-2. Add the same origins above to the Storage CORS allow-list:
-   - `https://app.brandverita.io`
-   - `https://id-preview--b2d8d333-eb4f-49b0-8086-f5764b1a4938.lovable.app`
-   - `https://brandverita-image-lab.netlify.app`
-   - `https://lab.brandverita.com`
-   - `http://localhost:8080` (for local Studio dev)
-3. Allow methods `GET`, `PUT`, `OPTIONS` (and `POST` if the dashboard offers a
-   method list — the signed-upload `PUT` is the critical one). Allow headers
-   `Content-Type`, `Authorization` (the signed URL carries its own token in the
-   query string, but `Content-Type` is sent on the PUT).
+So the upload `PUT` and signed read `GET` are not blocked by Storage CORS. The
+only CORS surface that blocks the Studio today is the Modal FastAPI API
+(part 1). The Studio team does not need to add Storage origins or policies.
 
-The signed upload URL is built in `assets.py:storage_signed_upload_url` and
-points at `{supabase_base}/storage/v1/object/upload/...`, and signed read URLs
-point at `{supabase_base}/storage/v1/object/sign/...` — both on the
-`thspgkedjkiltrcimond.supabase.co` host, so one Storage CORS entry covers both.
-
-## Why two surfaces (for the Studio team)
-
-- `POST /v1/assets/upload-authorizations` → API returns a signed `upload_url`
-  that points at **Supabase Storage**, not at the API.
-- The browser then does `PUT <upload_url>` directly to Supabase Storage. That
-  request never touches the Modal API, so the API's CORS cannot allow it.
-- `finalize` and everything after is back to the API.
-
-So: API CORS = part 1 (code + redeploy). Upload PUT = part 2 (Supabase Storage
-CORS). Both must list the Studio origin.
+Note for the record: the `No policies created yet` message on the
+`generation-assets` / `generation-outputs` buckets in the Policies tab is
+expected and correct — these buckets are private by design and accessed only
+via signed URLs issued server-side; no `storage.objects` RLS policies exist on
+purpose (per Phase 2A manifest). Do not add public/anonymous storage policies.
 
 ## Verification
 
