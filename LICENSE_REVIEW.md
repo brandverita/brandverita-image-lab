@@ -144,21 +144,26 @@ Cleared 2026-09-05. Both self-hosted modules move to `commercial_self_hosted_app
 
 ### 6.1 Commercial terms
 
-A funded BFL account and successful staging calls via `https://brandverita-image-lab.netlify.app/` demonstrate technical access only. Before commercial launch, retain the currently applicable terms, order form or subscription evidence, API product terms, price schedule, rate limits, and any use restrictions applicable to the chosen Product Scene model/API.
+Settled 2026-09-06 on BFL's **public** terms — no bespoke agreement or order form will be sought. The governing documents, both archived from `bfl.ai/legal` on 2026-09-06:
 
-Confirm in writing that the intended use is permitted: a multi-tenant, user-facing Studio feature (`app.brandverita.io`) in which users submit images and prompts through the organisation's service and receive generated images. If terms distinguish internal evaluation, individual use, resale, redistribution, white-labeling, or use on behalf of customers, record the applicable interpretation and approval.
+- **Developer Terms of Service** (rev. 2026-08-04, non-EU version — BrandVerita's contracting entity is non-EU-resident). A binding contract formed by use of the FLUX Services. Studio is a "Developer Application" and its users are "End Users"; integrating the FLUX API so End Users interface with the models inside Studio is the licensed use case.
+- **FLUX API Service Terms** (rev. 2026-08-04, non-EU version). Govern use of `flux-kontext-pro` via the hosted API; control over the Developer Terms on API-specific matters.
+- **FLUX Usage Policy** (`bfl.ai/legal/usage-policy`), incorporated by reference.
+- BFL help centre, "Can I use the API for a commercial application?": *"Yes. All images generated through the BFL API include full commercial usage rights."*
+
+Confirmed permitted: a multi-tenant, user-facing Studio feature in which users submit images through our service and receive generated images commercially. Confirmed NOT permitted and not needed: downloading or self-hosting FLUX weights (API Terms §8) — the "license FLUX model weights" tiers are irrelevant to this architecture.
+
+Fees are prepaid credits at `bfl.ai/pricing/api` (~$0.04/image for `flux-kontext-pro`, metered per run); credits are non-refundable.
 
 ### 6.2 Data-processing review
 
-Product Scene requests may contain customer-uploaded images, user prompts, brand assets, and potentially personal data. The privacy review must establish:
+Settled 2026-09-06 under the public terms, without a DPA:
 
-- Categories of data sent to BFL and whether special-category personal data must be prohibited.
-- Purposes of processing and documented instructions.
-- Retention, deletion, logging, training/improvement, and human-access terms.
-- Data location/transfer mechanism and applicable GDPR safeguards.
-- Current subprocessor list and notification/change process.
-- Security measures, incident-notification process, and data-subject request support.
-- Whether a data-processing agreement (DPA) is required and executed with Black Forest Labs.
+- **Training licence (API Terms clause 2b):** BrandVerita grants BFL a fully paid, perpetual, irrevocable, worldwide, sublicensable licence to use Inputs and Outputs **to operate, improve and develop BFL's products, including training its models**. This is accepted as a business risk (2026-09-06) and MUST be disclosed to users in Studio's terms and UX.
+- **No zero-retention guarantee:** "zero data retention" is an Enterprise-tier feature; the public terms carry no retention commitment. Studio must not promise that uploaded images are never retained, never used for improvement, or processed in a particular region.
+- **GDPR posture:** without a DPA, images containing personal data (identifiable people) must not be submitted. The module's server-owned scene presets are product-photography oriented; Studio's acceptable-use terms must prohibit uploads containing personal data for this module.
+- **End-user flow-down (Developer Terms 2c, API Terms 7):** Studio's end-user agreement and acceptable-use policy must be at least as restrictive as the FLUX Usage Policy, and Studio must terminate access for End Users who violate them.
+- **Content screening (API Terms 5):** BrandVerita is responsible for reasonable content screening of submitted Input; the enum-only, server-owned preset surface is the screening control, and BFL-side moderation responses (`provider_moderated`) are surfaced as job failures.
 
 The Studio UX (`app.brandverita.io`) must not promise that uploaded images are never retained, never used for improvement, or processed in a particular region unless the current provider terms and configuration support that promise.
 
