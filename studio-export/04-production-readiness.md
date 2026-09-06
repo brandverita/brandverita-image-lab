@@ -28,9 +28,15 @@ with a fresh config hash, not an in-place edit of an active row.
   SHA256). Needs a licence review concluding commercial self-hosted use is
   approved before the row moves off `research_only`.
 - **Product Background / Scene** — hosted third-party provider (Black Forest
-  Labs `flux-kontext-pro`). Needs a commercial agreement, a data-handling /
-  customer-image review, and confirmation of output rights, because customer
-  images leave the deployment.
+  Labs `flux-kontext-pro`). Legal basis settled 2026-09-06 on BFL's **public**
+  Developer Terms of Service + FLUX API Service Terms (rev. 2026-08-04,
+  non-EU versions): commercial use of API outputs is expressly permitted and
+  no bespoke agreement, DPA, or weight licence will be sought. Accepted with
+  the terms: BFL's clause 2b licence to Inputs/Outputs **including model
+  training** (business-risk acceptance, to be disclosed to Studio users).
+  Before promotion, Studio must: flow the FLUX Usage Policy down into its
+  end-user terms, disclose third-party processing/training use in its UX,
+  and prohibit uploads containing identifiable personal data for this module.
 
 ## 3. Production Supabase project (blocker)
 

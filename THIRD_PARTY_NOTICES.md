@@ -37,6 +37,23 @@ Model checkpoints (e.g., FLUX.1, SD‑1.5‑inpainting) are governed by their ow
 | `flux1-schnell.safetensors` | build-time SHA256 assertion | Apache‑2.0 | https://huggingface.co/black-forest-labs/FLUX.1-schnell |
 | `sd-v1-5-inpainting.ckpt` | repo `8a4288a76071f7280aedbdb3253bdb9e9d5d84bb`, SHA256 `c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19` | CreativeML OpenRAIL‑M | https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting |
 
+## Hosted Third-Party Services (no code distributed)
+
+The Product Scene module calls a hosted third-party API. No provider code or
+model weights are downloaded, bundled, or redistributed by this project; the
+terms below govern use of the service and the rights in its outputs.
+
+| Service | Model | Governing terms (archived 2026-09-06) | Notes |
+|---|---|---|---|
+| Black Forest Labs FLUX API | `flux-kontext-pro` | [FLUX API Service Terms](https://bfl.ai/legal/flux-api-service-terms) rev. 2026-08-04 (non-EU) | Controls on API-specific matters; §8 grants no self-hosting right and none is exercised |
+| Black Forest Labs | — | [Developer Terms of Service](https://bfl.ai/legal/developer-terms-of-service) rev. 2026-08-04 (non-EU) | Master developer contract; §2c requires end-user terms flow-down |
+| Black Forest Labs | — | [FLUX Usage Policy](https://bfl.ai/legal/usage-policy) | Incorporated by reference into the API Terms |
+| Black Forest Labs | — | [Privacy Policy](https://bfl.ai/legal/privacy-policy) | API Terms clause 2b permits BFL to use Inputs and Outputs, including for model training |
+
+Outputs generated through the BFL API carry full commercial usage rights under
+the public terms. See `LICENSE_REVIEW.md` §6 for the recorded review and the
+accepted data-use posture.
+
 ## Python Package Dependencies
 
 This project relies on the following key Python packages and their dependencies. The complete, per-release list is the SPDX SBOM retained as a release artefact alongside the container image digest.

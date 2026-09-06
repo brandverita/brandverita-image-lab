@@ -83,7 +83,28 @@ success (preview plus a prominent Download). Keep visible focus rings, real
 labels on every control, and descriptive alt text on both the source preview and
 the result.
 
-## Step 8 — what to check before shipping
+## Step 8 — customer-facing obligations (Product Scene only)
+
+Product Scene sends the image to a hosted third-party provider (Black Forest
+Labs). BrandVerita runs it on BFL's public API terms — no bespoke agreement or
+data-processing agreement — which places three obligations on Studio before the
+feature can be shown to customers:
+
+1. **Flow down the usage policy.** Studio's end-user agreement and acceptable-use
+   policy must be at least as restrictive as the
+   [FLUX Usage Policy](https://bfl.ai/legal/usage-policy), and Studio must be able
+   to terminate an end user who breaches it.
+2. **Disclose third-party processing and training use.** Studio must tell users
+   that images submitted to Product Scene are processed by a third-party AI
+   provider which may use them to improve its models. Do not state or imply that
+   images are never retained, never used for improvement, or kept in a region.
+3. **No personal data.** Studio's terms must prohibit uploading images containing
+   identifiable people to this module.
+
+Smart Resize / Outpaint is fully self-hosted and carries none of these
+obligations. See `LICENSE_REVIEW.md` §6 for the recorded basis.
+
+## Step 9 — what to check before shipping
 
 - Both features are hidden when `listWorkflows("studio")` omits them.
 - A rejected file (animated GIF/WebP, 20 MB, 6000 px) shows the validation
@@ -92,3 +113,4 @@ the result.
 - No signed URL, storage path, token or request body appears in the console,
   logs or analytics.
 - Expired-link download recovers via the refresh action.
+- The Product Scene disclosure above is live before the feature is visible.

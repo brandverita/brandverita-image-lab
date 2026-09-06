@@ -4,7 +4,7 @@
 
 > **Scope:** Studio advanced-image modules: Smart Resize / Outpaint and Product Scene.
 >
-> **Last reviewed:** 2026-09-05
+> **Last reviewed:** 2026-09-06 (BFL public-terms basis for Product Scene recorded)
 >
 > **Owner:** BrandVerita Engineering & Legal Compliance
 >
@@ -26,7 +26,7 @@ Recorded 2026-09-05. All three modules are internally approved to proceed. The r
 |---|---|---|---|
 | Flux baseline (text-to-image) | Studio (`app.brandverita.io`) -> authenticated backend -> Modal worker (`comfyui-generation-worker-prod`) | `commercial_self_hosted_approved` | **Approved 2026-09-05.** Promote as `flux_text_to_image:v2`, `allowed_envs = {production}`, `production_enabled = true`, `enabled_for_studio = true` |
 | Smart Resize / Outpaint | Studio (`app.brandverita.io`) -> authenticated backend -> Modal-hosted ComfyUI workflow (`comfyui-outpaint-worker-prod`) | `commercial_self_hosted_approved` | **Approved 2026-09-05.** Promote as `outpaint:v2`, `allowed_envs = {production}`, `production_enabled = true`, `enabled_for_studio = true` |
-| Product Scene | Studio (`app.brandverita.io`) -> authenticated backend -> hosted-provider adapter -> Black Forest Labs API | `commercial_hosted` | **Approved in principle 2026-09-05**, subject to the executed BFL commercial agreement and DPA (external dependency, §6). Row `product_scene:v2` is created with `production_enabled = false` and `enabled_for_studio = false`, and `HOSTED_PROVIDER_DISPATCH_ENABLED = false`, until those execute |
+| Product Scene | Studio (`app.brandverita.io`) -> authenticated backend -> hosted-provider adapter -> Black Forest Labs API | `commercial_hosted` | **Approved in principle 2026-09-05; legal basis settled 2026-09-06.** No bespoke agreement/DPA will be sought: the legal basis is BFL's public Developer Terms of Service + FLUX API Service Terms (both rev. 2026-08-04, non-EU versions; BrandVerita's contracting entity is non-EU-resident), which grant full commercial usage rights to API outputs. Clause 2b (BFL licence to Inputs/Outputs incl. model training) is **accepted as a business risk on 2026-09-06 and will be disclosed to users** in Studio's terms/UX. Row `product_scene:v2` is created with `production_enabled = false` and `enabled_for_studio = false`, and `HOSTED_PROVIDER_DISPATCH_ENABLED = false`, until the Studio-side obligations in §6.4 close |
 | Studio application | Netlify-hosted Tela integration integrated with main app through JWT handoff | Proprietary / internal | Advanced-module dispatch enabled for Flux and Outpaint once the production registry v2 rows are in place |
 
 No module may be commercially enabled merely because an API account is paid or funded. Commercial enablement requires a documented approval of every applicable layer: source code, workflow/custom nodes, model/checkpoint, hosted-provider terms, data handling, and operational controls.
@@ -71,8 +71,8 @@ Maintain one row for every shipped or executed component. Every artefact is pinn
 | Outpaint checkpoint | `sd-v1-5-inpainting.ckpt`, repo commit `8a4288a76071f7280aedbdb3253bdb9e9d5d84bb`, SHA256 `c6bbc15e3224e6973459ba78de4998b80b50112b0ae5b5c67113d56b4e366b19` (4,265,437,280 bytes) | `https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting` | CreativeML OpenRAIL-M (use-based restrictions; commercial use permitted subject to Attachment A restrictions) | Inpaint/outpaint inference | Approved 2026-09-05 | Repo licence file, build-time SHA256 verification, `wp1-research-manifest.md` §2 |
 | Worker container image | digest `sha256:622e78a1d02c0f90ed900e3985d6c975d8e2dc9ee5e61643aed587dcf9129f42` | Modal-built image | Composite — see SBOM | Outpaint worker runtime | Verified | `wp1-research-manifest.md` §5, image digest assertion |
 | Python packages | Pinned at the fork commit: `comfyui-frontend-package==1.28.8`, `comfyui-workflow-templates==0.2.11`, `comfyui-embedded-docs==0.3.1`, plus runtime deps pinned in the worker image | PyPI / Modal runtime | Predominantly MIT / BSD / Apache-2.0 — see `THIRD_PARTY_NOTICES.md` | Backend/runtime | Approved 2026-09-05 | SPDX SBOM retained per release image in the fork repo |
-| BFL hosted API | `flux-kontext-pro` | Black Forest Labs | BFL API Commercial Terms | Product Scene inference | **External — pending executed agreement** | Contract/order, terms snapshot, approval memo |
-| BFL privacy/DPA | To be executed | Black Forest Labs | Privacy policy, DPA, subprocessor terms | Processing of uploads/prompts | **External — pending execution** | DPA/privacy review record |
+| BFL hosted API | `flux-kontext-pro` | Black Forest Labs | Public FLUX API Service Terms + Developer Terms of Service (both rev. 2026-08-04, non-EU versions) + FLUX Usage Policy; commercial use of API outputs expressly permitted | Product Scene inference | Approved basis 2026-09-06 | Terms archived from `bfl.ai/legal/flux-api-service-terms` and `bfl.ai/legal/developer-terms-of-service`; BFL help centre article "Can I use the API for a commercial application?" ("Yes — full commercial usage rights") |
+| BFL data-use posture | Public terms only — no DPA will be executed (decision 2026-09-06) | Black Forest Labs | API Terms clause 2b: Developer grants BFL a perpetual, irrevocable, sublicensable licence to Inputs and Outputs, **including model training/improvement**; "zero data retention" is an Enterprise-tier feature and does NOT apply | Processing of uploads/prompts | Accepted as business risk 2026-09-06; to be disclosed in Studio terms/UX | Clause 2b text archived; disclosure obligation tracked in §6.4 |
 | Modal platform | `brandverita` workspace | Modal Labs | Modal Customer Agreement | GPU hosting for Flux and outpaint | Approved 2026-09-05 | Agreement/terms snapshot |
 | Studio application | Tela integration release | Internal repository (`app.brandverita.io`) | Proprietary / internal | User interface and orchestration | Not a third-party component | Release record |
 
@@ -144,21 +144,26 @@ Cleared 2026-09-05. Both self-hosted modules move to `commercial_self_hosted_app
 
 ### 6.1 Commercial terms
 
-A funded BFL account and successful staging calls via `https://brandverita-image-lab.netlify.app/` demonstrate technical access only. Before commercial launch, retain the currently applicable terms, order form or subscription evidence, API product terms, price schedule, rate limits, and any use restrictions applicable to the chosen Product Scene model/API.
+Settled 2026-09-06 on BFL's **public** terms — no bespoke agreement or order form will be sought. The governing documents, both archived from `bfl.ai/legal` on 2026-09-06:
 
-Confirm in writing that the intended use is permitted: a multi-tenant, user-facing Studio feature (`app.brandverita.io`) in which users submit images and prompts through the organisation's service and receive generated images. If terms distinguish internal evaluation, individual use, resale, redistribution, white-labeling, or use on behalf of customers, record the applicable interpretation and approval.
+- **Developer Terms of Service** (rev. 2026-08-04, non-EU version — BrandVerita's contracting entity is non-EU-resident). A binding contract formed by use of the FLUX Services. Studio is a "Developer Application" and its users are "End Users"; integrating the FLUX API so End Users interface with the models inside Studio is the licensed use case.
+- **FLUX API Service Terms** (rev. 2026-08-04, non-EU version). Govern use of `flux-kontext-pro` via the hosted API; control over the Developer Terms on API-specific matters.
+- **FLUX Usage Policy** (`bfl.ai/legal/usage-policy`), incorporated by reference.
+- BFL help centre, "Can I use the API for a commercial application?": *"Yes. All images generated through the BFL API include full commercial usage rights."*
+
+Confirmed permitted: a multi-tenant, user-facing Studio feature in which users submit images through our service and receive generated images commercially. Confirmed NOT permitted and not needed: downloading or self-hosting FLUX weights (API Terms §8) — the "license FLUX model weights" tiers are irrelevant to this architecture.
+
+Fees are prepaid credits at `bfl.ai/pricing/api` (~$0.04/image for `flux-kontext-pro`, metered per run); credits are non-refundable.
 
 ### 6.2 Data-processing review
 
-Product Scene requests may contain customer-uploaded images, user prompts, brand assets, and potentially personal data. The privacy review must establish:
+Settled 2026-09-06 under the public terms, without a DPA:
 
-- Categories of data sent to BFL and whether special-category personal data must be prohibited.
-- Purposes of processing and documented instructions.
-- Retention, deletion, logging, training/improvement, and human-access terms.
-- Data location/transfer mechanism and applicable GDPR safeguards.
-- Current subprocessor list and notification/change process.
-- Security measures, incident-notification process, and data-subject request support.
-- Whether a data-processing agreement (DPA) is required and executed with Black Forest Labs.
+- **Training licence (API Terms clause 2b):** BrandVerita grants BFL a fully paid, perpetual, irrevocable, worldwide, sublicensable licence to use Inputs and Outputs **to operate, improve and develop BFL's products, including training its models**. This is accepted as a business risk (2026-09-06) and MUST be disclosed to users in Studio's terms and UX.
+- **No zero-retention guarantee:** "zero data retention" is an Enterprise-tier feature; the public terms carry no retention commitment. Studio must not promise that uploaded images are never retained, never used for improvement, or processed in a particular region.
+- **GDPR posture:** without a DPA, images containing personal data (identifiable people) must not be submitted. The module's server-owned scene presets are product-photography oriented; Studio's acceptable-use terms must prohibit uploads containing personal data for this module.
+- **End-user flow-down (Developer Terms 2c, API Terms 7):** Studio's end-user agreement and acceptable-use policy must be at least as restrictive as the FLUX Usage Policy, and Studio must terminate access for End Users who violate them.
+- **Content screening (API Terms 5):** BrandVerita is responsible for reasonable content screening of submitted Input; the enum-only, server-owned preset surface is the screening control, and BFL-side moderation responses (`provider_moderated`) are surfaced as job failures.
 
 The Studio UX (`app.brandverita.io`) must not promise that uploaded images are never retained, never used for improvement, or processed in a particular region unless the current provider terms and configuration support that promise.
 
@@ -172,15 +177,18 @@ The Studio UX (`app.brandverita.io`) must not promise that uploaded images are n
 
 ### 6.4 Approval gate for Product Scene
 
-Internal review cleared 2026-09-05; target status `commercial_hosted`. The remaining items are **external** — they depend on Black Forest Labs executing documents, not on internal work — and the registry keeps the module disabled until they close.
+Internal review cleared 2026-09-05; legal basis settled 2026-09-06 on BFL's public terms with no DPA. There is no longer any external BFL dependency. The remaining open items are **Studio-side documentation obligations** that flow from the public terms, and the registry keeps the module disabled until they close.
 
-- [ ] **External — pending BFL execution.** Current BFL terms/product terms archived and approved.
-- [ ] **External — pending BFL execution.** Commercial use of the selected API/model (`flux-kontext-pro`) for the intended multi-tenant feature confirmed in writing.
-- [ ] **External — pending BFL execution.** Data-processing and GDPR review approved; DPA executed.
+- [x] Current BFL terms archived and approved — Developer Terms of Service and FLUX API Service Terms, rev. 2026-08-04, non-EU versions (BrandVerita's contracting entity is non-EU-resident), plus the FLUX Usage Policy (§6.1).
+- [x] Commercial use of the selected API/model (`flux-kontext-pro`) for the intended multi-tenant feature confirmed by the public terms and BFL's published commercial-use statement (§6.1).
+- [x] Data-use posture reviewed and accepted without a DPA: API Terms clause 2b grants BFL a perpetual, sublicensable licence to Inputs and Outputs including model training. **Business risk accepted 2026-09-06**, conditional on user disclosure (§6.2).
 - [x] Provider retention/training/data-use posture is accurately reflected in the privacy notice and Studio UX — no retention or non-training promise is made to users.
 - [x] Production credential is separate from staging and stored only server-side (`bfl-production` vs `bfl-research-2b`, Modal Secrets only).
 - [x] Cost limit, timeout, retry policy, idempotency key, and provider outage behavior are tested (WP2, 18/18 checks; $0.04/image, $10 staging cap).
-- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel. *(`product_scene:v2` is created disabled; flipped only after the three external items above close, together with `HOSTED_PROVIDER_DISPATCH_ENABLED=true`.)*
+- [ ] **Studio-side.** Studio's end-user terms and acceptable-use policy flow down the FLUX Usage Policy and are at least as restrictive (Developer Terms 2c, API Terms 7).
+- [ ] **Studio-side.** Studio's user-facing disclosure states that Product Scene images are processed by a third-party AI provider (Black Forest Labs) that may use them to improve its models.
+- [ ] **Studio-side.** Studio's acceptable-use terms prohibit uploading images containing identifiable personal data to this module (no DPA in place, §6.2).
+- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel. *(`product_scene:v2` is created disabled; flipped only after the three Studio-side items above close, together with `HOSTED_PROVIDER_DISPATCH_ENABLED=true`.)*
 
 ## 7. Release Controls
 
