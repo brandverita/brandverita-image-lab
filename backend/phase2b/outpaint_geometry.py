@@ -84,10 +84,28 @@ class Placement:
         }
 
 
+def pixel_digest(image: Image.Image) -> str:
+    """Canonical digest of an image's actual pixels.
+
+    Deliberately NOT a hash of encoded PNG bytes: a PNG file also carries
+    metadata chunks (colour profile, dpi, gamma) that travel with a decoded
+    source image but not with a rectangle cropped out of a generated canvas.
+    Hashing the encoded form therefore reported an integrity failure on
+    pixel-identical regions whenever the uploaded image had an embedded profile.
+    Hashing mode + size + the raw pixel buffer compares the pixels themselves,
+    so the check cannot pass an altered region and cannot fail on metadata.
+    """
+    rgb = image if image.mode == "RGB" else image.convert("RGB")
+    header = f"RGB:{rgb.width}x{rgb.height}:".encode("ascii")
+    return hashlib.sha256(header + rgb.tobytes()).hexdigest()
+
+
 def resolve_preset(output_preset: str) -> tuple[int, int]:
     if output_preset not in PRESETS:
         raise ValueError("unsupported output preset")
     return PRESETS[output_preset]
+
+
 
 
 def _offset(free: int, mode: str) -> int:
