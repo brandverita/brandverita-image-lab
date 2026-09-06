@@ -1,63 +1,64 @@
-# Smart resize fails in Studio — find the real cause, then fix it
+# Smart resize: the "your pixels are unchanged" check is comparing the wrong thing
 
-Upload, options and dispatch all work now. The job itself is failing inside the
-resize worker: "The transformation could not be completed." is the generic
-client message the outpaint adapter writes whenever anything in the pipeline
-raises. The real reason is already recorded server-side (exception detail plus a
-full traceback in the Modal log, and the exception string in the evaluation
-record), but it is deliberately not sent to the browser. So the cause is not yet
-confirmed — step 1 confirms it instead of guessing.
+## What the evidence shows
 
-## Step 1 — read the two facts that name the cause (no changes)
+The run `d537e304-…` failed with `RuntimeError: source_region_integrity_failed`,
+`source_region_verified = false`, after the GPU work had already finished
+successfully (worker booted, graph queued, `Prompt executed in 11.95 seconds`,
+`wp1_worker_graph_done`, clean cleanup). So the image was generated; the job was
+then rejected by its own final safety check.
 
-In the Supabase SQL editor of the staging project:
+That check works like this today: before generation, the placed source image is
+saved as a PNG and hashed; after generation the same rectangle is cropped out of
+the result, saved as a PNG again, and the two hashes are compared.
 
-```sql
-select job_id, status, error_code, error_message, provider_latency_ms,
-       total_latency_ms, source_region_verified, gpu_seconds, worker_version,
-       created_at
-from transformation_eval_runs
-order by created_at desc
-limit 5;
-```
+Reproduced locally with Pillow: when the uploaded image carries an embedded
+colour profile (very common for images that come out of a browser or a phone),
+the profile travels with the pre-generation copy and is written into its PNG, but
+is **not** present on the rectangle cropped from the result. The two PNG files
+then differ in size (929,548 vs 929,162 bytes) and therefore in hash — while the
+actual pixels are byte-for-byte identical (`tobytes()` equal). Earlier test
+images had no such profile, which is why the same code passed on 2026-09-01 and
+fails on a Studio upload now.
 
-`error_message` on the newest failed row carries the exception text.
+So this is a false alarm in the verifier, not damaged pixels: PNG-encoded bytes
+are not a canonical form for comparing pixels.
 
-Then, on the machine with Modal access:
+## The fix (one file)
 
-```bash
-modal app logs brandverita-api-v6 | grep -E "wp1_outpaint_(stage|failed)"
-modal app logs comfyui-research-worker-2b | tail -n 200
-```
+In `backend/phase2b/outpaint_geometry.py`:
 
-The shape of the logs separates the candidates:
+- Compute the source-region digest from the raw pixel buffer instead of a PNG
+  file: hash `mode`, `width`, `height` and `tobytes()` of the placed source.
+- Use the identical function on the cropped rectangle in
+  `composite_and_verify`, so both sides hash the same canonical form.
+- Keep everything else unchanged: same LANCZOS placement, same feathered mask,
+  same paste-the-original-back-over-the-result step, same rule that an unverified
+  result fails the job and writes no asset and no storage object.
 
-| What the logs show | Meaning |
-| --- | --- |
-| no worker container started | failed API-side before dispatch: asset download, SHA256 verify, or geometry |
-| worker boot then traceback | ComfyUI/checkpoint problem in the research worker |
-| boot ready, then graph error | graph/node rejection |
-| stage log stops at upload | output write/storage step |
+The guarantee gets stronger, not weaker: it now compares actual pixels rather
+than an encoder's output, so it cannot pass a genuinely altered region and cannot
+fail on metadata.
 
-Because Supabase JWT keys were just rotated, a plausible API-side candidate is
-the server-side asset download or storage write now failing with the old key —
-the log will show this as a storage/auth error rather than a GPU error. Do not
-assume it; the row and the log decide.
+No change to the adapter, the worker, the graph, the registry, Studio, Flux or
+Product Scene.
 
-## Step 2 — fix the confirmed cause
+## Deploy and verify
 
-Applied only after step 1 names it. Expected to be a one-place fix inside the
-staging Modal app (adapter, worker, or the service credentials it reads). No
-registry change, no Studio-side change, no change to Flux or Product Scene.
-
-## Step 3 — verify
-
-Re-run `backend/phase2b/tests/test_wp1_outpaint.py` (target 17/17), then repeat
-the same Smart resize from Studio with the same image and 1200 x 627 preset and
-confirm a result image and a `completed` row at the exact preset size.
+1. Copy the updated `outpaint_geometry.py` into
+   `modal-project/phase1-v6-staging/`, delete `__pycache__`, and
+   `modal deploy api.py`.
+2. Re-run `backend/phase2b/tests/test_wp1_outpaint.py` — target 17/17.
+3. Repeat the same Smart resize from Studio: same image, 1200 x 627, extend to
+   the right. Expected: a result image, job `completed`, and a
+   `transformation_eval_runs` row with `source_region_verified = true` at
+   1200x627.
+4. Record the outcome in `backend/phase2b/module-a.md` and note the fix in
+   `roadmap.md`.
 
 ## Notes
 
-- Studio's own behaviour is correct here; nothing to change on their side yet.
+- The `pydantic_settings`, `pyav`, `alembic` and `IMPORT FAILED: nodes_*` lines in
+  the worker log are harmless upstream ComfyUI warnings for optional API nodes;
+  the worker booted and executed the graph. Nothing to do there.
 - Registry stays testing / research_only / internal / staging-only.
-- What I need from you: the SQL result set and the grep output from step 1.
