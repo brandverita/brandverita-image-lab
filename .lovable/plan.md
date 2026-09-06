@@ -1,18 +1,16 @@
-# CORS allow-list for Studio + preview (API + Supabase Storage)
+# CORS allow-list for Studio + preview (API only)
 
-Two CORS surfaces block the Studio upload. Both must be updated, because the
-browser makes requests to **two different hosts**:
+Only **one** CORS surface actually blocks the Studio today: the **Modal FastAPI
+API** (`brandverita--brandverita-api-v6-fastapi-app.modal.run`) — the JSON calls
+the Studio client makes: `GET /v1/workflows`, `POST /v1/assets/upload-authorizations`,
+`POST /v1/assets/{id}/finalize`, `POST /v1/generations`, polling, result URL.
 
-1. The **Modal FastAPI API** (`brandverita--brandverita-api-v6-fastapi-app.modal.run`)
-   — JSON calls: `GET /v1/workflows`, `POST /v1/assets/upload-authorizations`,
-   `POST /v1/assets/{id}/finalize`, `POST /v1/generations`, polling, result URL.
-2. **Supabase Storage** (`thspgkedjkiltrcimond.supabase.co/storage/v1/...`) — the
-   actual `PUT` of image bytes to the signed upload URL, plus the signed read
-   `GET` of generated/preview images. This host is a different domain from the
-   API, so its CORS is configured separately, in the Supabase project — not in
-   `api.py`.
+The second candidate surface — **Supabase Storage** (where the image-byte `PUT`
+and signed read `GET` go) — was checked and is already wide open (`*`), so it
+needs no change (see part 2).
 
-The Studio team is right: checking "both at once" is required.
+The Studio team's "check both at once" instinct was right to raise; the answer
+is that the storage side is already covered.
 
 ## Origins to add (both surfaces)
 
@@ -86,17 +84,14 @@ purpose (per Phase 2A manifest). Do not add public/anonymous storage policies.
 
 ## Verification
 
-After both are applied, from the Studio origin:
+After part 1 is deployed, from the Studio origin:
 - `GET /v1/workflows?origin=studio` on the API returns 200 (no CORS error).
 - A full asset upload round-trip succeeds: authorize → `PUT` to the signed
-  storage URL (no CORS error) → finalize returns a ready asset.
-
-If only the API CORS is done, the `PUT` will still fail with a CORS error from
-`thspgkedjkiltrcimond.supabase.co` and the preview will fail exactly as
-described.
+  storage URL (already CORS-allowed, no change) → finalize returns a ready asset.
 
 ## Scope
 
-Staging only. No registry, RLS, frontend, or production changes. No new
-secrets. The Studio team's `baseUrl` stays
+Staging only. One code change: `ALLOWED_ORIGINS` in `backend/phase2b/api.py`, then
+redeploy. No Supabase Storage change (verified open). No registry, RLS, frontend,
+or production changes. No new secrets. The Studio team's `baseUrl` stays
 `https://brandverita--brandverita-api-v6-fastapi-app.modal.run`.
