@@ -111,3 +111,20 @@ fetched at image build time (a bad pin now fails `modal deploy`, not a job).
 Module A is the reference implementation for the shared framework: Module B
 follows the same gate → download → verify → transform → validate → upload → hash
 → ready-row → cleanup order.
+
+## 2026-09-06 — integrity check false negative fixed
+
+First Studio-originated Smart resize (job `d537e304-f241-44c7-beaa-76e40529d10e`)
+failed `source_region_integrity_failed` although the graph completed normally
+(12.1s GPU, clean cleanup). Cause: the source-region digest was a SHA256 of
+PNG-*encoded* bytes. A PNG file also carries metadata chunks (colour profile,
+dpi, gamma); the profile of the uploaded image travels into the pre-generation
+copy but not into the rectangle cropped from the generated canvas, so the two
+files differed (929,548 vs 929,162 bytes) while the pixels were byte-identical.
+Earlier corpus images had no embedded profile, hence 2026-09-01 passing.
+
+Fix (`outpaint_geometry.py` only): new `pixel_digest()` hashes
+`RGB:<w>x<h>:` + raw pixel buffer, used on both sides of the check. Strictly
+stronger — compares pixels, not encoder output. Verified locally on an
+ICC-profile source: `verified = True`, and a 5x5 tampered region is still
+rejected. No adapter, worker, graph, registry or Studio change.
