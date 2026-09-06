@@ -144,9 +144,8 @@ def plan(
     left = _offset(canvas_w - region_w, h_mode)
     top = _offset(canvas_h - region_h, v_mode)
 
-    region_bytes = io.BytesIO()
-    src.save(region_bytes, format="PNG", compress_level=6)
-    digest = hashlib.sha256(region_bytes.getvalue()).hexdigest()
+    digest = pixel_digest(src)
+
 
     return src, Placement(
         canvas_width=canvas_w,
