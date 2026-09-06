@@ -4,7 +4,7 @@
 
 > **Scope:** Studio advanced-image modules: Smart Resize / Outpaint and Product Scene.
 >
-> **Last reviewed:** 2026-09-05
+> **Last reviewed:** 2026-09-06 (BFL public-terms basis for Product Scene recorded)
 >
 > **Owner:** BrandVerita Engineering & Legal Compliance
 >

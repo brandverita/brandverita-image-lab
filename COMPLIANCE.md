@@ -26,6 +26,6 @@ Recorded 2026-09-05 in [LICENSE_REVIEW.md](./LICENSE_REVIEW.md). The registry, n
 |---|---|---|---|
 | Flux baseline (text-to-image) | `commercial_self_hosted_approved` | `flux_text_to_image:v2`, `allowed_envs = {production}` | Yes |
 | Smart Resize / Outpaint | `commercial_self_hosted_approved` | `outpaint:v2`, `allowed_envs = {production}` | Yes |
-| Product Scene (BFL hosted) | `commercial_hosted` | `product_scene:v2` | No — held disabled pending the executed BFL commercial agreement and DPA |
+| Product Scene (BFL hosted) | `commercial_hosted` | `product_scene:v2` | No — held disabled pending Studio-side obligations (usage-policy flow-down, third-party-processing and training-use disclosure, no-personal-data rule). Legal basis settled 2026-09-06: BFL public Developer Terms + FLUX API Service Terms (rev. 2026-08-04, non-EU); no bespoke agreement/DPA; clause 2b training licence accepted as business risk |
 
 For questions regarding our open-source compliance, reach out to `compliance@brandverita.io`.
