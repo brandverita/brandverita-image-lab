@@ -27,3 +27,9 @@
 - [x] Add `app.brandverita.io` + Lovable preview origin to `ALLOWED_ORIGINS` in `backend/phase2b/api.py`
 - [x] Verified Supabase Storage CORS already open (`*`, PUT allowed) — no storage/policy change needed
 - [ ] Redeploy `api.py` to Modal staging (user action) and confirm Studio upload round-trip
+
+## Track E — Smart resize integrity check (staging)
+- [x] Diagnose `source_region_integrity_failed` on Studio uploads (PNG metadata, not pixel damage)
+- [x] Replace encoded-PNG digest with canonical pixel digest in `backend/phase2b/outpaint_geometry.py`
+- [ ] Copy `outpaint_geometry.py` to `modal-project/phase1-v6-staging/`, clear `__pycache__`, `modal deploy api.py` (user action)
+- [ ] Re-run `test_wp1_outpaint.py` (17/17) and repeat the Studio Smart resize at 1200x627
