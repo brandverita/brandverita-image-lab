@@ -177,15 +177,18 @@ The Studio UX (`app.brandverita.io`) must not promise that uploaded images are n
 
 ### 6.4 Approval gate for Product Scene
 
-Internal review cleared 2026-09-05; target status `commercial_hosted`. The remaining items are **external** — they depend on Black Forest Labs executing documents, not on internal work — and the registry keeps the module disabled until they close.
+Internal review cleared 2026-09-05; legal basis settled 2026-09-06 on BFL's public terms with no DPA. There is no longer any external BFL dependency. The remaining open items are **Studio-side documentation obligations** that flow from the public terms, and the registry keeps the module disabled until they close.
 
-- [ ] **External — pending BFL execution.** Current BFL terms/product terms archived and approved.
-- [ ] **External — pending BFL execution.** Commercial use of the selected API/model (`flux-kontext-pro`) for the intended multi-tenant feature confirmed in writing.
-- [ ] **External — pending BFL execution.** Data-processing and GDPR review approved; DPA executed.
+- [x] Current BFL terms archived and approved — Developer Terms of Service and FLUX API Service Terms, rev. 2026-08-04, non-EU versions (BrandVerita's contracting entity is non-EU-resident), plus the FLUX Usage Policy (§6.1).
+- [x] Commercial use of the selected API/model (`flux-kontext-pro`) for the intended multi-tenant feature confirmed by the public terms and BFL's published commercial-use statement (§6.1).
+- [x] Data-use posture reviewed and accepted without a DPA: API Terms clause 2b grants BFL a perpetual, sublicensable licence to Inputs and Outputs including model training. **Business risk accepted 2026-09-06**, conditional on user disclosure (§6.2).
 - [x] Provider retention/training/data-use posture is accurately reflected in the privacy notice and Studio UX — no retention or non-training promise is made to users.
 - [x] Production credential is separate from staging and stored only server-side (`bfl-production` vs `bfl-research-2b`, Modal Secrets only).
 - [x] Cost limit, timeout, retry policy, idempotency key, and provider outage behavior are tested (WP2, 18/18 checks; $0.04/image, $10 staging cap).
-- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel. *(`product_scene:v2` is created disabled; flipped only after the three external items above close, together with `HOSTED_PROVIDER_DISPATCH_ENABLED=true`.)*
+- [ ] **Studio-side.** Studio's end-user terms and acceptable-use policy flow down the FLUX Usage Policy and are at least as restrictive (Developer Terms 2c, API Terms 7).
+- [ ] **Studio-side.** Studio's user-facing disclosure states that Product Scene images are processed by a third-party AI provider (Black Forest Labs) that may use them to improve its models.
+- [ ] **Studio-side.** Studio's acceptable-use terms prohibit uploading images containing identifiable personal data to this module (no DPA in place, §6.2).
+- [ ] Registry row is approved, `production_enabled=true`, and `enabled_for_studio=true` by authorised release personnel. *(`product_scene:v2` is created disabled; flipped only after the three Studio-side items above close, together with `HOSTED_PROVIDER_DISPATCH_ENABLED=true`.)*
 
 ## 7. Release Controls
 
