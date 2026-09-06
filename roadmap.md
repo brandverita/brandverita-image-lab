@@ -22,3 +22,8 @@
 - [ ] Run `set_config_hash.py` per new row against production Supabase
 - [ ] Studio-token end-to-end check on production
 - [ ] Product Scene promotion once the Track C obligations close
+
+## Track D — Studio CORS (staging)
+- [x] Add `app.brandverita.io` + Lovable preview origin to `ALLOWED_ORIGINS` in `backend/phase2b/api.py`
+- [x] Verified Supabase Storage CORS already open (`*`, PUT allowed) — no storage/policy change needed
+- [ ] Redeploy `api.py` to Modal staging (user action) and confirm Studio upload round-trip
