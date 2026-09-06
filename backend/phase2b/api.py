@@ -146,6 +146,8 @@ api_image = (
 ALLOWED_ORIGINS = [
     "https://brandverita-image-lab.netlify.app",
     "https://lab.brandverita.com",
+    "https://app.brandverita.io",
+    "https://id-preview--b2d8d333-eb4f-49b0-8086-f5764b1a4938.lovable.app",
     "http://localhost:8080",
 ]
 
