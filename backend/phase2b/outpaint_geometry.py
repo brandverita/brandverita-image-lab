@@ -229,11 +229,8 @@ def composite_and_verify(
     generated.paste(scaled_source, (placement.region_left, placement.region_top))
 
     crop = generated.crop(placement.box)
-    crop_buf = io.BytesIO()
-    crop.save(crop_buf, format="PNG", compress_level=6)
-    verified = (
-        hashlib.sha256(crop_buf.getvalue()).hexdigest() == placement.source_region_sha256
-    )
+    verified = pixel_digest(crop) == placement.source_region_sha256
+
 
     out = io.BytesIO()
     generated.save(out, format="PNG", compress_level=6)
