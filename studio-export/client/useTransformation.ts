@@ -95,17 +95,19 @@ export function useTransformation(client: GenerationClient): UseTransformationRe
 
 
   const poll = useCallback(
-    (jobId: string, deadline: number) => {
+    (jobId: string, deadline: number, id: number) => {
       clearTimer();
       timer.current = setTimeout(async () => {
-        if (cancelled.current) return;
+        if (cancelled.current || id !== runId.current) return;
         try {
           const next = await client.getJob(jobId);
-          if (cancelled.current) return;
+          // A response that belongs to a superseded run must never be shown.
+          if (cancelled.current || id !== runId.current) return;
           setJob(next);
 
           if (next.status === "completed") {
             setResultUrl(next.result_url ?? null);
+            setResultKey(contextKey.current);
             setPhase("done");
             return;
           }
@@ -122,9 +124,9 @@ export function useTransformation(client: GenerationClient): UseTransformationRe
             fail("This is taking longer than expected. You can try again.");
             return;
           }
-          poll(jobId, deadline);
+          poll(jobId, deadline, id);
         } catch (error) {
-          if (cancelled.current) return;
+          if (cancelled.current || id !== runId.current) return;
           fail(
             error instanceof TransformationApiError
               ? error.message
@@ -137,16 +139,19 @@ export function useTransformation(client: GenerationClient): UseTransformationRe
   );
 
   const submit = useCallback(
-    async (request: TransformationRequest, key: string) => {
+    async (request: TransformationRequest, key: string, id: number) => {
       setPhase("submitting");
       setErrorMessage(null);
       setResultUrl(null);
+      setResultKey(null);
+      setJob(null);
       try {
         const created = await client.createTransformation(request, key);
-        if (cancelled.current) return;
+        if (cancelled.current || id !== runId.current) return;
         setJob(created);
         if (created.status === "completed") {
           setResultUrl(created.result_url ?? null);
+          setResultKey(contextKey.current);
           setPhase("done");
           return;
         }
@@ -155,9 +160,9 @@ export function useTransformation(client: GenerationClient): UseTransformationRe
           return;
         }
         setPhase("running");
-        poll(created.job_id, Date.now() + POLL_TIMEOUT_MS);
+        poll(created.job_id, Date.now() + POLL_TIMEOUT_MS, id);
       } catch (error) {
-        if (cancelled.current) return;
+        if (cancelled.current || id !== runId.current) return;
         fail(
           error instanceof TransformationApiError
             ? error.message
@@ -173,7 +178,8 @@ export function useTransformation(client: GenerationClient): UseTransformationRe
       clearTimer();
       lastRequest.current = request;
       idempotencyKey.current = newIdempotencyKey();
-      await submit(request, idempotencyKey.current);
+      runId.current += 1;
+      await submit(request, idempotencyKey.current, runId.current);
     },
     [clearTimer, submit],
   );
@@ -183,37 +189,63 @@ export function useTransformation(client: GenerationClient): UseTransformationRe
     const request = lastRequest.current;
     if (!request) return;
     clearTimer();
-    await submit(request, idempotencyKey.current ?? newIdempotencyKey());
+    runId.current += 1;
+    await submit(request, idempotencyKey.current ?? newIdempotencyKey(), runId.current);
   }, [clearTimer, submit]);
 
   const reset = useCallback(() => {
     clearTimer();
+    runId.current += 1;
     lastRequest.current = null;
     idempotencyKey.current = null;
     setJob(null);
     setResultUrl(null);
+    setResultKey(null);
     setErrorMessage(null);
     setPhase("idle");
   }, [clearTimer]);
 
+  /**
+   * Called on render with the current selection. A different module or a
+   * different source image invalidates whatever is on screen: the previous
+   * result is dropped and any in-flight run is orphaned by the runId bump.
+   */
+  const syncContext = useCallback(
+    (key: string) => {
+      if (contextKey.current === key) return;
+      const first = contextKey.current === null;
+      contextKey.current = key;
+      if (!first) reset();
+    },
+    [reset],
+  );
+
   const refreshResultUrl = useCallback(async () => {
-    if (!job?.job_id) return;
+    // Only the current, completed run can be refreshed — never a stale one.
+    if (!job?.job_id || phase !== "done" || resultKey !== contextKey.current) return;
+    const id = runId.current;
     try {
-      setResultUrl(await client.getFreshResultUrl(job.job_id));
+      const fresh = await client.getFreshResultUrl(job.job_id);
+      if (cancelled.current || id !== runId.current) return;
+      setResultUrl(fresh);
     } catch {
       fail("The download link could not be refreshed. Please try again.");
     }
-  }, [client, fail, job?.job_id]);
+  }, [client, fail, job?.job_id, phase, resultKey]);
 
   return {
     phase,
     job,
-    resultUrl,
+    // A result whose context no longer matches the selection is never exposed.
+    resultUrl: resultKey !== null && resultKey === contextKey.current ? resultUrl : null,
+    resultKey,
     errorMessage,
     isBusy: phase === "uploading" || phase === "submitting" || phase === "running",
     start,
     retry,
     reset,
     refreshResultUrl,
+    syncContext,
   };
 }
+
