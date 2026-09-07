@@ -114,3 +114,21 @@ obligations. See `LICENSE_REVIEW.md` §6 for the recorded basis.
   logs or analytics.
 - Expired-link download recovers via the refresh action.
 - The Product Scene disclosure above is live before the feature is visible.
+
+## Result state is keyed to the current selection
+
+`useTransformation` guards against showing a previous run's image:
+
+- call `syncContext(transformationContextKey(module, version, sourceAssetId))` on
+  every render with the current selection. Any change clears the previous
+  result, job and error, and orphans an in-flight run;
+- every run carries an internal run id, so a late submit or poll response from a
+  superseded run is discarded rather than displayed;
+- `resultUrl` is only exposed while it belongs to the current selection, and
+  `refreshResultUrl()` renews only the current completed run;
+- when the run is finished but no link is available, show a "Show it" action
+  (see `ResultPane.tsx`) — never fall back to the previous image.
+
+Smart resize now runs on a hosted expand model. Inputs and outputs are handled
+server-side; per the accepted BFL public API terms the provider may use inputs
+and outputs, including for training, which must be disclosed to users.

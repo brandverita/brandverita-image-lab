@@ -71,6 +71,7 @@ export function ResultPane({
         {phase === "done" && resultUrl ? (
           <figure className="w-full">
             <img
+              key={resultUrl}
               src={resultUrl}
               alt={`Generated image, ${job?.width ?? ""} by ${job?.height ?? ""} pixels`}
               className="mx-auto max-h-[22rem] w-auto rounded border border-slate-200"
@@ -80,6 +81,22 @@ export function ResultPane({
             </figcaption>
           </figure>
         ) : null}
+
+        {/* Finished, but the link is not available (expired or withheld). Never
+            fall back to a previous run's image. */}
+        {phase === "done" && !resultUrl ? (
+          <div className="max-w-xs text-center">
+            <p className="text-sm text-slate-600">Your image is ready.</p>
+            <button
+              type="button"
+              onClick={onRefreshUrl}
+              className="mt-3 rounded-md bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+            >
+              Show it
+            </button>
+          </div>
+        ) : null}
+
       </div>
 
       {phase === "done" && resultUrl ? (
