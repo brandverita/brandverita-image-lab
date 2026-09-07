@@ -28,6 +28,7 @@ Provider key in the registry: `bfl_outpaint`.
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import os
 import shutil
@@ -181,7 +182,7 @@ def _call_bfl(*, job_id: str, image_bytes: bytes, padding: dict[str, int]) -> di
     headers = {"x-key": key, "Content-Type": "application/json"}
     payload = {
         "image": base64.b64encode(image_bytes).decode(),
-        "prompt": EXPAND_INSTRUCTION,
+        "prompt": expand_instruction(),
         "top": padding["top"],
         "bottom": padding["bottom"],
         "left": padding["left"],
@@ -380,6 +381,7 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         temp_files.append(output_path)
 
         # 8 — validate → upload → hash → ready row.
+        instruction = expand_instruction()
         provenance = {
             "workflow": f"{row['key']}:{row['version']}",
             "provider": PROVIDER,
@@ -389,7 +391,10 @@ def run_outpaint(job_id: str, user_id: str) -> None:
             "params": validated,
             "geometry": placement.as_provenance(),
             "expansion_px": padding,
-            "instruction": EXPAND_INSTRUCTION,
+            "instruction": instruction,
+            "prompt_mode": prompt_mode(),
+            "instruction_sha256": hashlib.sha256(instruction.encode()).hexdigest(),
+            "instruction_chars": len(instruction),
             "source_asset_sha256": asset.get("sha256"),
             "source_region_verified": verified,
             "artifact_pins": row.get("artifact_pins") or [],
