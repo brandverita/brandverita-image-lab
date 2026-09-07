@@ -412,6 +412,16 @@ def run_product_scene_job(job_id: str, user_id: str) -> None:
 bfl_product_scene.set_dispatcher(run_product_scene_job)
 
 
+# Phase 2B WP1b — Module A Smart Resize on the hosted expand provider. Same
+# isolation as WP2: this is the only other function carrying the BFL credential.
+@app.function(image=api_image, secrets=[supabase_secret, bfl_secret], timeout=900)
+def run_hosted_outpaint_job(job_id: str, user_id: str) -> None:
+    bfl_outpaint.run_outpaint(job_id=job_id, user_id=user_id)
+
+
+bfl_outpaint.set_dispatcher(run_hosted_outpaint_job)
+
+
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -455,6 +465,7 @@ def health_check():
             "product_scene": advanced.module_flag("product_scene"),
         },
         "product_scene_adapter": bfl_product_scene.PROVIDER,
+        "hosted_outpaint_adapter": bfl_outpaint.PROVIDER,
         "hosted_dispatch_enabled": bfl_product_scene.hosted_dispatch_enabled(),
         # Trusted JWT issuers, as short key-free labels (project refs only).
         # comfy-ui is always first; extras come from EXTRA_JWT_ISSUER_URLS.
