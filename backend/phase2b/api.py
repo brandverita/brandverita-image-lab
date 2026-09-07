@@ -157,6 +157,7 @@ API_VERSION = "v6"
 ADAPTERS = {
     "modal_comfyui": modal_comfyui,
     "modal_research_2b": modal_research_outpaint,
+    "bfl_outpaint": bfl_outpaint,
     "bfl_product_scene": bfl_product_scene,
     "replicate": replicate,
     "bfl_api": bfl_api,
