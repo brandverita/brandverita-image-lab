@@ -28,6 +28,7 @@ Provider key in the registry: `bfl_outpaint`.
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import os
 import shutil
@@ -52,13 +53,37 @@ COST_PER_IMAGE = 0.05
 # Provider limit per side.
 MAX_EXPAND_PX = 2048
 
-# Server-owned instruction for style_mode=preserve_source. Content-free on
-# purpose: extend the existing scene, invent nothing.
-EXPAND_INSTRUCTION = (
-    "Extend this photograph naturally beyond its current edges. Continue the "
-    "existing scene, lighting, colour and texture seamlessly. Do not add new "
-    "subjects, people, objects, text, logos, borders or frames."
+# Server-owned instruction for style_mode=preserve_source.
+#
+# WP1b failure mode, observed 2026-09-07: the first version ended with
+# "Do not add new subjects, people, objects, text, logos, borders or frames."
+# Flux-family models have no negation; every noun in that clause is read as
+# something to include, so a square seascape came back with a woman's face in
+# both side bands. The instruction is therefore purely positive — it describes
+# continuation only and never names anything to avoid.
+EXPAND_INSTRUCTION_GUIDED = (
+    "Continue this same photograph outward to the edges. Carry on the existing "
+    "background, sky, water, horizon line, perspective, lighting, colour grade "
+    "and grain exactly as they already appear, so the wider picture reads as one "
+    "continuous scene."
 )
+
+# The hosted expand model works from the picture alone; kept as a comparison
+# mode so the guided text can be measured against no text at all.
+EXPAND_INSTRUCTION_BARE = ""
+
+PROMPT_MODES = {"guided": EXPAND_INSTRUCTION_GUIDED, "bare": EXPAND_INSTRUCTION_BARE}
+
+
+def prompt_mode() -> str:
+    mode = (os.environ.get("OUTPAINT_V2_PROMPT_MODE") or "guided").strip().lower()
+    return mode if mode in PROMPT_MODES else "guided"
+
+
+def expand_instruction() -> str:
+    """Server-owned only: never read from a request body."""
+    return PROMPT_MODES[prompt_mode()]
+
 
 _dispatcher = None
 
@@ -157,7 +182,7 @@ def _call_bfl(*, job_id: str, image_bytes: bytes, padding: dict[str, int]) -> di
     headers = {"x-key": key, "Content-Type": "application/json"}
     payload = {
         "image": base64.b64encode(image_bytes).decode(),
-        "prompt": EXPAND_INSTRUCTION,
+        "prompt": expand_instruction(),
         "top": padding["top"],
         "bottom": padding["bottom"],
         "left": padding["left"],
@@ -356,6 +381,7 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         temp_files.append(output_path)
 
         # 8 — validate → upload → hash → ready row.
+        instruction = expand_instruction()
         provenance = {
             "workflow": f"{row['key']}:{row['version']}",
             "provider": PROVIDER,
@@ -365,7 +391,10 @@ def run_outpaint(job_id: str, user_id: str) -> None:
             "params": validated,
             "geometry": placement.as_provenance(),
             "expansion_px": padding,
-            "instruction": EXPAND_INSTRUCTION,
+            "instruction": instruction,
+            "prompt_mode": prompt_mode(),
+            "instruction_sha256": hashlib.sha256(instruction.encode()).hexdigest(),
+            "instruction_chars": len(instruction),
             "source_asset_sha256": asset.get("sha256"),
             "source_region_verified": verified,
             "artifact_pins": row.get("artifact_pins") or [],

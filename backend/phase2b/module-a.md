@@ -166,3 +166,27 @@ Deploy: copy `adapters/bfl_outpaint.py` and `api.py` into
 then run the `outpaint:v2` insert and
 `python backend/phase2b/tools/set_config_hash.py outpaint v2`.
 `/health` should report `hosted_outpaint_adapter: "bfl_outpaint"`.
+
+## WP1b follow-up — invented subjects came from our own instruction (2026-09-07)
+
+Symptom: a square seascape expanded to 1200x627 came back with the source
+correctly centred and byte-verified, but both new side bands contained a woman's
+face and shoulders — content absent from the source and from every earlier test.
+
+Cause: the first hosted instruction ended with "Do not add new subjects, people,
+objects, text, logos, borders or frames." Flux-family models do not implement
+negation; each noun in that clause acts as a positive request. The model was
+being asked for people.
+
+Fix (`adapters/bfl_outpaint.py`): the instruction is now negation-free and
+describes continuation only (`EXPAND_INSTRUCTION_GUIDED`). A second mode,
+`bare`, sends no prompt at all — the expand endpoint works from the image alone.
+Selected server-side by `OUTPAINT_V2_PROMPT_MODE` (`guided` default | `bare`);
+never accepted from a request. `prompt_upsampling` stays false, since upsampling
+would re-expand the prompt and can reintroduce invented subjects.
+
+Every run records `instruction`, `prompt_mode`, `instruction_sha256` and
+`instruction_chars` in output-asset provenance, so the two modes are comparable
+after the fact. No registry change and no config-hash change: `config_hash`
+covers key, version, provider, model, reference and schemas only, so
+`outpaint:v2` (`ba3ab4912eaa…`) stays valid.
