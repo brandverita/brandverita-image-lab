@@ -51,8 +51,24 @@ export function TransformationPanel({
     backgroundStyle: "neutral",
   });
 
-  const { phase, job, resultUrl, errorMessage, isBusy, start, retry, reset, refreshResultUrl } =
-    useTransformation(client);
+  const {
+    phase,
+    job,
+    resultUrl,
+    errorMessage,
+    isBusy,
+    start,
+    retry,
+    reset,
+    refreshResultUrl,
+    syncContext,
+  } = useTransformation(client);
+
+  // The result box belongs to one module + one source image. Declaring that
+  // selection on every render means a picture from a previous run can never
+  // stay on screen after the user swaps the image or switches tab.
+  syncContext(transformationContextKey(module, null, source?.asset_id ?? null));
+
 
   // Live labels for the product-scene options; silent fallback to the built-ins.
   useEffect(() => {
