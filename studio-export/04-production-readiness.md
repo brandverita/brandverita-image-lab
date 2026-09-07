@@ -7,14 +7,14 @@ can run either feature for customers. Order matters: 1–4 are hard blockers.
 
 Both rows today:
 
-| Field | `outpaint:v2` | `product_scene:v1` |
-| --- | --- | --- |
-| `status` | `testing` | `testing` |
-| `commercial_status` | `research_only` | `research_only` |
-| `registry_visibility` | `internal` | `internal` |
-| `allowed_envs` | `{staging}` | `{staging}` |
-| `production_enabled` | false | false |
-| `enabled_for_studio` | false | false |
+| Field                 | `outpaint:v2`   | `product_scene:v1` |
+| --------------------- | --------------- | ------------------ |
+| `status`              | `testing`       | `testing`          |
+| `commercial_status`   | `research_only` | `research_only`    |
+| `registry_visibility` | `internal`      | `internal`         |
+| `allowed_envs`        | `{staging}`     | `{staging}`        |
+| `production_enabled`  | false           | false              |
+| `enabled_for_studio`  | false           | false              |
 
 The server refuses Studio-origin or production dispatch unless a row is both
 commercially approved **and** `production_enabled`. Flipping flags does not
@@ -67,11 +67,11 @@ privileges stay with `myaccount.brandverita.io`. Before launch, agree:
 
 ## 6. Evidence to carry into the launch review
 
-| Metric | Outpaint | Product scene |
-| --- | --- | --- |
-| Accepted run | Hosted v2 evaluation pending | 16.7s warm (first call 162.7s, provider warm-up) |
-| Cost | ~$0.05 per image (recorded estimate) | ~$0.04 per image (recorded estimate) |
-| Target | p95 ≤ 90s | p95 ≤ 90s |
+| Metric       | Outpaint                             | Product scene                                    |
+| ------------ | ------------------------------------ | ------------------------------------------------ |
+| Accepted run | Hosted v2 evaluation pending         | 16.7s warm (first call 162.7s, provider warm-up) |
+| Cost         | ~$0.05 per image (recorded estimate) | ~$0.04 per image (recorded estimate)             |
+| Target       | p95 ≤ 90s                            | p95 ≤ 90s                                        |
 
 Product Scene's warm sample sits inside the target. Hosted outpaint v2 still
 needs its first correctly routed quality/latency run, and both modules need a

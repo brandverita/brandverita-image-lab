@@ -117,10 +117,18 @@ function errorFor(status: number, raw: string): TransformationApiError {
   const { code, message } = parseError(raw);
   const key = (code ?? "").toLowerCase();
   if (key && KINDS[key]) {
-    return new TransformationApiError(KINDS[key]!, MESSAGES[key] ?? message ?? "Request rejected.", status);
+    return new TransformationApiError(
+      KINDS[key]!,
+      MESSAGES[key] ?? message ?? "Request rejected.",
+      status,
+    );
   }
   if (status === 401 || status === 403) {
-    return new TransformationApiError("unauthorized", "Session expired. Please sign in again.", status);
+    return new TransformationApiError(
+      "unauthorized",
+      "Session expired. Please sign in again.",
+      status,
+    );
   }
   if (status === 404) {
     return new TransformationApiError("not_found", "This item could not be found.", status);
@@ -152,7 +160,10 @@ export interface GenerationClient {
   uploadInputAsset(file: File, idempotencyKey?: string): Promise<AssetRecord>;
   getAsset(assetId: string): Promise<AssetRecord>;
   listAssets(limit?: number): Promise<AssetRecord[]>;
-  createTransformation(request: TransformationRequest, idempotencyKey?: string): Promise<TransformationJob>;
+  createTransformation(
+    request: TransformationRequest,
+    idempotencyKey?: string,
+  ): Promise<TransformationJob>;
   getJob(jobId: string): Promise<TransformationJob>;
   getFreshResultUrl(jobId: string): Promise<string | null>;
 }
@@ -196,7 +207,10 @@ export function createGenerationClient(config: GenerationClientConfig): Generati
     try {
       return (await response.json()) as T;
     } catch {
-      throw new TransformationApiError("server_error", "The service returned an unreadable response.");
+      throw new TransformationApiError(
+        "server_error",
+        "The service returned an unreadable response.",
+      );
     }
   }
 
@@ -208,7 +222,10 @@ export function createGenerationClient(config: GenerationClientConfig): Generati
       );
     }
     if (file.size > ASSET_MAX_BYTES) {
-      throw new TransformationApiError("asset_validation_failed", "Images must be 10 MB or smaller.");
+      throw new TransformationApiError(
+        "asset_validation_failed",
+        "Images must be 10 MB or smaller.",
+      );
     }
   }
 
@@ -244,7 +261,10 @@ export function createGenerationClient(config: GenerationClientConfig): Generati
             body: file,
           });
         } catch {
-          throw new TransformationApiError("upload_failed", "The upload did not complete. Please retry.");
+          throw new TransformationApiError(
+            "upload_failed",
+            "The upload did not complete. Please retry.",
+          );
         }
         if (!put.ok) {
           throw new TransformationApiError(
@@ -255,9 +275,12 @@ export function createGenerationClient(config: GenerationClientConfig): Generati
         }
       }
 
-      return request<AssetRecord>(`/v1/assets/${encodeURIComponent(authorization.asset_id)}/finalize`, {
-        method: "POST",
-      });
+      return request<AssetRecord>(
+        `/v1/assets/${encodeURIComponent(authorization.asset_id)}/finalize`,
+        {
+          method: "POST",
+        },
+      );
     },
 
     getAsset(assetId) {

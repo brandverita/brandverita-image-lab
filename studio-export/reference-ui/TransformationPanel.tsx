@@ -77,7 +77,6 @@ export function TransformationPanel({
     ),
   );
 
-
   // Live labels for the product-scene options; silent fallback to the built-ins.
   useEffect(() => {
     if (module !== "product_scene") return;
