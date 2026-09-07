@@ -77,6 +77,7 @@ import registry
 import supabase_rest
 from adapters import (
     bfl_api,
+    bfl_outpaint,
     bfl_product_scene,
     modal_comfyui,
     modal_research_outpaint,
