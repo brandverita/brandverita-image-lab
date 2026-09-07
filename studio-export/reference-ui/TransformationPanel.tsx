@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createGenerationClient } from "../client/generationClient";
-import { useTransformation } from "../client/useTransformation";
+import { transformationContextKey, useTransformation } from "../client/useTransformation";
 import type {
   AssetRecord,
   SceneDirection,
