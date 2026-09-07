@@ -13,6 +13,7 @@ import type {
   SceneDirection,
   TransformationModule,
   TransformationRequest,
+  workflowForModule,
 } from "../client/types";
 import {
   ModuleTabs,
@@ -67,7 +68,14 @@ export function TransformationPanel({
   // The result box belongs to one module + one source image. Declaring that
   // selection on every render means a picture from a previous run can never
   // stay on screen after the user swaps the image or switches tab.
-  syncContext(transformationContextKey(module, null, source?.asset_id ?? null));
+  const selectedWorkflow = workflowForModule(module);
+  syncContext(
+    transformationContextKey(
+      selectedWorkflow.workflow_id,
+      selectedWorkflow.workflow_version,
+      source?.asset_id ?? null,
+    ),
+  );
 
 
   // Live labels for the product-scene options; silent fallback to the built-ins.

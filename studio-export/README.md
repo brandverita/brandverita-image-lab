@@ -6,7 +6,7 @@ in the isolated staging Generation Platform:
 
 | Feature | Registry workflow | Status today |
 | --- | --- | --- |
-| Smart Resize / Outpaint (Module A) | `outpaint:v1` | staging research only |
+| Smart Resize / Outpaint (Module A) | `outpaint:v2` (`bfl_outpaint`) | staging research only |
 | Product Background / Scene (Module B) | `product_scene:v1` | staging research only |
 
 Both are internal, `research_only`, staging-only, and deliberately invisible to

@@ -111,7 +111,7 @@ Server-filtered list of workflows the caller may use. Fields are safe only:
 `provider_model`, `commercial_status`, `allowed_dimensions`,
 `estimated_credits`, `enabled_for_studio`, `production_enabled`.
 
-**Today `origin=studio` returns neither `outpaint:v1` nor `product_scene:v1`** —
+**Today `origin=studio` returns neither `outpaint:v2` nor `product_scene:v1`** —
 both are `research_only` / internal. Treat their absence as "feature not
 available for this environment" and hide the entry points rather than failing.
 
@@ -126,7 +126,7 @@ Smart Resize / Outpaint:
 ```json
 {
   "workflow_id": "outpaint",
-  "workflow_version": "v1",
+  "workflow_version": "v2",
   "source_asset_id": "uuid of a ready, owned input asset",
   "output_preset": "1200x627",
   "params": {
@@ -156,7 +156,7 @@ Product Background / Scene:
 }
 ```
 
-`workflow_id` may also be written as `"outpaint:v1"` / `"product_scene:v1"` with
+`workflow_id` may also be written as `"outpaint:v2"` / `"product_scene:v1"` with
 `workflow_version` omitted.
 
 **Rejected outright** (400 `invalid_request`), anywhere in the body or `params`:
@@ -173,7 +173,7 @@ preset and enums.
   "job_id": "uuid",
   "status": "queued | dispatching | running | uploading_output | completed | failed | canceled | expired",
   "workflow_id": "outpaint",
-  "workflow_version": "v1",
+  "workflow_version": "v2",
   "provider": "…",
   "provider_model": "…",
   "workflow_config_hash": "…",

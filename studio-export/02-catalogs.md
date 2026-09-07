@@ -10,7 +10,7 @@ runtime setting.
 
 ---
 
-## Smart Resize / Outpaint — `outpaint:v1`
+## Smart Resize / Outpaint — `outpaint:v2`
 
 Output presets (absolute pixel sizes, no client geometry):
 
@@ -42,6 +42,10 @@ Behaviour worth surfacing in the UI: the source is never upscaled. It is
 downscaled only when it does not fit the canvas. The original source region is
 composited back byte-exactly after generation and hash-verified, so the user's
 own pixels are guaranteed unchanged.
+
+`outpaint:v2` uses the hosted BFL expand adapter. Its continuation instruction
+is server-owned; Studio must not add a prompt field. `outpaint:v1` remains an
+internal self-hosted comparison candidate and must not be selected by Studio.
 
 Suggested labels: Extend left / Extend right / Extend top / Extend bottom /
 Extend both sides; anchor as "Keep image at right edge" / "Centre the image".

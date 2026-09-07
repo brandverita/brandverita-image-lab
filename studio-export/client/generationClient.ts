@@ -23,6 +23,7 @@ import {
   TransformationApiError,
   type UploadAuthorization,
   type WorkflowInfo,
+  workflowForModule,
 } from "./types";
 
 export interface GenerationClientConfig {
@@ -270,11 +271,12 @@ export function createGenerationClient(config: GenerationClientConfig): Generati
 
     createTransformation(transformation, idempotencyKey = newIdempotencyKey()) {
       const { module, ...rest } = transformation;
+      const workflow = workflowForModule(module);
       return request<TransformationJob>("/v1/generations", {
         method: "POST",
         body: JSON.stringify({
-          workflow_id: module,
-          workflow_version: "v1",
+          workflow_id: workflow.workflow_id,
+          workflow_version: workflow.workflow_version,
           ...rest,
           idempotency_key: idempotencyKey,
         }),

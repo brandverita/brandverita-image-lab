@@ -55,11 +55,15 @@ export interface UploadAuthorization {
 
 export type TransformationModule = "outpaint" | "product_scene";
 
-export const OUTPAINT_WORKFLOW = { workflow_id: "outpaint", workflow_version: "v1" } as const;
+export const OUTPAINT_WORKFLOW = { workflow_id: "outpaint", workflow_version: "v2" } as const;
 export const PRODUCT_SCENE_WORKFLOW = {
   workflow_id: "product_scene",
   workflow_version: "v1",
 } as const;
+
+export function workflowForModule(module: TransformationModule) {
+  return module === "outpaint" ? OUTPAINT_WORKFLOW : PRODUCT_SCENE_WORKFLOW;
+}
 
 export const OUTPAINT_OUTPUT_PRESETS = ["1200x627", "1600x900"] as const;
 export type OutpaintOutputPreset = (typeof OUTPAINT_OUTPUT_PRESETS)[number];

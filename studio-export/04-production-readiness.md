@@ -7,7 +7,7 @@ can run either feature for customers. Order matters: 1–4 are hard blockers.
 
 Both rows today:
 
-| Field | `outpaint:v1` | `product_scene:v1` |
+| Field | `outpaint:v2` | `product_scene:v1` |
 | --- | --- | --- |
 | `status` | `testing` | `testing` |
 | `commercial_status` | `research_only` | `research_only` |
@@ -23,10 +23,9 @@ with a fresh config hash, not an in-place edit of an active row.
 
 ## 2. Commercial approval, per module (blocker)
 
-- **Smart Resize / Outpaint** — self-hosted SD-1.5-inpainting checkpoint
-  (`stable-diffusion-v1-5/stable-diffusion-inpainting`, pinned commit and
-  SHA256). Needs a licence review concluding commercial self-hosted use is
-  approved before the row moves off `research_only`.
+- **Smart Resize / Outpaint** — hosted BFL `flux-pro-1.0-expand` through the
+  public API. It uses the same accepted public-terms basis and Studio-side
+  disclosure/acceptable-use obligations described below for Product Scene.
 - **Product Background / Scene** — hosted third-party provider (Black Forest
   Labs `flux-kontext-pro`). Legal basis settled 2026-09-06 on BFL's **public**
   Developer Terms of Service + FLUX API Service Terms (rev. 2026-08-04,
@@ -70,12 +69,13 @@ privileges stay with `myaccount.brandverita.io`. Before launch, agree:
 
 | Metric | Outpaint | Product scene |
 | --- | --- | --- |
-| Accepted run | 44.7s end to end | 16.7s warm (first call 162.7s, provider warm-up) |
-| Cost | self-hosted GPU seconds | ~$0.04 per image (recorded estimate) |
+| Accepted run | Hosted v2 evaluation pending | 16.7s warm (first call 162.7s, provider warm-up) |
+| Cost | ~$0.05 per image (recorded estimate) | ~$0.04 per image (recorded estimate) |
 | Target | p95 ≤ 90s | p95 ≤ 90s |
 
-Both samples sit inside the target, but p95 confidence needs more runs over time.
-Collect a larger sample before publishing an SLA-style promise.
+Product Scene's warm sample sits inside the target. Hosted outpaint v2 still
+needs its first correctly routed quality/latency run, and both modules need a
+larger sample before publishing an SLA-style promise.
 
 ## 7. Known limitation to state in Studio's own review
 
