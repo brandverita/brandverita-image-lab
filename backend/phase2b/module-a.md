@@ -138,3 +138,31 @@ address to load and rendered an empty result panel. Added
 read URL, never raises) and `api._job_response()`, applied to POST /v1/generations,
 GET /v1/generations/{id}, and GET /v1/generations/{id}/result. Legacy flux path
 unchanged. Requires redeploy of the Modal V6 API.
+
+## 2026-09-07 — WP1b: Smart resize moves to a hosted expand model
+
+The self-hosted SD-1.5 inpainting path could not produce usable wide extensions
+(repeated subjects, hard seams, flat grey fills). Module A now dispatches to a
+hosted expand model; `outpaint:v1` and the research worker are untouched and stay
+available for comparison.
+
+- New adapter `backend/phase2b/adapters/bfl_outpaint.py`, provider key
+  `bfl_outpaint`, model `flux-pro-1.0-expand`.
+- Placement and per-side expansion amounts are still computed server-side by
+  `outpaint_geometry.plan` from validated enums only; the extend instruction is
+  server-owned and hashed into provenance. No client text, URL or graph.
+- The source image is sent inlined (base64) from the API side; the provider
+  credential stays in the `bfl-research-2b` Modal secret only.
+- The original source rectangle is composited back and verified byte-for-byte
+  (`composite_and_verify` / `pixel_digest`). An unverified result fails the job:
+  no asset row, no storage object.
+- Estimated cost recorded per run: $0.05. Research spend cap $10.
+- New registry row: `backend/phase2b/wp1b-registry-migration.sql` —
+  `outpaint:v2`, testing / research_only / internal / staging-only,
+  `production_enabled=false`, `enabled_for_studio=false`.
+
+Deploy: copy `adapters/bfl_outpaint.py` and `api.py` into
+`modal-project/phase1-v6-staging/`, clear `__pycache__`, `modal deploy api.py`,
+then run the `outpaint:v2` insert and
+`python backend/phase2b/tools/set_config_hash.py outpaint v2`.
+`/health` should report `hosted_outpaint_adapter: "bfl_outpaint"`.
