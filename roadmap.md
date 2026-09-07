@@ -39,3 +39,10 @@
       row); self-hosted `outpaint:v1` kept for comparison. Shared Studio export
       hook now keys results to the current module + source image, so a finished
       picture from a previous run can never stay on screen.
+
+- WP1b follow-up (2026-09-07): hosted Smart resize invented subjects (a face in
+  the new side bands) because the server instruction listed things "not" to add
+  and Flux-family models read negations as requests. Instruction rewritten
+  negation-free, with a promptless `bare` comparison mode behind
+  `OUTPAINT_V2_PROMPT_MODE`. Registry row and config hash unchanged; redeploy of
+  the Modal V6 app required.
