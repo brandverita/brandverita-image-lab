@@ -4,6 +4,16 @@
  * Framework-agnostic React (no router, no data library). Behaviour mirrors the
  * accepted Lab implementation: single submit, 2s polling, halt on any terminal
  * status, hard timeout with manual retry, and a fresh signed URL on demand.
+ *
+ * Stale-result protection (WP1b): a finished image is only ever shown for the
+ * run it belongs to.
+ *  - every run carries a monotonically increasing `runId`; a late poll or submit
+ *    response from a superseded run is discarded instead of being displayed;
+ *  - the result is tagged with the run's context key (module + source asset).
+ *    Call `syncContext(key)` on render with the current selection: when the key
+ *    changes the previous result, job and error are cleared immediately, so a
+ *    new source image can never show the previous image's output;
+ *  - `refreshResultUrl()` only ever renews the current completed run.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,29 +28,48 @@ import { TransformationApiError, type TransformationJob, type TransformationRequ
 
 export type TransformationPhase = "idle" | "uploading" | "submitting" | "running" | "done" | "error";
 
+/** Identity of the current selection: module/workflow plus source asset. */
+export function transformationContextKey(
+  workflowId: string,
+  workflowVersion: string | null | undefined,
+  sourceAssetId: string | null | undefined,
+): string {
+  return `${workflowId}:${workflowVersion ?? ""}:${sourceAssetId ?? ""}`;
+}
+
 export interface UseTransformationResult {
   phase: TransformationPhase;
   job: TransformationJob | null;
   /** Short-lived signed URL for the finished image, or null. */
   resultUrl: string | null;
+  /** Context key the current result belongs to, or null when there is none. */
+  resultKey: string | null;
   errorMessage: string | null;
   isBusy: boolean;
   start: (request: TransformationRequest) => Promise<void>;
   retry: () => Promise<void>;
   reset: () => void;
   refreshResultUrl: () => Promise<void>;
+  /**
+   * Declare the current selection. Any change (different module or different
+   * source image) drops the previous result so nothing stale stays on screen.
+   */
+  syncContext: (key: string) => void;
 }
 
 export function useTransformation(client: GenerationClient): UseTransformationResult {
   const [phase, setPhase] = useState<TransformationPhase>("idle");
   const [job, setJob] = useState<TransformationJob | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultKey, setResultKey] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelled = useRef(false);
   const lastRequest = useRef<TransformationRequest | null>(null);
   const idempotencyKey = useRef<string | null>(null);
+  const contextKey = useRef<string | null>(null);
+  const runId = useRef(0);
 
   const clearTimer = useCallback(() => {
     if (timer.current) {
@@ -60,7 +89,10 @@ export function useTransformation(client: GenerationClient): UseTransformationRe
   const fail = useCallback((message: string) => {
     setPhase("error");
     setErrorMessage(message);
+    setResultUrl(null);
+    setResultKey(null);
   }, []);
+
 
   const poll = useCallback(
     (jobId: string, deadline: number) => {
