@@ -111,7 +111,7 @@ Server-filtered list of workflows the caller may use. Fields are safe only:
 `provider_model`, `commercial_status`, `allowed_dimensions`,
 `estimated_credits`, `enabled_for_studio`, `production_enabled`.
 
-**Today `origin=studio` returns neither `outpaint:v1` nor `product_scene:v1`** —
+**Today `origin=studio` returns neither `outpaint:v2` nor `product_scene:v1`** —
 both are `research_only` / internal. Treat their absence as "feature not
 available for this environment" and hide the entry points rather than failing.
 
@@ -126,7 +126,7 @@ Smart Resize / Outpaint:
 ```json
 {
   "workflow_id": "outpaint",
-  "workflow_version": "v1",
+  "workflow_version": "v2",
   "source_asset_id": "uuid of a ready, owned input asset",
   "output_preset": "1200x627",
   "params": {
@@ -156,7 +156,7 @@ Product Background / Scene:
 }
 ```
 
-`workflow_id` may also be written as `"outpaint:v1"` / `"product_scene:v1"` with
+`workflow_id` may also be written as `"outpaint:v2"` / `"product_scene:v1"` with
 `workflow_version` omitted.
 
 **Rejected outright** (400 `invalid_request`), anywhere in the body or `params`:
@@ -173,7 +173,7 @@ preset and enums.
   "job_id": "uuid",
   "status": "queued | dispatching | running | uploading_output | completed | failed | canceled | expired",
   "workflow_id": "outpaint",
-  "workflow_version": "v1",
+  "workflow_version": "v2",
   "provider": "…",
   "provider_model": "…",
   "workflow_config_hash": "…",
@@ -212,21 +212,21 @@ Error bodies are one of `{"detail": "code: message"}` or
 `{"detail": {"error_code": "…", "error_message": "…"}}`. Show the message; never
 show or log a raw body.
 
-| Code | HTTP | What to tell the user |
-| --- | --- | --- |
-| `invalid_request` | 400 | The selection was rejected — reset to valid options and retry. |
-| `workflow_not_available` | 403 | This feature is not available in this environment. Hide the entry point. |
-| `asset_not_found` / `asset_not_owned` | 404 | This image could not be found. Upload it again. |
-| `asset_not_ready` | 409 | The image is still being checked — wait a moment. |
-| `asset_expired` | 409 | The image has expired (30-day retention). Upload it again. |
-| `asset_validation_failed` | 400 | Must be a single-frame PNG/JPEG/WebP, max 4096 x 4096, max 10 MB. |
-| `source_integrity_failed` | 422 | The result failed its integrity check and was discarded. Retry. |
-| `rate_limited` | 429 | Limit reached — wait before trying again. |
-| `storage_unavailable` | 503 | Temporarily unavailable — retry in a moment. |
-| 401 / `token_invalid` | 401 | Session expired — sign in again. |
-| `token_missing` | 401 | The request had no login token — sign out and back in. |
-| `auth_backend_unavailable` | 500 | Service configuration problem, not the user's session. |
-| any 5xx | 5xx | Service temporarily unavailable — retry. |
+| Code                                  | HTTP | What to tell the user                                                    |
+| ------------------------------------- | ---- | ------------------------------------------------------------------------ |
+| `invalid_request`                     | 400  | The selection was rejected — reset to valid options and retry.           |
+| `workflow_not_available`              | 403  | This feature is not available in this environment. Hide the entry point. |
+| `asset_not_found` / `asset_not_owned` | 404  | This image could not be found. Upload it again.                          |
+| `asset_not_ready`                     | 409  | The image is still being checked — wait a moment.                        |
+| `asset_expired`                       | 409  | The image has expired (30-day retention). Upload it again.               |
+| `asset_validation_failed`             | 400  | Must be a single-frame PNG/JPEG/WebP, max 4096 x 4096, max 10 MB.        |
+| `source_integrity_failed`             | 422  | The result failed its integrity check and was discarded. Retry.          |
+| `rate_limited`                        | 429  | Limit reached — wait before trying again.                                |
+| `storage_unavailable`                 | 503  | Temporarily unavailable — retry in a moment.                             |
+| 401 / `token_invalid`                 | 401  | Session expired — sign in again.                                         |
+| `token_missing`                       | 401  | The request had no login token — sign out and back in.                   |
+| `auth_backend_unavailable`            | 500  | Service configuration problem, not the user's session.                   |
+| any 5xx                               | 5xx  | Service temporarily unavailable — retry.                                 |
 
 Job-level failures arrive as `status: "failed"` with an `error_code` such as
 `transformation_failed`, `dispatch_failed`, `worker_timeout` or

@@ -27,8 +27,8 @@ matching key is present:
 
 ```ts
 const workflows = await generationClient.listWorkflows("studio");
-const hasOutpaint = workflows.some((w) => w.key === "outpaint");
-const hasProductScene = workflows.some((w) => w.key === "product_scene");
+const hasOutpaint = workflows.some((w) => w.key === "outpaint" && w.version === "v2");
+const hasProductScene = workflows.some((w) => w.key === "product_scene" && w.version === "v1");
 ```
 
 Today both are absent by design (`research_only`, internal). Hide the buttons
@@ -101,8 +101,9 @@ feature can be shown to customers:
 3. **No personal data.** Studio's terms must prohibit uploading images containing
    identifiable people to this module.
 
-Smart Resize / Outpaint is fully self-hosted and carries none of these
-obligations. See `LICENSE_REVIEW.md` §6 for the recorded basis.
+Smart Resize / Outpaint v2 also uses BFL's hosted API and therefore carries the
+same disclosure and acceptable-use obligations. See `LICENSE_REVIEW.md` §6 for
+the recorded basis.
 
 ## Step 9 — what to check before shipping
 
