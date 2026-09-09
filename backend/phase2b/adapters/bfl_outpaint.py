@@ -72,17 +72,64 @@ EXPAND_INSTRUCTION_GUIDED = (
 # mode so the guided text can be measured against no text at all.
 EXPAND_INSTRUCTION_BARE = ""
 
-PROMPT_MODES = {"guided": EXPAND_INSTRUCTION_GUIDED, "bare": EXPAND_INSTRUCTION_BARE}
+# Strictest continuation wording: the observed failure is invention, so this
+# variant says nothing but "extend what is already here".
+EXPAND_INSTRUCTION_BRIGHT = (
+    "Extend this exact photograph to fill the wider frame. The added area is a "
+    "direct continuation of the surrounding pixels: same background, same "
+    "surface, same horizon, same lighting, same colour and same grain, with "
+    "nothing in it that is not already part of this scene."
+)
+
+PROMPT_MODES = {
+    "guided": EXPAND_INSTRUCTION_GUIDED,
+    "bare": EXPAND_INSTRUCTION_BARE,
+    "bright": EXPAND_INSTRUCTION_BRIGHT,
+}
+
+# Provider knobs. Low guidance is the "no imagination" setting: the model stays
+# close to the supplied picture instead of composing new content. Defaults are
+# the deployed values; a staging run may select another allowed value.
+DEFAULT_GUIDANCE = 1.5
+DEFAULT_STEPS = 50
 
 
-def prompt_mode() -> str:
+def prompt_mode(override: Optional[str] = None) -> str:
+    if override in PROMPT_MODES:
+        return str(override)
     mode = (os.environ.get("OUTPAINT_V2_PROMPT_MODE") or "guided").strip().lower()
     return mode if mode in PROMPT_MODES else "guided"
 
 
-def expand_instruction() -> str:
-    """Server-owned only: never read from a request body."""
-    return PROMPT_MODES[prompt_mode()]
+def expand_instruction(override: Optional[str] = None) -> str:
+    """Server-owned only: the request selects a mode, never the text itself."""
+    return PROMPT_MODES[prompt_mode(override)]
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.environ.get(name) or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name) or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def guidance_value(override: Optional[float] = None) -> float:
+    if override is not None:
+        return float(override)
+    return _env_float("OUTPAINT_V2_GUIDANCE", DEFAULT_GUIDANCE)
+
+
+def steps_value(override: Optional[int] = None) -> int:
+    if override is not None:
+        return int(override)
+    return _env_int("OUTPAINT_V2_STEPS", DEFAULT_STEPS)
 
 
 _dispatcher = None
