@@ -384,6 +384,14 @@ def run_product_scene(job_id: str, user_id: str) -> None:
                 "output_width": width,
                 "output_height": height,
                 "output_bytes": len(output_png),
+                # Comparable settings for the score table.
+                "variant_id": active_variant,
+                "provider_params": {
+                    "scene_direction": validated["scene_direction"],
+                    "background_style": validated.get("background_style"),
+                    "preset_variant": active_variant,
+                    "instruction_sha256": preset_fingerprint["instruction_sha256"],
+                },
             }
         )
         advanced.write_eval_run(eval_row)
