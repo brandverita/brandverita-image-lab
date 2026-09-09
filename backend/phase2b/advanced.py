@@ -180,7 +180,12 @@ _OUTPAINT_DIRECTION_ANCHOR = {
     "symmetric": {"center"},
 }
 
-_PRODUCT_SCENE_ALLOWED = {"scene_direction", "background_style", "preserve_subject"}
+_PRODUCT_SCENE_ALLOWED = {
+    "scene_direction",
+    "background_style",
+    "preserve_subject",
+    "preset_variant",
+}
 
 
 
@@ -202,12 +207,36 @@ def parse_outpaint_params(params: dict[str, Any]) -> dict[str, Any]:
         raise advanced_error("invalid_request", "Invalid direction.")
     if anchor not in _OUTPAINT_DIRECTION_ANCHOR[direction]:
         raise advanced_error("invalid_request", "Invalid direction/anchor combination.")
-    return {
+    validated: dict[str, Any] = {
         "expansion_mode": expansion_mode,
         "direction": direction,
         "anchor": anchor,
         "style_mode": style_mode,
     }
+    # Optional research knobs. Absent means "use the deployed server default",
+    # so an ordinary (Studio-shaped) request is byte-identical to before.
+    if params.get("prompt_mode") is not None:
+        mode = params.get("prompt_mode")
+        if mode not in OUTPAINT_PROMPT_MODES:
+            raise advanced_error("invalid_request", "Invalid prompt_mode.")
+        validated["prompt_mode"] = mode
+    if params.get("guidance") is not None:
+        try:
+            guidance = float(params.get("guidance"))
+        except (TypeError, ValueError):
+            raise advanced_error("invalid_request", "Invalid guidance.")
+        if guidance not in OUTPAINT_GUIDANCE_VALUES:
+            raise advanced_error("invalid_request", "Invalid guidance.")
+        validated["guidance"] = guidance
+    if params.get("steps") is not None:
+        try:
+            steps = int(params.get("steps"))
+        except (TypeError, ValueError):
+            raise advanced_error("invalid_request", "Invalid steps.")
+        if steps not in OUTPAINT_STEPS_VALUES:
+            raise advanced_error("invalid_request", "Invalid steps.")
+        validated["steps"] = steps
+    return validated
 
 
 def parse_product_scene_params(params: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
