@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 
 import { AssetTestPanel } from "@/components/generation/AssetTestPanel";
+import { TransformationLabPanel } from "@/components/generation/TransformationLabPanel";
 import { GenerationForm } from "@/components/generation/GenerationForm";
 import { RecentJobs } from "@/components/generation/RecentJobs";
 import { ResultPanel, type PanelState } from "@/components/generation/ResultPanel";
@@ -294,6 +295,12 @@ function Index() {
         {API_CONFIGURED ? (
           <div className="mt-10 border-t border-border pt-8">
             <AssetTestPanel accessToken={session?.access_token ?? null} />
+          </div>
+        ) : null}
+
+        {API_CONFIGURED ? (
+          <div className="mt-10 border-t border-border pt-8">
+            <TransformationLabPanel accessToken={session?.access_token ?? null} />
           </div>
         ) : null}
         </>
