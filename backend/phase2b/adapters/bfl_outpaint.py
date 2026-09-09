@@ -72,17 +72,64 @@ EXPAND_INSTRUCTION_GUIDED = (
 # mode so the guided text can be measured against no text at all.
 EXPAND_INSTRUCTION_BARE = ""
 
-PROMPT_MODES = {"guided": EXPAND_INSTRUCTION_GUIDED, "bare": EXPAND_INSTRUCTION_BARE}
+# Strictest continuation wording: the observed failure is invention, so this
+# variant says nothing but "extend what is already here".
+EXPAND_INSTRUCTION_BRIGHT = (
+    "Extend this exact photograph to fill the wider frame. The added area is a "
+    "direct continuation of the surrounding pixels: same background, same "
+    "surface, same horizon, same lighting, same colour and same grain, with "
+    "nothing in it that is not already part of this scene."
+)
+
+PROMPT_MODES = {
+    "guided": EXPAND_INSTRUCTION_GUIDED,
+    "bare": EXPAND_INSTRUCTION_BARE,
+    "bright": EXPAND_INSTRUCTION_BRIGHT,
+}
+
+# Provider knobs. Low guidance is the "no imagination" setting: the model stays
+# close to the supplied picture instead of composing new content. Defaults are
+# the deployed values; a staging run may select another allowed value.
+DEFAULT_GUIDANCE = 1.5
+DEFAULT_STEPS = 50
 
 
-def prompt_mode() -> str:
+def prompt_mode(override: Optional[str] = None) -> str:
+    if override in PROMPT_MODES:
+        return str(override)
     mode = (os.environ.get("OUTPAINT_V2_PROMPT_MODE") or "guided").strip().lower()
     return mode if mode in PROMPT_MODES else "guided"
 
 
-def expand_instruction() -> str:
-    """Server-owned only: never read from a request body."""
-    return PROMPT_MODES[prompt_mode()]
+def expand_instruction(override: Optional[str] = None) -> str:
+    """Server-owned only: the request selects a mode, never the text itself."""
+    return PROMPT_MODES[prompt_mode(override)]
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.environ.get(name) or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name) or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def guidance_value(override: Optional[float] = None) -> float:
+    if override is not None:
+        return float(override)
+    return _env_float("OUTPAINT_V2_GUIDANCE", DEFAULT_GUIDANCE)
+
+
+def steps_value(override: Optional[int] = None) -> int:
+    if override is not None:
+        return int(override)
+    return _env_int("OUTPAINT_V2_STEPS", DEFAULT_STEPS)
 
 
 _dispatcher = None
@@ -174,7 +221,15 @@ def _png_bytes(image) -> bytes:
     return buffer.getvalue()
 
 
-def _call_bfl(*, job_id: str, image_bytes: bytes, padding: dict[str, int]) -> dict[str, Any]:
+def _call_bfl(
+    *,
+    job_id: str,
+    image_bytes: bytes,
+    padding: dict[str, int],
+    instruction: str,
+    guidance: float,
+    steps: int,
+) -> dict[str, Any]:
     """Submit + poll + fetch, entirely server-side."""
     import httpx
 
@@ -182,14 +237,17 @@ def _call_bfl(*, job_id: str, image_bytes: bytes, padding: dict[str, int]) -> di
     headers = {"x-key": key, "Content-Type": "application/json"}
     payload = {
         "image": base64.b64encode(image_bytes).decode(),
-        "prompt": expand_instruction(),
+        "prompt": instruction,
         "top": padding["top"],
         "bottom": padding["bottom"],
         "left": padding["left"],
         "right": padding["right"],
         "output_format": "png",
+        # Upsampling re-expands the prompt and reintroduces invented subjects.
         "prompt_upsampling": False,
         "safety_tolerance": 2,
+        "guidance": guidance,
+        "steps": steps,
     }
 
     with httpx.Client(timeout=SUBMIT_TIMEOUT_S) as client:
@@ -342,12 +400,29 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         temp_files.append(placed_path)
         _stage(job_id, "geometry_ready", **padding)
 
-        # 5 — hosted call, bounded.
+        # 5 — hosted call, bounded. Mode/guidance/steps come from validated
+        # enums or the deployed defaults; the text itself is a server constant.
+        active_mode = prompt_mode(validated.get("prompt_mode"))
+        active_instruction = expand_instruction(validated.get("prompt_mode"))
+        active_guidance = guidance_value(validated.get("guidance"))
+        active_steps = steps_value(validated.get("steps"))
         dispatched_at = datetime.now(timezone.utc)
         eval_row["dispatched_at"] = _iso(dispatched_at)
         started = time.time()
+        _stage(
+            job_id,
+            "provider_settings",
+            mode=active_mode,
+            guidance=active_guidance,
+            steps=active_steps,
+        )
         provider_result = _call_bfl(
-            job_id=job_id, image_bytes=placed_png, padding=padding
+            job_id=job_id,
+            image_bytes=placed_png,
+            padding=padding,
+            instruction=active_instruction,
+            guidance=active_guidance,
+            steps=active_steps,
         )
         provider_latency_ms = int((time.time() - started) * 1000)
         eval_row["provider_latency_ms"] = provider_latency_ms
@@ -381,7 +456,7 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         temp_files.append(output_path)
 
         # 8 — validate → upload → hash → ready row.
-        instruction = expand_instruction()
+        instruction = active_instruction
         provenance = {
             "workflow": f"{row['key']}:{row['version']}",
             "provider": PROVIDER,
@@ -392,7 +467,9 @@ def run_outpaint(job_id: str, user_id: str) -> None:
             "geometry": placement.as_provenance(),
             "expansion_px": padding,
             "instruction": instruction,
-            "prompt_mode": prompt_mode(),
+            "prompt_mode": active_mode,
+            "guidance": active_guidance,
+            "steps": active_steps,
             "instruction_sha256": hashlib.sha256(instruction.encode()).hexdigest(),
             "instruction_chars": len(instruction),
             "source_asset_sha256": asset.get("sha256"),
@@ -437,6 +514,14 @@ def run_outpaint(job_id: str, user_id: str) -> None:
                 "output_width": placement.canvas_width,
                 "output_height": placement.canvas_height,
                 "output_bytes": len(output_png),
+                # Comparable settings for the score table.
+                "variant_id": active_mode,
+                "provider_params": {
+                    "prompt_mode": active_mode,
+                    "guidance": active_guidance,
+                    "steps": active_steps,
+                    "instruction_sha256": provenance["instruction_sha256"],
+                },
             }
         )
         advanced.write_eval_run(eval_row)

@@ -151,7 +151,27 @@ FORBIDDEN_KEYS = {
     "urls", "base64", "data", "loras", "controlnet",
 }
 
-_OUTPAINT_ALLOWED = {"expansion_mode", "direction", "anchor", "style_mode"}
+# Research knobs (staging, internal Lab only). They are enum-bounded: a value
+# outside the allow-list is a 400, and free text can never reach the provider
+# because these keys only ever select between server-owned constants.
+#
+# `prompt_mode` picks which server-owned continuation text is sent with a Smart
+# Resize run; `guidance` / `steps` control how tightly the provider follows the
+# supplied picture, which is the setting that stops it inventing content.
+OUTPAINT_PROMPT_MODES = ("guided", "bare", "bright")
+OUTPAINT_GUIDANCE_VALUES = (1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0)
+OUTPAINT_STEPS_VALUES = (20, 30, 40, 50)
+PRODUCT_SCENE_PRESET_VARIANTS = ("v1", "v2")
+
+_OUTPAINT_ALLOWED = {
+    "expansion_mode",
+    "direction",
+    "anchor",
+    "style_mode",
+    "prompt_mode",
+    "guidance",
+    "steps",
+}
 _OUTPAINT_DIRECTION_ANCHOR = {
     "left": {"right", "center"},
     "right": {"left", "center"},
@@ -160,7 +180,12 @@ _OUTPAINT_DIRECTION_ANCHOR = {
     "symmetric": {"center"},
 }
 
-_PRODUCT_SCENE_ALLOWED = {"scene_direction", "background_style", "preserve_subject"}
+_PRODUCT_SCENE_ALLOWED = {
+    "scene_direction",
+    "background_style",
+    "preserve_subject",
+    "preset_variant",
+}
 
 
 
@@ -182,12 +207,36 @@ def parse_outpaint_params(params: dict[str, Any]) -> dict[str, Any]:
         raise advanced_error("invalid_request", "Invalid direction.")
     if anchor not in _OUTPAINT_DIRECTION_ANCHOR[direction]:
         raise advanced_error("invalid_request", "Invalid direction/anchor combination.")
-    return {
+    validated: dict[str, Any] = {
         "expansion_mode": expansion_mode,
         "direction": direction,
         "anchor": anchor,
         "style_mode": style_mode,
     }
+    # Optional research knobs. Absent means "use the deployed server default",
+    # so an ordinary (Studio-shaped) request is byte-identical to before.
+    if params.get("prompt_mode") is not None:
+        mode = params.get("prompt_mode")
+        if mode not in OUTPAINT_PROMPT_MODES:
+            raise advanced_error("invalid_request", "Invalid prompt_mode.")
+        validated["prompt_mode"] = mode
+    if params.get("guidance") is not None:
+        try:
+            guidance = float(params.get("guidance"))
+        except (TypeError, ValueError):
+            raise advanced_error("invalid_request", "Invalid guidance.")
+        if guidance not in OUTPAINT_GUIDANCE_VALUES:
+            raise advanced_error("invalid_request", "Invalid guidance.")
+        validated["guidance"] = guidance
+    if params.get("steps") is not None:
+        try:
+            steps = int(params.get("steps"))
+        except (TypeError, ValueError):
+            raise advanced_error("invalid_request", "Invalid steps.")
+        if steps not in OUTPAINT_STEPS_VALUES:
+            raise advanced_error("invalid_request", "Invalid steps.")
+        validated["steps"] = steps
+    return validated
 
 
 def parse_product_scene_params(params: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
@@ -216,11 +265,18 @@ def parse_product_scene_params(params: dict[str, Any], row: dict[str, Any]) -> d
         raise advanced_error("invalid_request", "Invalid background_style.")
     if params.get("preserve_subject", True) is not True:
         raise advanced_error("invalid_request", "preserve_subject must be true.")
-    return {
+    validated: dict[str, Any] = {
         "scene_direction": scene_direction,
         "background_style": background_style,
         "preserve_subject": True,
     }
+    # Optional wording variant, evaluation only; absent means the shipped text.
+    if params.get("preset_variant") is not None:
+        variant = params.get("preset_variant")
+        if variant not in PRODUCT_SCENE_PRESET_VARIANTS:
+            raise advanced_error("invalid_request", "Invalid preset_variant.")
+        validated["preset_variant"] = variant
+    return validated
 
 
 
