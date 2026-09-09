@@ -221,7 +221,15 @@ def _png_bytes(image) -> bytes:
     return buffer.getvalue()
 
 
-def _call_bfl(*, job_id: str, image_bytes: bytes, padding: dict[str, int]) -> dict[str, Any]:
+def _call_bfl(
+    *,
+    job_id: str,
+    image_bytes: bytes,
+    padding: dict[str, int],
+    instruction: str,
+    guidance: float,
+    steps: int,
+) -> dict[str, Any]:
     """Submit + poll + fetch, entirely server-side."""
     import httpx
 
@@ -229,14 +237,17 @@ def _call_bfl(*, job_id: str, image_bytes: bytes, padding: dict[str, int]) -> di
     headers = {"x-key": key, "Content-Type": "application/json"}
     payload = {
         "image": base64.b64encode(image_bytes).decode(),
-        "prompt": expand_instruction(),
+        "prompt": instruction,
         "top": padding["top"],
         "bottom": padding["bottom"],
         "left": padding["left"],
         "right": padding["right"],
         "output_format": "png",
+        # Upsampling re-expands the prompt and reintroduces invented subjects.
         "prompt_upsampling": False,
         "safety_tolerance": 2,
+        "guidance": guidance,
+        "steps": steps,
     }
 
     with httpx.Client(timeout=SUBMIT_TIMEOUT_S) as client:
