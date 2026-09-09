@@ -149,6 +149,7 @@ ALLOWED_ORIGINS = [
     "https://lab.brandverita.com",
     "https://app.brandverita.io",
     "https://id-preview--b2d8d333-eb4f-49b0-8086-f5764b1a4938.lovable.app",
+    "https://id-preview--b64be2b1-6229-4e5a-9db3-93ec98ded2cf.lovable.app",
     "http://localhost:8080",
 ]
 

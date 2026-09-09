@@ -199,7 +199,8 @@ export function startOutpaint(input: {
   return request<AdvancedJob>("/v1/generations", {
     method: "POST",
     accessToken: input.accessToken,
-    headers: { "Idempotency-Key": input.idempotencyKey },
+    // The run key travels in the body; no extra header (keeps the request
+    // inside the service's allowed browser headers).
     body: JSON.stringify({
       ...OUTPAINT_WORKFLOW,
       source_asset_id: input.sourceAssetId,
@@ -228,7 +229,7 @@ export function startProductScene(input: {
   return request<AdvancedJob>("/v1/generations", {
     method: "POST",
     accessToken: input.accessToken,
-    headers: { "Idempotency-Key": input.idempotencyKey },
+    // Run key in the body only — see startOutpaint.
     body: JSON.stringify({
       ...PRODUCT_SCENE_WORKFLOW,
       source_asset_id: input.sourceAssetId,
