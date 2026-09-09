@@ -143,7 +143,10 @@ export function ScoreCard({ jobId, accessToken, askBrightness, onSaved }: ScoreC
       </label>
 
       {error ? (
-        <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive"
+        >
           {error}
         </p>
       ) : null}
@@ -151,7 +154,11 @@ export function ScoreCard({ jobId, accessToken, askBrightness, onSaved }: ScoreC
       {saved ? (
         <p className="text-left text-xs font-medium text-foreground">Rating saved.</p>
       ) : (
-        <Button type="button" onClick={() => void handleSave()} disabled={overall === null || saving}>
+        <Button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={overall === null || saving}
+        >
           {saving ? "Saving…" : "Save rating"}
         </Button>
       )}

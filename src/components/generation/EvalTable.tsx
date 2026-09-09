@@ -32,7 +32,8 @@ function settingsLabel(score: EvalScore): string {
   if (params["guidance"] !== undefined) parts.push(`guidance ${String(params["guidance"])}`);
   if (params["steps"] !== undefined) parts.push(`${String(params["steps"])} steps`);
   if (typeof params["scene_direction"] === "string") parts.push(String(params["scene_direction"]));
-  if (typeof params["preset_variant"] === "string") parts.push(`wording ${String(params["preset_variant"])}`);
+  if (typeof params["preset_variant"] === "string")
+    parts.push(`wording ${String(params["preset_variant"])}`);
   return parts.length ? parts.join(" · ") : (score.variant_id ?? "default");
 }
 
@@ -75,13 +76,22 @@ export function EvalTable({ accessToken, module, refreshKey }: EvalTableProps) {
             Averages of your own ratings, grouped by the settings each run used.
           </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void load()}
+          disabled={loading}
+        >
           {loading ? "Loading…" : "Refresh"}
         </Button>
       </div>
 
       {error ? (
-        <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive"
+        >
           {error}
         </p>
       ) : null}
@@ -98,11 +108,21 @@ export function EvalTable({ accessToken, module, refreshKey }: EvalTableProps) {
             <caption className="sr-only">Average ratings per settings variant</caption>
             <thead className="bg-muted text-xs text-muted-foreground">
               <tr>
-                <th scope="col" className="px-3 py-2 font-medium">Variant</th>
-                <th scope="col" className="px-3 py-2 font-medium">Runs rated</th>
-                <th scope="col" className="px-3 py-2 font-medium">Overall</th>
-                <th scope="col" className="px-3 py-2 font-medium">Brightness</th>
-                <th scope="col" className="px-3 py-2 font-medium">Added content</th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Variant
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Runs rated
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Overall
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Brightness
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Added content
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -128,12 +148,24 @@ export function EvalTable({ accessToken, module, refreshKey }: EvalTableProps) {
             <caption className="sr-only">Individual rated runs</caption>
             <thead className="bg-muted text-xs text-muted-foreground">
               <tr>
-                <th scope="col" className="px-3 py-2 font-medium">Settings</th>
-                <th scope="col" className="px-3 py-2 font-medium">Size</th>
-                <th scope="col" className="px-3 py-2 font-medium">Overall</th>
-                <th scope="col" className="px-3 py-2 font-medium">Added</th>
-                <th scope="col" className="px-3 py-2 font-medium">Time</th>
-                <th scope="col" className="px-3 py-2 font-medium">Note</th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Settings
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Size
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Overall
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Added
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Time
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Note
+                </th>
               </tr>
             </thead>
             <tbody>

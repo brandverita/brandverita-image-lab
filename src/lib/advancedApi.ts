@@ -284,10 +284,10 @@ export function listEvaluations(
   accessToken?: string | null,
 ): Promise<{ scores: EvalScore[]; summary: EvalSummaryRow[] }> {
   const query = module === "all" ? "" : `?module=${module}`;
-  return request<{ scores: EvalScore[]; summary: EvalSummaryRow[] }>(
-    `/v1/evaluations${query}`,
-    { method: "GET", accessToken },
-  );
+  return request<{ scores: EvalScore[]; summary: EvalSummaryRow[] }>(`/v1/evaluations${query}`, {
+    method: "GET",
+    accessToken,
+  });
 }
 
 export function isTerminalAdvancedStatus(status: string): boolean {

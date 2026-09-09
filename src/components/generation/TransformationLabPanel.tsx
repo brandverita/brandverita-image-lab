@@ -11,10 +11,7 @@ import { EvalTable } from "@/components/generation/EvalTable";
 import { ScoreCard } from "@/components/generation/ScoreCard";
 import { Button } from "@/components/ui/button";
 import { useAssetUpload } from "@/hooks/use-asset-upload";
-import {
-  ASSET_ACCEPT_ATTRIBUTE,
-  type AssetMetadata,
-} from "@/lib/assetsApi";
+import { ASSET_ACCEPT_ATTRIBUTE, type AssetMetadata } from "@/lib/assetsApi";
 import {
   GenerationApiError,
   POLL_INTERVAL_MS,
@@ -176,7 +173,8 @@ export function TransformationLabPanel({ accessToken }: Props) {
             if (!isTerminalAdvancedStatus(next.status)) return;
             stopPolling();
             if (next.status === "completed") {
-              const url = next.result_url ?? (await refreshAdvancedResultUrl(jobId, tokenRef.current));
+              const url =
+                next.result_url ?? (await refreshAdvancedResultUrl(jobId, tokenRef.current));
               if (runRef.current !== runId) return;
               setResultUrl(url);
               setPhase("done");
@@ -334,7 +332,10 @@ export function TransformationLabPanel({ accessToken }: Props) {
               <p className="text-left text-xs text-muted-foreground">Uploading…</p>
             ) : null}
             {upload.state.errorMessage ? (
-              <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+              <p
+                role="alert"
+                className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive"
+              >
                 {upload.state.errorMessage}
               </p>
             ) : null}
