@@ -142,6 +142,175 @@ def write_eval_run(row: dict[str, Any]) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Evaluation scores (staging, internal Lab only)
+# --------------------------------------------------------------------------- #
+
+SCORE_MODULES = ("outpaint", "product_scene")
+
+
+def _eval_run_for_job(job_id: str) -> Optional[dict]:
+    resp = _rest_table(
+        "transformation_eval_runs",
+        "GET",
+        f"job_id=eq.{job_id}&select=id,module,variant_id,provider_params&limit=1",
+    )
+    if resp.status_code >= 300:
+        return None
+    rows = resp.json()
+    return rows[0] if rows else None
+
+
+def save_score(*, job_id: str, reviewer_user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """One score per reviewer per run; re-submitting replaces the previous one.
+    The job is checked to belong to the reviewer before anything is written."""
+    if not isinstance(payload, dict):
+        raise advanced_error("invalid_request", "body must be an object.")
+    resp = _rest_table(
+        "generation_jobs",
+        "GET",
+        f"id=eq.{job_id}&user_id=eq.{reviewer_user_id}&select=id,workflow_id,status&limit=1",
+    )
+    if resp.status_code >= 300:
+        raise advanced_error("storage_unavailable", "The evaluation store is unavailable.")
+    job_rows = resp.json()
+    if not job_rows:
+        raise advanced_error("asset_not_found", "Run not found.")
+    job = job_rows[0]
+
+    try:
+        overall = int(payload.get("overall"))
+    except (TypeError, ValueError):
+        raise advanced_error("invalid_request", "overall must be a whole number 1-5.")
+    if overall < 1 or overall > 5:
+        raise advanced_error("invalid_request", "overall must be a whole number 1-5.")
+
+    brightness = payload.get("brightness")
+    if brightness is not None:
+        try:
+            brightness = int(brightness)
+        except (TypeError, ValueError):
+            raise advanced_error("invalid_request", "brightness must be a whole number 1-5.")
+        if brightness < 1 or brightness > 5:
+            raise advanced_error("invalid_request", "brightness must be a whole number 1-5.")
+
+    invented = payload.get("invented_content")
+    if invented is not None and not isinstance(invented, bool):
+        raise advanced_error("invalid_request", "invented_content must be true or false.")
+
+    notes = payload.get("notes")
+    if notes is not None:
+        if not isinstance(notes, str):
+            raise advanced_error("invalid_request", "notes must be text.")
+        notes = notes.strip()[:500] or None
+
+    eval_run = _eval_run_for_job(job_id) or {}
+    module = eval_run.get("module") or str(job.get("workflow_id") or "")
+    if module not in SCORE_MODULES:
+        raise advanced_error("invalid_request", "This run cannot be scored.")
+
+    row = {
+        "job_id": job_id,
+        "eval_run_id": eval_run.get("id"),
+        "module": module,
+        "reviewer_user_id": reviewer_user_id,
+        "overall": overall,
+        "invented_content": bool(invented) if invented is not None else False,
+        "brightness": brightness,
+        "notes": notes,
+    }
+    write = _rest_table(
+        "transformation_eval_scores",
+        "POST",
+        json=row,
+        headers={
+            "Content-Type": "application/json",
+            "Prefer": "return=representation,resolution=merge-duplicates",
+        },
+    )
+    if write.status_code >= 300:
+        print(f"wp_eval_score_write_failed status={write.status_code} body={write.text[:300]}")
+        raise advanced_error("storage_unavailable", "The score could not be saved.")
+    saved = write.json()
+    return saved[0] if isinstance(saved, list) and saved else row
+
+
+def list_scored_runs(*, reviewer_user_id: str, module: Optional[str] = None) -> list[dict]:
+    """Flat list of this reviewer's scored runs with the settings that produced
+    them, so variants can be compared without exposing another user's data."""
+    q = (
+        f"reviewer_user_id=eq.{reviewer_user_id}"
+        "&select=job_id,module,overall,invented_content,brightness,notes,created_at,"
+        "transformation_eval_runs(variant_id,provider_params,output_preset,"
+        "provider_model,total_latency_ms,estimated_cost)"
+        "&order=created_at.desc&limit=200"
+    )
+    if module in SCORE_MODULES:
+        q = f"module=eq.{module}&" + q
+    resp = _rest_table("transformation_eval_scores", "GET", q)
+    if resp.status_code >= 300:
+        raise advanced_error("storage_unavailable", "The evaluation store is unavailable.")
+    rows = resp.json()
+    flattened: list[dict] = []
+    for r in rows if isinstance(rows, list) else []:
+        run = r.pop("transformation_eval_runs", None) or {}
+        if isinstance(run, list):
+            run = run[0] if run else {}
+        r["variant_id"] = run.get("variant_id")
+        r["provider_params"] = run.get("provider_params") or {}
+        r["output_preset"] = run.get("output_preset")
+        r["provider_model"] = run.get("provider_model")
+        r["total_latency_ms"] = run.get("total_latency_ms")
+        r["estimated_cost"] = run.get("estimated_cost")
+        flattened.append(r)
+    return flattened
+
+
+def summarize_scores(rows: list[dict]) -> list[dict]:
+    """Mean overall / brightness and invention rate per module+variant."""
+    buckets: dict[tuple[str, str], dict[str, Any]] = {}
+    for r in rows:
+        key = (r.get("module") or "unknown", r.get("variant_id") or "default")
+        b = buckets.setdefault(
+            key,
+            {
+                "module": key[0],
+                "variant_id": key[1],
+                "runs": 0,
+                "_overall": 0,
+                "_brightness": 0,
+                "_brightness_n": 0,
+                "invented": 0,
+            },
+        )
+        b["runs"] += 1
+        b["_overall"] += int(r.get("overall") or 0)
+        if r.get("brightness") is not None:
+            b["_brightness"] += int(r["brightness"])
+            b["_brightness_n"] += 1
+        if r.get("invented_content"):
+            b["invented"] += 1
+    out = []
+    for b in buckets.values():
+        runs = max(b["runs"], 1)
+        out.append(
+            {
+                "module": b["module"],
+                "variant_id": b["variant_id"],
+                "runs": b["runs"],
+                "overall_mean": round(b["_overall"] / runs, 2),
+                "brightness_mean": (
+                    round(b["_brightness"] / b["_brightness_n"], 2)
+                    if b["_brightness_n"]
+                    else None
+                ),
+                "invented_rate": round(b["invented"] / runs, 2),
+            }
+        )
+    out.sort(key=lambda x: (x["module"], x["variant_id"]))
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Strict parameter parsers (allow-list, never permissive)
 # --------------------------------------------------------------------------- #
 
