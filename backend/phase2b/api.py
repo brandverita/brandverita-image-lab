@@ -511,7 +511,53 @@ def list_scene_presets(user_id: str = Depends(get_verified_user_id)):
         "scene_directions": scene_presets.public_catalog(),
         "background_styles": sorted(scene_presets.BACKGROUND_STYLES.keys()),
         "output_presets": sorted(scene_presets.OUTPUT_PRESETS.keys()),
+        "preset_variants": list(scene_presets.PRESET_VARIANTS),
+        "default_preset_variant": scene_presets.DEFAULT_PRESET_VARIANT,
     }
+
+
+@web_app.get("/v1/research-options")
+def list_research_options(user_id: str = Depends(get_verified_user_id)):
+    """Enum-only staging evaluation knobs for the internal Lab UI. Selecting a
+    value picks between server-owned constants; no wording is ever accepted."""
+    if not advanced.advanced_enabled():
+        raise HTTPException(status_code=403, detail="workflow_not_available")
+    return {
+        "outpaint": {
+            "prompt_modes": list(advanced.OUTPAINT_PROMPT_MODES),
+            "guidance": list(advanced.OUTPAINT_GUIDANCE_VALUES),
+            "steps": list(advanced.OUTPAINT_STEPS_VALUES),
+        },
+        "product_scene": {
+            "preset_variants": list(advanced.PRODUCT_SCENE_PRESET_VARIANTS),
+        },
+    }
+
+
+@web_app.post("/v1/evaluations/{job_id}/score")
+async def submit_score(
+    job_id: str, request: Request, user_id: str = Depends(get_verified_user_id)
+):
+    """Record this reviewer's score for one of their own runs."""
+    if not advanced.advanced_enabled():
+        raise HTTPException(status_code=403, detail="workflow_not_available")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid_request: body must be JSON")
+    saved = advanced.save_score(job_id=job_id, reviewer_user_id=user_id, payload=body or {})
+    return {"score": saved}
+
+
+@web_app.get("/v1/evaluations")
+def list_evaluations(
+    module: Optional[str] = None, user_id: str = Depends(get_verified_user_id)
+):
+    """This reviewer's scored runs plus a per-variant comparison summary."""
+    if not advanced.advanced_enabled():
+        raise HTTPException(status_code=403, detail="workflow_not_available")
+    rows = advanced.list_scored_runs(reviewer_user_id=user_id, module=module)
+    return {"scores": rows, "summary": advanced.summarize_scores(rows)}
 
 
 

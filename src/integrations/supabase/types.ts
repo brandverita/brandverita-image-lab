@@ -343,6 +343,7 @@ export type Database = {
           provider_call_id: string | null
           provider_latency_ms: number | null
           provider_model: string | null
+          provider_params: Json
           queued_at: string | null
           request_params: Json
           reviewer_scores: Json
@@ -352,6 +353,7 @@ export type Database = {
           status: string
           total_latency_ms: number | null
           training_on_input: boolean | null
+          variant_id: string | null
           worker_version: string | null
           workflow_key: string
           workflow_version: string
@@ -392,6 +394,7 @@ export type Database = {
           provider_call_id?: string | null
           provider_latency_ms?: number | null
           provider_model?: string | null
+          provider_params?: Json
           queued_at?: string | null
           request_params?: Json
           reviewer_scores?: Json
@@ -401,6 +404,7 @@ export type Database = {
           status?: string
           total_latency_ms?: number | null
           training_on_input?: boolean | null
+          variant_id?: string | null
           worker_version?: string | null
           workflow_key: string
           workflow_version: string
@@ -441,6 +445,7 @@ export type Database = {
           provider_call_id?: string | null
           provider_latency_ms?: number | null
           provider_model?: string | null
+          provider_params?: Json
           queued_at?: string | null
           request_params?: Json
           reviewer_scores?: Json
@@ -450,6 +455,7 @@ export type Database = {
           status?: string
           total_latency_ms?: number | null
           training_on_input?: boolean | null
+          variant_id?: string | null
           worker_version?: string | null
           workflow_key?: string
           workflow_version?: string
@@ -474,6 +480,60 @@ export type Database = {
             columns: ["source_asset_id"]
             isOneToOne: false
             referencedRelation: "generation_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transformation_eval_scores: {
+        Row: {
+          brightness: number | null
+          created_at: string
+          eval_run_id: string | null
+          id: string
+          invented_content: boolean
+          job_id: string | null
+          module: string
+          notes: string | null
+          overall: number
+          reviewer_user_id: string
+        }
+        Insert: {
+          brightness?: number | null
+          created_at?: string
+          eval_run_id?: string | null
+          id?: string
+          invented_content?: boolean
+          job_id?: string | null
+          module: string
+          notes?: string | null
+          overall: number
+          reviewer_user_id: string
+        }
+        Update: {
+          brightness?: number | null
+          created_at?: string
+          eval_run_id?: string | null
+          id?: string
+          invented_content?: boolean
+          job_id?: string | null
+          module?: string
+          notes?: string | null
+          overall?: number
+          reviewer_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transformation_eval_scores_eval_run_id_fkey"
+            columns: ["eval_run_id"]
+            isOneToOne: false
+            referencedRelation: "transformation_eval_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transformation_eval_scores_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "generation_jobs"
             referencedColumns: ["id"]
           },
         ]

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 
 import { AssetTestPanel } from "@/components/generation/AssetTestPanel";
+import { TransformationLabPanel } from "@/components/generation/TransformationLabPanel";
 import { GenerationForm } from "@/components/generation/GenerationForm";
 import { RecentJobs } from "@/components/generation/RecentJobs";
 import { ResultPanel, type PanelState } from "@/components/generation/ResultPanel";
@@ -21,7 +22,6 @@ import {
   type HealthInfo,
   type WorkflowInfo,
 } from "@/lib/generationApi";
-
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -218,88 +218,98 @@ function Index() {
             />
           )
         ) : (
-        <>
-        <div className="mb-6">
-          <h2 className="text-left text-2xl font-semibold tracking-tight text-foreground">
-            Text-to-image test run
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          <>
+            <div className="mb-6">
+              <h2 className="text-left text-2xl font-semibold tracking-tight text-foreground">
+                Text-to-image test run
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Submits a single Flux Schnell job to the BrandVerita Generation API and polls it
+                until it completes. Results come only from the API — nothing here is simulated.
+              </p>
+            </div>
 
-            Submits a single Flux Schnell job to the BrandVerita Generation API and polls it until it
-            completes. Results come only from the API — nothing here is simulated.
-          </p>
-        </div>
-
-        {unavailableReason ? (
-          <div
-            role="alert"
-            className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
-          >
-            <span>{unavailableReason}</span>
-            {health.kind === "unreachable" ? (
-              <button
-                type="button"
-                onClick={() => void runHealthCheck()}
-                className="rounded-md border border-destructive/40 px-3 py-1 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            {unavailableReason ? (
+              <div
+                role="alert"
+                className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
               >
-                Check again
-              </button>
+                <span>{unavailableReason}</span>
+                {health.kind === "unreachable" ? (
+                  <button
+                    type="button"
+                    onClick={() => void runHealthCheck()}
+                    className="rounded-md border border-destructive/40 px-3 py-1 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    Check again
+                  </button>
+                ) : null}
+              </div>
             ) : null}
-          </div>
-        ) : null}
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <section aria-labelledby="form-heading" className="rounded-lg border border-border bg-card p-6">
-            <h3 id="form-heading" className="mb-5 text-left text-sm font-semibold text-foreground">
-              Generation request
-            </h3>
-            <GenerationForm
-              isSubmitting={isBusy}
-              disabled={!canGenerate}
-              onSubmit={submit}
-              onReset={reset}
-            />
-          </section>
+            <div className="grid gap-8 lg:grid-cols-2">
+              <section
+                aria-labelledby="form-heading"
+                className="rounded-lg border border-border bg-card p-6"
+              >
+                <h3
+                  id="form-heading"
+                  className="mb-5 text-left text-sm font-semibold text-foreground"
+                >
+                  Generation request
+                </h3>
+                <GenerationForm
+                  isSubmitting={isBusy}
+                  disabled={!canGenerate}
+                  onSubmit={submit}
+                  onReset={reset}
+                />
+              </section>
 
-          <section aria-labelledby="result-heading" className="space-y-3">
-            <h3 id="result-heading" className="text-left text-sm font-semibold text-foreground">
-              Result
-            </h3>
-            <ResultPanel
-              state={state}
-              job={job}
-              statusText={statusText}
-              errorMessage={errorMessage}
-              errorCode={errorCode}
-              elapsedMs={elapsedMs}
-              altText={
-                lastPrompt
-                  ? `Generated image for the prompt: ${lastPrompt.slice(0, 120)}`
-                  : "Generated test image"
-              }
-              onRetry={retry}
-              onRefreshResult={() => void refreshResultUrl()}
-              onCheckNow={checkNow}
-            />
-          </section>
-        </div>
+              <section aria-labelledby="result-heading" className="space-y-3">
+                <h3 id="result-heading" className="text-left text-sm font-semibold text-foreground">
+                  Result
+                </h3>
+                <ResultPanel
+                  state={state}
+                  job={job}
+                  statusText={statusText}
+                  errorMessage={errorMessage}
+                  errorCode={errorCode}
+                  elapsedMs={elapsedMs}
+                  altText={
+                    lastPrompt
+                      ? `Generated image for the prompt: ${lastPrompt.slice(0, 120)}`
+                      : "Generated test image"
+                  }
+                  onRetry={retry}
+                  onRefreshResult={() => void refreshResultUrl()}
+                  onCheckNow={checkNow}
+                />
+              </section>
+            </div>
 
-        <section aria-labelledby="jobs-heading" className="mt-10 space-y-3">
-          <h3 id="jobs-heading" className="text-left text-sm font-semibold text-foreground">
-            Recent test jobs
-          </h3>
-          <RecentJobs userId={userId} refreshKey={jobsRefreshKey} />
-        </section>
+            <section aria-labelledby="jobs-heading" className="mt-10 space-y-3">
+              <h3 id="jobs-heading" className="text-left text-sm font-semibold text-foreground">
+                Recent test jobs
+              </h3>
+              <RecentJobs userId={userId} refreshKey={jobsRefreshKey} />
+            </section>
 
-        {API_CONFIGURED ? (
-          <div className="mt-10 border-t border-border pt-8">
-            <AssetTestPanel accessToken={session?.access_token ?? null} />
-          </div>
-        ) : null}
-        </>
+            {API_CONFIGURED ? (
+              <div className="mt-10 border-t border-border pt-8">
+                <AssetTestPanel accessToken={session?.access_token ?? null} />
+              </div>
+            ) : null}
+
+            {API_CONFIGURED ? (
+              <div className="mt-10 border-t border-border pt-8">
+                <TransformationLabPanel accessToken={session?.access_token ?? null} />
+              </div>
+            ) : null}
+          </>
         )}
       </main>
-
 
       <footer className="border-t border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-xs text-muted-foreground">
