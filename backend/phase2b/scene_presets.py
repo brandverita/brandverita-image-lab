@@ -106,21 +106,66 @@ def aspect_ratio(preset: str) -> str:
     return ASPECT_RATIOS.get(preset, "1:1")
 
 
-def build_instruction(scene_direction: str, background_style: str | None) -> str:
-    """The complete provider instruction. Assembled from server constants only."""
-    if scene_direction not in SCENE_PRESETS:
+# --------------------------------------------------------------------------- #
+# Preset variants (staging evaluation only)
+# --------------------------------------------------------------------------- #
+#
+# Observed 2026-09-09: every v1 scene reads slightly underexposed. Rather than
+# silently rewriting the text, each scene keeps its shipped wording as `v1` and
+# gains a brighter `v2`. The variant is chosen per run from the internal Lab and
+# recorded in provenance + the eval run, so a winner is selected from scores
+# instead of taste. Studio never sends a variant, so its behaviour is unchanged.
+
+DEFAULT_PRESET_VARIANT = "v1"
+
+_BRIGHT_SUFFIX = (
+    " Expose the frame brightly and evenly: a well-lit, airy image with open "
+    "shadows, clean bright mid-tones, a white point that reads as true white, "
+    "and no dark or muddy corners."
+)
+
+SCENE_PRESET_VARIANTS: dict[str, dict[str, str]] = {
+    key: {
+        "v1": value["instruction"],
+        "v2": value["instruction"] + _BRIGHT_SUFFIX,
+    }
+    for key, value in SCENE_PRESETS.items()
+}
+
+PRESET_VARIANTS: tuple[str, ...] = ("v1", "v2")
+
+
+def scene_instruction(scene_direction: str, variant: str | None) -> str:
+    if scene_direction not in SCENE_PRESET_VARIANTS:
         raise ValueError(f"unknown scene_direction: {scene_direction!r}")
+    chosen = variant or DEFAULT_PRESET_VARIANT
+    if chosen not in PRESET_VARIANTS:
+        raise ValueError(f"unknown preset_variant: {variant!r}")
+    return SCENE_PRESET_VARIANTS[scene_direction][chosen]
+
+
+def build_instruction(
+    scene_direction: str,
+    background_style: str | None,
+    preset_variant: str | None = None,
+) -> str:
+    """The complete provider instruction. Assembled from server constants only."""
+    base = scene_instruction(scene_direction, preset_variant)
     style = background_style or DEFAULT_BACKGROUND_STYLE
     if style not in BACKGROUND_STYLES:
         raise ValueError(f"unknown background_style: {style!r}")
-    return SCENE_PRESETS[scene_direction]["instruction"] + BACKGROUND_STYLES[style]
+    return base + BACKGROUND_STYLES[style]
 
 
-def fingerprint(scene_direction: str, background_style: str | None) -> dict[str, Any]:
+def fingerprint(
+    scene_direction: str,
+    background_style: str | None,
+    preset_variant: str | None = None,
+) -> dict[str, Any]:
     """Recorded in provenance so a result can be traced to exact preset text."""
     import hashlib
 
-    instruction = build_instruction(scene_direction, background_style)
+    instruction = build_instruction(scene_direction, background_style, preset_variant)
     return {
         "scene_direction": scene_direction,
         "background_style": background_style or DEFAULT_BACKGROUND_STYLE,
