@@ -287,13 +287,16 @@ def run_product_scene(job_id: str, user_id: str) -> None:
         temp_files.append(source_path)
         _stage(job_id, "source_downloaded", bytes=len(source_bytes))
 
-        # 4 — instruction from the server preset table only.
+        # 4 — instruction from the server preset table only. The request may
+        # select a wording variant (evaluation), never supply wording.
+        active_variant = validated.get("preset_variant") or scene_presets.DEFAULT_PRESET_VARIANT
         instruction = scene_presets.build_instruction(
-            validated["scene_direction"], validated.get("background_style")
+            validated["scene_direction"], validated.get("background_style"), active_variant
         )
         preset_fingerprint = scene_presets.fingerprint(
-            validated["scene_direction"], validated.get("background_style")
+            validated["scene_direction"], validated.get("background_style"), active_variant
         )
+        _stage(job_id, "preset_resolved", variant=active_variant)
         width, height = scene_presets.resolve_output_preset(preset)
 
         # 5 + 6 — hosted call, bounded, then normalised to the exact preset size.
