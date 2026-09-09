@@ -171,7 +171,8 @@ def fingerprint(
         "background_style": background_style or DEFAULT_BACKGROUND_STYLE,
         "instruction_sha256": hashlib.sha256(instruction.encode()).hexdigest(),
         "instruction_chars": len(instruction),
-        "preset_table_version": "wp2-scene-presets-1",
+        "preset_variant": preset_variant or DEFAULT_PRESET_VARIANT,
+        "preset_table_version": "wp2-scene-presets-2",
     }
 
 

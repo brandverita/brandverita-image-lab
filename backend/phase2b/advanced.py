@@ -151,7 +151,27 @@ FORBIDDEN_KEYS = {
     "urls", "base64", "data", "loras", "controlnet",
 }
 
-_OUTPAINT_ALLOWED = {"expansion_mode", "direction", "anchor", "style_mode"}
+# Research knobs (staging, internal Lab only). They are enum-bounded: a value
+# outside the allow-list is a 400, and free text can never reach the provider
+# because these keys only ever select between server-owned constants.
+#
+# `prompt_mode` picks which server-owned continuation text is sent with a Smart
+# Resize run; `guidance` / `steps` control how tightly the provider follows the
+# supplied picture, which is the setting that stops it inventing content.
+OUTPAINT_PROMPT_MODES = ("guided", "bare", "bright")
+OUTPAINT_GUIDANCE_VALUES = (1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0)
+OUTPAINT_STEPS_VALUES = (20, 30, 40, 50)
+PRODUCT_SCENE_PRESET_VARIANTS = ("v1", "v2")
+
+_OUTPAINT_ALLOWED = {
+    "expansion_mode",
+    "direction",
+    "anchor",
+    "style_mode",
+    "prompt_mode",
+    "guidance",
+    "steps",
+}
 _OUTPAINT_DIRECTION_ANCHOR = {
     "left": {"right", "center"},
     "right": {"left", "center"},
