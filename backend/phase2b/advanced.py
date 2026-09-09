@@ -265,11 +265,18 @@ def parse_product_scene_params(params: dict[str, Any], row: dict[str, Any]) -> d
         raise advanced_error("invalid_request", "Invalid background_style.")
     if params.get("preserve_subject", True) is not True:
         raise advanced_error("invalid_request", "preserve_subject must be true.")
-    return {
+    validated: dict[str, Any] = {
         "scene_direction": scene_direction,
         "background_style": background_style,
         "preserve_subject": True,
     }
+    # Optional wording variant, evaluation only; absent means the shipped text.
+    if params.get("preset_variant") is not None:
+        variant = params.get("preset_variant")
+        if variant not in PRODUCT_SCENE_PRESET_VARIANTS:
+            raise advanced_error("invalid_request", "Invalid preset_variant.")
+        validated["preset_variant"] = variant
+    return validated
 
 
 
