@@ -514,6 +514,14 @@ def run_outpaint(job_id: str, user_id: str) -> None:
                 "output_width": placement.canvas_width,
                 "output_height": placement.canvas_height,
                 "output_bytes": len(output_png),
+                # Comparable settings for the score table.
+                "variant_id": active_mode,
+                "provider_params": {
+                    "prompt_mode": active_mode,
+                    "guidance": active_guidance,
+                    "steps": active_steps,
+                    "instruction_sha256": provenance["instruction_sha256"],
+                },
             }
         )
         advanced.write_eval_run(eval_row)
