@@ -456,7 +456,7 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         temp_files.append(output_path)
 
         # 8 — validate → upload → hash → ready row.
-        instruction = expand_instruction()
+        instruction = active_instruction
         provenance = {
             "workflow": f"{row['key']}:{row['version']}",
             "provider": PROVIDER,
@@ -467,7 +467,9 @@ def run_outpaint(job_id: str, user_id: str) -> None:
             "geometry": placement.as_provenance(),
             "expansion_px": padding,
             "instruction": instruction,
-            "prompt_mode": prompt_mode(),
+            "prompt_mode": active_mode,
+            "guidance": active_guidance,
+            "steps": active_steps,
             "instruction_sha256": hashlib.sha256(instruction.encode()).hexdigest(),
             "instruction_chars": len(instruction),
             "source_asset_sha256": asset.get("sha256"),
