@@ -400,12 +400,29 @@ def run_outpaint(job_id: str, user_id: str) -> None:
         temp_files.append(placed_path)
         _stage(job_id, "geometry_ready", **padding)
 
-        # 5 — hosted call, bounded.
+        # 5 — hosted call, bounded. Mode/guidance/steps come from validated
+        # enums or the deployed defaults; the text itself is a server constant.
+        active_mode = prompt_mode(validated.get("prompt_mode"))
+        active_instruction = expand_instruction(validated.get("prompt_mode"))
+        active_guidance = guidance_value(validated.get("guidance"))
+        active_steps = steps_value(validated.get("steps"))
         dispatched_at = datetime.now(timezone.utc)
         eval_row["dispatched_at"] = _iso(dispatched_at)
         started = time.time()
+        _stage(
+            job_id,
+            "provider_settings",
+            mode=active_mode,
+            guidance=active_guidance,
+            steps=active_steps,
+        )
         provider_result = _call_bfl(
-            job_id=job_id, image_bytes=placed_png, padding=padding
+            job_id=job_id,
+            image_bytes=placed_png,
+            padding=padding,
+            instruction=active_instruction,
+            guidance=active_guidance,
+            steps=active_steps,
         )
         provider_latency_ms = int((time.time() - started) * 1000)
         eval_row["provider_latency_ms"] = provider_latency_ms
