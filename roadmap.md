@@ -35,6 +35,20 @@
 - [ ] Run `set_config_hash.py` per new row against production Supabase
 - [ ] Studio-token end-to-end check on production
 - [ ] Product Scene promotion once the Track C obligations close
+- [ ] Before the first non-internal account: turn on leaked-password protection in
+      the production project's authentication settings and set a minimum password
+      length (dashboard toggles — no code, no migration)
+
+### Staging security notices — expected, not defects
+
+Staging is intentionally left as is; these open warnings are deliberate and
+should not be "fixed" later by mistake:
+
+- Leaked-password protection off — staging only has a small allow-listed set of
+  internal test accounts. Decision 2026-09-10: production only.
+- Locked registry rows — immutability is enforced by design.
+- Internal allow-list helper — security-definer email gate, intended.
+
 
 ## Track D — Studio CORS (staging)
 
