@@ -55,7 +55,14 @@ export interface UploadAuthorization {
 
 export type TransformationModule = "outpaint" | "product_scene";
 
-export const OUTPAINT_WORKFLOW = { workflow_id: "outpaint", workflow_version: "v2" } as const;
+/** Smart resize runs on the hosted expand row approved for Studio (2026-09-10).
+ *  outpaint:v1 / v2 stay internal research rows and must not be called here. */
+export const OUTPAINT_WORKFLOW = { workflow_id: "outpaint", workflow_version: "v3" } as const;
+/** Text to image, self-hosted, approved for Studio (2026-09-10). */
+export const TEXT_TO_IMAGE_WORKFLOW = {
+  workflow_id: "flux_text_to_image",
+  workflow_version: "v2",
+} as const;
 export const PRODUCT_SCENE_WORKFLOW = {
   workflow_id: "product_scene",
   workflow_version: "v1",

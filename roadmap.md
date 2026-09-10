@@ -1,6 +1,17 @@
 # Roadmap — compliance finalisation + production split
 
+## Track F — Studio go-live for Generate image + BFL Smart resize (2026-09-10)
+
+- [x] `flux_text_to_image:v2` — approved, studio_safe, enabled, config hash set
+- [x] `outpaint:v3` — hosted BFL expand, approved, studio_safe, enabled, config hash set
+- [x] Studio package updated: Smart resize points at `v3`, text-to-image gating doc corrected
+- [x] `studio-export/07-team-requests.md` — per-team asks for Studio and myaccount
+- [ ] Studio team: show Generate image on discovery, switch Smart resize to `v3`, retire Pixelcut path, confirm `origin=studio` on dispatch
+- [ ] myaccount team: reprice `smart_resize` on the BFL cost, confirm key mapping, confirm `image_generation` in a real Pro handoff
+- [ ] Track C disclosures now cover Smart resize too (BFL processing + no personal data)
+
 ## Track A — compliance record
+
 - [x] Assign production app names (locked, see Track B)
 - [x] Reconcile `LICENSE_REVIEW.md` decision summary + inventory with Approved status
 - [x] Check §5.6 / §6.4 internal approval gates; label external BFL items
@@ -10,11 +21,13 @@
 - [ ] Confirm fork artefacts in `brandverita/ComfyUI` (LICENSE, CHANGES.md, SBOM, tag `v6-flux-prod`) — action on the fork repo
 
 ## Track C — Studio-side obligations for Product Scene (Studio app team)
+
 - [ ] Flow the FLUX Usage Policy down into Studio's end-user terms and AUP
 - [ ] Add user-facing disclosure: third-party AI processing, may be used for model improvement
 - [ ] Prohibit uploads containing identifiable personal data for Product Scene
 
 ## Track B — production split (execution outside this repo)
+
 - [ ] Production Supabase project: replay 13 migrations, private buckets, grants, RLS, retention job
 - [ ] Modal apps: `comfyui-generation-worker-prod`, `comfyui-outpaint-worker-prod`, then `brandverita-api-prod`
 - [ ] Production secrets: `brandverita-supabase-prod`, `bfl-production`, `huggingface-secret`, `EXTRA_JWT_ISSUER_URLS`
@@ -24,11 +37,13 @@
 - [ ] Product Scene promotion once the Track C obligations close
 
 ## Track D — Studio CORS (staging)
+
 - [x] Add `app.brandverita.io` + Lovable preview origin to `ALLOWED_ORIGINS` in `backend/phase2b/api.py`
 - [x] Verified Supabase Storage CORS already open (`*`, PUT allowed) — no storage/policy change needed
 - [ ] Redeploy `api.py` to Modal staging (user action) and confirm Studio upload round-trip
 
 ## Track E — Smart resize integrity check (staging)
+
 - [x] Diagnose `source_region_integrity_failed` on Studio uploads (PNG metadata, not pixel damage)
 - [x] Replace encoded-PNG digest with canonical pixel digest in `backend/phase2b/outpaint_geometry.py`
 - [ ] Copy `outpaint_geometry.py` to `modal-project/phase1-v6-staging/`, clear `__pycache__`, `modal deploy api.py` (user action)

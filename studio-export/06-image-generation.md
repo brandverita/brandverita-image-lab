@@ -53,14 +53,19 @@ Studio must discover the workflow instead of hard-coding it:
 
 ```ts
 const workflows = await generationClient.listWorkflows("studio");
-const canGenerate = workflows.some((w) => w.key === "flux-schnell-txt2img-v1");
+const canGenerate = workflows.some((w) => w.key === "flux_text_to_image");
 ```
 
-Text to image is the one workflow already approved for production
-(`commercial_self_hosted_approved`, self-hosted, no third-party provider), so it
-carries none of the BFL disclosure obligations in `03-integration-guide.md`
-step 8. It becomes visible to Studio when the production registry row is enabled;
-until then the entry point stays hidden.
+The row is live as of 2026-09-10: `flux_text_to_image:v2`, `status = active`,
+`commercial_self_hosted_approved`, `studio_safe`, `production_enabled = true`,
+`enabled_for_studio = true`, allowed in staging and production. Send
+`workflow_id: "flux_text_to_image"` with `workflow_version: "v2"` — the legacy
+alias `flux-schnell-txt2img-v1` still resolves to the old internal research row
+and will be refused for a Studio-origin call.
+
+Self-hosted, no third-party provider, so none of the BFL disclosure obligations
+in `03-integration-guide.md` step 8 apply to this tool. myaccount already sends
+`image_generation` in its granted list, so nothing is needed on that side.
 
 ## UI notes
 
