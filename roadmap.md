@@ -1,5 +1,14 @@
 # Roadmap — compliance finalisation + production split
 
+## Track F — Studio go-live for Generate image + BFL Smart resize (2026-09-10)
+- [x] `flux_text_to_image:v2` — approved, studio_safe, enabled, config hash set
+- [x] `outpaint:v3` — hosted BFL expand, approved, studio_safe, enabled, config hash set
+- [x] Studio package updated: Smart resize points at `v3`, text-to-image gating doc corrected
+- [x] `studio-export/07-team-requests.md` — per-team asks for Studio and myaccount
+- [ ] Studio team: show Generate image on discovery, switch Smart resize to `v3`, retire Pixelcut path, confirm `origin=studio` on dispatch
+- [ ] myaccount team: reprice `smart_resize` on the BFL cost, confirm key mapping, confirm `image_generation` in a real Pro handoff
+- [ ] Track C disclosures now cover Smart resize too (BFL processing + no personal data)
+
 ## Track A — compliance record
 - [x] Assign production app names (locked, see Track B)
 - [x] Reconcile `LICENSE_REVIEW.md` decision summary + inventory with Approved status
