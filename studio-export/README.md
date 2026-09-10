@@ -4,11 +4,11 @@ Handover package for the BrandVerita Studio team. It contains everything needed
 to integrate the two image-transformation features that were built and accepted
 in the isolated staging Generation Platform:
 
-| Feature                               | Registry workflow                       | Status today (2026-09-10)          |
-| ------------------------------------- | --------------------------------------- | ---------------------------------- |
-| Smart Resize / Outpaint (Module A)    | `outpaint:v3` (`bfl_outpaint`)          | approved, offered to Studio        |
-| Generate image (text to image)        | `flux_text_to_image:v2` (self-hosted)   | approved, offered to Studio        |
-| Product Background / Scene (Module B) | `product_scene:v1`                      | research only, not offered yet     |
+| Feature                               | Registry workflow                     | Status today (2026-09-10)      |
+| ------------------------------------- | ------------------------------------- | ------------------------------ |
+| Smart Resize / Outpaint (Module A)    | `outpaint:v3` (`bfl_outpaint`)        | approved, offered to Studio    |
+| Generate image (text to image)        | `flux_text_to_image:v2` (self-hosted) | approved, offered to Studio    |
+| Product Background / Scene (Module B) | `product_scene:v1`                    | research only, not offered yet |
 
 Smart resize and Generate image are now `studio_safe`, commercially approved and
 enabled for Studio, so `GET /v1/workflows?origin=studio` returns them. The older

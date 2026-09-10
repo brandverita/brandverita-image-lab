@@ -4,12 +4,12 @@ State of the image service after today's change, in the `comfy-ui` staging
 project that `https://brandverita--brandverita-api-v6-fastapi-app.modal.run`
 serves:
 
-| Registry row | Provider | Approved | Offered to Studio |
-| --- | --- | --- | --- |
-| `flux_text_to_image:v2` | self-hosted Modal Flux Schnell | `commercial_self_hosted_approved` | yes |
-| `outpaint:v3` | BFL `flux-pro-1.0-expand` | `commercial_hosted` (BFL public terms) | yes |
-| `product_scene:v1` | BFL `flux-kontext-pro` | `research_only` | no (works today via the entitlement fallback) |
-| `flux_text_to_image:v1`, `outpaint:v1`, `outpaint:v2` | — | research | no — score bench only |
+| Registry row                                          | Provider                       | Approved                               | Offered to Studio                             |
+| ----------------------------------------------------- | ------------------------------ | -------------------------------------- | --------------------------------------------- |
+| `flux_text_to_image:v2`                               | self-hosted Modal Flux Schnell | `commercial_self_hosted_approved`      | yes                                           |
+| `outpaint:v3`                                         | BFL `flux-pro-1.0-expand`      | `commercial_hosted` (BFL public terms) | yes                                           |
+| `product_scene:v1`                                    | BFL `flux-kontext-pro`         | `research_only`                        | no (works today via the entitlement fallback) |
+| `flux_text_to_image:v1`, `outpaint:v1`, `outpaint:v2` | —                              | research                               | no — score bench only                         |
 
 Both new rows are `status = active`, `registry_visibility = studio_safe`,
 `production_enabled = true`, `enabled_for_studio = true`,
@@ -20,7 +20,7 @@ Both new rows are `status = active`, `registry_visibility = studio_safe`,
 ## Request to the Studio team (`app.brandverita.io`)
 
 1. **Generate image — nothing gated on us any more.** `GET
-   /v1/workflows?origin=studio` now returns `flux_text_to_image`. Show the entry
+/v1/workflows?origin=studio` now returns `flux_text_to_image`. Show the entry
    point when that key is present, exactly as the four-gate list in
    `IMAGE-STUDIO.md` already does for `outpaint` / `product_scene`. Add the
    module mapping `image_generation` → `flux_text_to_image`.
@@ -58,16 +58,17 @@ Both new rows are `status = active`, `registry_visibility = studio_safe`,
    down.
 3. **Confirm the key mapping in the contract doc**, so all three sides agree:
 
-   | myaccount tool key | Studio module | image service registry key |
-   | --- | --- | --- |
-   | `image_generation` | Generate image | `flux_text_to_image:v2` |
-   | `smart_resize` | Smart resize | `outpaint:v3` |
-   | `product_scene` | Product scene | `product_scene:v1` |
-   | `try_on`, `background_removal`, `upscale`, `generate_background` | Pixelcut-backed tools | not served by this API |
+   | myaccount tool key                                               | Studio module         | image service registry key |
+   | ---------------------------------------------------------------- | --------------------- | -------------------------- |
+   | `image_generation`                                               | Generate image        | `flux_text_to_image:v2`    |
+   | `smart_resize`                                                   | Smart resize          | `outpaint:v3`              |
+   | `product_scene`                                                  | Product scene         | `product_scene:v1`         |
+   | `try_on`, `background_removal`, `upscale`, `generate_background` | Pixelcut-backed tools | not served by this API     |
 
    The last row matters: those four tools do not exist in our registry, so a
    Studio discovery call will never list them and they must stay gated on
    entitlements alone.
+
 4. **Tell us the credit price per run for each tool we serve**, so our metering
    rows carry the same figure. We record usage only; we never enforce limits.
 
