@@ -4,12 +4,12 @@ State of the image service after today's change, in the `comfy-ui` staging
 project that `https://brandverita--brandverita-api-v6-fastapi-app.modal.run`
 serves:
 
-| Registry row                                          | Provider                       | Approved                               | Offered to Studio                             |
-| ----------------------------------------------------- | ------------------------------ | -------------------------------------- | --------------------------------------------- |
-| `flux_text_to_image:v2`                               | self-hosted Modal Flux Schnell | `commercial_self_hosted_approved`      | yes                                           |
-| `outpaint:v3`                                         | BFL `flux-pro-1.0-expand`      | `commercial_hosted` (BFL public terms) | yes                                           |
-| `product_scene:v1`                                    | BFL `flux-kontext-pro`         | `research_only`                        | no (works today via the entitlement fallback) |
-| `flux_text_to_image:v1`, `outpaint:v1`, `outpaint:v2` | —                              | research                               | no — score bench only                         |
+| Registry row                                                              | Provider                       | Approved                               | Offered to Studio     |
+| ------------------------------------------------------------------------- | ------------------------------ | -------------------------------------- | --------------------- |
+| `flux_text_to_image:v2`                                                   | self-hosted Modal Flux Schnell | `commercial_self_hosted_approved`      | yes                   |
+| `outpaint:v3`                                                             | BFL `flux-pro-1.0-expand`      | `commercial_hosted` (BFL public terms) | yes                   |
+| `product_scene:v2`                                                        | BFL `flux-kontext-pro`         | `commercial_hosted` (BFL public terms) | yes (new, 2026-09-11) |
+| `flux_text_to_image:v1`, `outpaint:v1`, `outpaint:v2`, `product_scene:v1` | —                              | research                               | no — score bench only |
 
 Both new rows are `status = active`, `registry_visibility = studio_safe`,
 `production_enabled = true`, `enabled_for_studio = true`,
