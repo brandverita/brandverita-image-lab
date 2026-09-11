@@ -68,7 +68,7 @@ studio_safe`, `production_enabled = true`, `enabled_for_studio = true`,
    | ---------------------------------------------------------------- | --------------------- | -------------------------- |
    | `image_generation`                                               | Generate image        | `flux_text_to_image:v2`    |
    | `smart_resize`                                                   | Smart resize          | `outpaint:v3`              |
-   | `product_scene`                                                  | Product scene         | `product_scene:v1`         |
+   | `product_scene`                                                  | Product scene         | `product_scene:v2`         |
    | `try_on`, `background_removal`, `upscale`, `generate_background` | Pixelcut-backed tools | not served by this API     |
 
    The last row matters: those four tools do not exist in our registry, so a
