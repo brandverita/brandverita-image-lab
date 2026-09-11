@@ -37,9 +37,10 @@ with a fresh config hash, not an in-place edit of an active row.
   no bespoke agreement, DPA, or weight licence will be sought. Accepted with
   the terms: BFL's clause 2b licence to Inputs/Outputs **including model
   training** (business-risk acceptance, to be disclosed to Studio users).
-  Before promotion, Studio must: flow the FLUX Usage Policy down into its
-  end-user terms, disclose third-party processing/training use in its UX,
-  and prohibit uploads containing identifiable personal data for this module.
+  Promoted to a Studio-facing row (`product_scene:v2`) on 2026-09-11. Studio
+  still owes, and must complete: flowing the FLUX Usage Policy down into its
+  end-user terms, disclosing third-party processing/training use in its UX,
+  and prohibiting uploads containing identifiable personal data for this module.
 
 ## 3. Production Supabase project (blocker)
 
