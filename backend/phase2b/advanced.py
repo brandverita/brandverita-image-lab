@@ -474,7 +474,10 @@ def resolve_advanced_request(
 ) -> dict[str, Any]:
     """Gate order (also re-run at dispatch time):
       2. master + module flags
-      3. registry row: requires_source_asset, research_only, staging env, internal
+      3. registry row: requires_source_asset, then either the research path
+         (research_only, internal, draft/testing, staging env) or the studio
+         path (active, studio_safe, production_enabled, approved commercial
+         status, current env allowed)
       4. asset: exists, owned, kind=input, ready, not expired, right bucket
       5. input envelope + output preset
       6. strict params
