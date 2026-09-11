@@ -1,5 +1,22 @@
 # Roadmap — compliance finalisation + production split
 
+## Milestone 2026-09-11 — production-ready image service
+
+- [x] `MILESTONE-2026-09-11.md` records the accepted state of all three tools
+      (Generate image, Smart resize, Product scene), their approval basis,
+      measured cost/latency and settings fingerprints
+- [x] `product_scene:v2` created: active, studio_safe, commercial_hosted,
+      production_enabled, enabled_for_studio, `{staging,production}`, fingerprint
+      `1fb1bd108b…`; `product_scene:v1` untouched as the research row
+- [x] Handover pack + client constants point Product scene at `v2`
+- [ ] Studio team: switch Product scene on with `workflow_version: "v2"` and drop
+      the entitlement fallback for it
+- [ ] Studio team: Track C disclosures now due for Product scene as well as
+      Smart resize (promoted ahead of them by explicit decision)
+- [ ] Duplicate environment: shape written up in the milestone document; which
+      side keeps today's setup is still undecided
+
+
 ## Track F — Studio go-live for Generate image + BFL Smart resize (2026-09-10)
 
 - [x] `flux_text_to_image:v2` — approved, studio_safe, enabled, config hash set
