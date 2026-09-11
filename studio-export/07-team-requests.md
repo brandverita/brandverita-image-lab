@@ -11,8 +11,8 @@ serves:
 | `product_scene:v2`                                                        | BFL `flux-kontext-pro`         | `commercial_hosted` (BFL public terms) | yes (new, 2026-09-11) |
 | `flux_text_to_image:v1`, `outpaint:v1`, `outpaint:v2`, `product_scene:v1` | —                              | research                               | no — score bench only |
 
-Both new rows are `status = active`, `registry_visibility = studio_safe`,
-`production_enabled = true`, `enabled_for_studio = true`,
+All three offered rows are `status = active`, `registry_visibility =
+studio_safe`, `production_enabled = true`, `enabled_for_studio = true`,
 `allowed_envs = {staging, production}`, each with its own config fingerprint.
 
 ---
