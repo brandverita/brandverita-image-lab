@@ -63,9 +63,11 @@ export const TEXT_TO_IMAGE_WORKFLOW = {
   workflow_id: "flux_text_to_image",
   workflow_version: "v2",
 } as const;
+/** Product scene runs on the hosted row approved for Studio (2026-09-11).
+ *  product_scene:v1 stays an internal research row and must not be called here. */
 export const PRODUCT_SCENE_WORKFLOW = {
   workflow_id: "product_scene",
-  workflow_version: "v1",
+  workflow_version: "v2",
 } as const;
 
 export function workflowForModule(module: TransformationModule) {
