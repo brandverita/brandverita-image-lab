@@ -36,12 +36,18 @@ studio_safe`, `production_enabled = true`, `enabled_for_studio = true`,
    registry row the Smart resize call resolves to. To move Studio off Pixelcut,
    point Smart resize at this API's `outpaint:v3` and retire the Pixelcut path;
    no per-provider option should ever reach the browser.
-5. **Confirm one thing for us**: does your `POST /v1/generations` call carry
-   `origin=studio`? Our production gate only engages for Studio-origin calls, so
-   we want it set deliberately rather than by accident.
-6. **Product scene stays as it is** on BFL `flux-kontext-pro`. It is still a
-   research row, so it is not in the Studio-origin discovery list — keep relying
-   on the entitlement fallback until the Track C disclosures below close.
+5. **`POST /v1/generations` needs no origin** — not in the body, not as a query
+   parameter, not as a header. The endpoint does not read one; approval is
+   enforced by the registry row itself. `origin=studio` is only used on `GET
+/v1/workflows` for discovery.
+6. **Product scene — switch it on.** As of 2026-09-11 it has an approved,
+   `studio_safe` row: send `workflow_id: "product_scene"`,
+   `workflow_version: "v2"`. Same request shape, same server-owned scene presets,
+   same provider as the wiring you already have; only the version changes from
+   `v1`. It now appears in the Studio-origin discovery list, so the entitlement
+   fallback is no longer needed. `v1` must not be called — it is the research
+   row. The Track C disclosures below are now due for this tool in the same way
+   as for Smart resize.
 7. **UI for Generate image**: prompt box with character count (2,000 max),
    optional negative box (1,000 max), size dropdown restricted to `512x512`,
    `768x768`, `1024x1024`, `1280x1024`, `1024x1280`, optional seed. Reuse the
