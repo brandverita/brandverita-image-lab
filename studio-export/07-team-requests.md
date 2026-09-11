@@ -78,10 +78,12 @@ studio_safe`, `production_enabled = true`, `enabled_for_studio = true`,
 4. **Tell us the credit price per run for each tool we serve**, so our metering
    rows carry the same figure. We record usage only; we never enforce limits.
 
-## Track C disclosures — still open, still blocking Product scene promotion
+## Track C disclosures — still open, now due for both BFL tools
 
-Applies now to **both** BFL-backed tools (Smart resize as well as Product
-scene), since `outpaint:v3` sends the customer's image to Black Forest Labs:
+Product scene was promoted on 2026-09-11 as an explicit business decision rather
+than waiting on these; they remain owed. They apply to **both** BFL-backed tools
+(`outpaint:v3` and `product_scene:v2`), since each sends the customer's image to
+Black Forest Labs:
 
 1. Flow the FLUX Usage Policy into Studio's end-user terms and AUP.
 2. Tell users, at the point of use, that a third party processes the image and
