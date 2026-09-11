@@ -646,7 +646,14 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             inputs = GenerationInputs(**raw_inputs)
         except ValidationError as exc:
             first = exc.errors()[0]
-            raise HTTPException(status_code=400, detail=f"invalid_request: {first.get('msg', 'invalid inputs')}")
+            # Name the offending field so a calling team can self-diagnose.
+            # Field names and validation messages only — never values.
+            loc = ".".join(str(part) for part in (first.get("loc") or ()))
+            if loc and nested_inputs:
+                loc = f"inputs.{loc}"
+            message = first.get("msg", "invalid inputs")
+            detail = f"invalid_request: {loc}: {message}" if loc else f"invalid_request: {message}"
+            raise HTTPException(status_code=400, detail=detail)
 
         registry.validate_inputs(row, inputs)
 
