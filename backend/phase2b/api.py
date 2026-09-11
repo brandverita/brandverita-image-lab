@@ -576,7 +576,14 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
     #   structured — {"workflow_id", "workflow_version"?, "inputs": {...}}
     workflow_id = body.get("workflow_id", "flux-schnell-txt2img-v1")
     workflow_version = body.get("workflow_version")
-    raw_inputs = body.get("inputs") if isinstance(body.get("inputs"), dict) else body
+    nested_inputs = isinstance(body.get("inputs"), dict)
+    raw_inputs = body.get("inputs") if nested_inputs else body
+    if nested_inputs and not raw_inputs.get("idempotency_key"):
+        # Structured callers may place idempotency_key next to "inputs" rather
+        # than inside it; accept either position (nested value wins).
+        top_level_key = body.get("idempotency_key")
+        if top_level_key:
+            raw_inputs = {**raw_inputs, "idempotency_key": top_level_key}
 
     row = registry.resolve_workflow(str(workflow_id), workflow_version)
 
@@ -639,7 +646,14 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             inputs = GenerationInputs(**raw_inputs)
         except ValidationError as exc:
             first = exc.errors()[0]
-            raise HTTPException(status_code=400, detail=f"invalid_request: {first.get('msg', 'invalid inputs')}")
+            # Name the offending field so a calling team can self-diagnose.
+            # Field names and validation messages only — never values.
+            loc = ".".join(str(part) for part in (first.get("loc") or ()))
+            if loc and nested_inputs:
+                loc = f"inputs.{loc}"
+            message = first.get("msg", "invalid inputs")
+            detail = f"invalid_request: {loc}: {message}" if loc else f"invalid_request: {message}"
+            raise HTTPException(status_code=400, detail=detail)
 
         registry.validate_inputs(row, inputs)
 
