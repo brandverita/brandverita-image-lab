@@ -3,18 +3,22 @@
 Nothing here is a Studio code task. This is what must be cleared before Studio
 can run either feature for customers. Order matters: 1–4 are hard blockers.
 
-## 1. Registry gating (blocker)
+## 1. Registry gating (cleared 2026-09-11)
 
-Both rows today:
+The Studio-facing rows today:
 
-| Field                 | `outpaint:v2`   | `product_scene:v1` |
-| --------------------- | --------------- | ------------------ |
-| `status`              | `testing`       | `testing`          |
-| `commercial_status`   | `research_only` | `research_only`    |
-| `registry_visibility` | `internal`      | `internal`         |
-| `allowed_envs`        | `{staging}`     | `{staging}`        |
-| `production_enabled`  | false           | false              |
-| `enabled_for_studio`  | false           | false              |
+| Field                 | `outpaint:v3`          | `product_scene:v2`     |
+| --------------------- | ---------------------- | ---------------------- |
+| `status`              | `active`               | `active`               |
+| `commercial_status`   | `commercial_hosted`    | `commercial_hosted`    |
+| `registry_visibility` | `studio_safe`          | `studio_safe`          |
+| `allowed_envs`        | `{staging,production}` | `{staging,production}` |
+| `production_enabled`  | true                   | true                   |
+| `enabled_for_studio`  | true                   | true                   |
+
+`outpaint:v2` and `product_scene:v1` stay `testing` / `research_only` /
+`internal` / staging-only as score-bench rows.
+
 
 The server refuses Studio-origin or production dispatch unless a row is both
 commercially approved **and** `production_enabled`. Flipping flags does not
@@ -33,9 +37,10 @@ with a fresh config hash, not an in-place edit of an active row.
   no bespoke agreement, DPA, or weight licence will be sought. Accepted with
   the terms: BFL's clause 2b licence to Inputs/Outputs **including model
   training** (business-risk acceptance, to be disclosed to Studio users).
-  Before promotion, Studio must: flow the FLUX Usage Policy down into its
-  end-user terms, disclose third-party processing/training use in its UX,
-  and prohibit uploads containing identifiable personal data for this module.
+  Promoted to a Studio-facing row (`product_scene:v2`) on 2026-09-11. Studio
+  still owes, and must complete: flowing the FLUX Usage Policy down into its
+  end-user terms, disclosing third-party processing/training use in its UX,
+  and prohibiting uploads containing identifiable personal data for this module.
 
 ## 3. Production Supabase project (blocker)
 

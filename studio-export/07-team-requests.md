@@ -4,15 +4,15 @@ State of the image service after today's change, in the `comfy-ui` staging
 project that `https://brandverita--brandverita-api-v6-fastapi-app.modal.run`
 serves:
 
-| Registry row                                          | Provider                       | Approved                               | Offered to Studio                             |
-| ----------------------------------------------------- | ------------------------------ | -------------------------------------- | --------------------------------------------- |
-| `flux_text_to_image:v2`                               | self-hosted Modal Flux Schnell | `commercial_self_hosted_approved`      | yes                                           |
-| `outpaint:v3`                                         | BFL `flux-pro-1.0-expand`      | `commercial_hosted` (BFL public terms) | yes                                           |
-| `product_scene:v1`                                    | BFL `flux-kontext-pro`         | `research_only`                        | no (works today via the entitlement fallback) |
-| `flux_text_to_image:v1`, `outpaint:v1`, `outpaint:v2` | —                              | research                               | no — score bench only                         |
+| Registry row                                                              | Provider                       | Approved                               | Offered to Studio     |
+| ------------------------------------------------------------------------- | ------------------------------ | -------------------------------------- | --------------------- |
+| `flux_text_to_image:v2`                                                   | self-hosted Modal Flux Schnell | `commercial_self_hosted_approved`      | yes                   |
+| `outpaint:v3`                                                             | BFL `flux-pro-1.0-expand`      | `commercial_hosted` (BFL public terms) | yes                   |
+| `product_scene:v2`                                                        | BFL `flux-kontext-pro`         | `commercial_hosted` (BFL public terms) | yes (new, 2026-09-11) |
+| `flux_text_to_image:v1`, `outpaint:v1`, `outpaint:v2`, `product_scene:v1` | —                              | research                               | no — score bench only |
 
-Both new rows are `status = active`, `registry_visibility = studio_safe`,
-`production_enabled = true`, `enabled_for_studio = true`,
+All three offered rows are `status = active`, `registry_visibility =
+studio_safe`, `production_enabled = true`, `enabled_for_studio = true`,
 `allowed_envs = {staging, production}`, each with its own config fingerprint.
 
 ---
@@ -36,12 +36,18 @@ Both new rows are `status = active`, `registry_visibility = studio_safe`,
    registry row the Smart resize call resolves to. To move Studio off Pixelcut,
    point Smart resize at this API's `outpaint:v3` and retire the Pixelcut path;
    no per-provider option should ever reach the browser.
-5. **Confirm one thing for us**: does your `POST /v1/generations` call carry
-   `origin=studio`? Our production gate only engages for Studio-origin calls, so
-   we want it set deliberately rather than by accident.
-6. **Product scene stays as it is** on BFL `flux-kontext-pro`. It is still a
-   research row, so it is not in the Studio-origin discovery list — keep relying
-   on the entitlement fallback until the Track C disclosures below close.
+5. **`POST /v1/generations` needs no origin** — not in the body, not as a query
+   parameter, not as a header. The endpoint does not read one; approval is
+   enforced by the registry row itself. `origin=studio` is only used on `GET
+/v1/workflows` for discovery.
+6. **Product scene — switch it on.** As of 2026-09-11 it has an approved,
+   `studio_safe` row: send `workflow_id: "product_scene"`,
+   `workflow_version: "v2"`. Same request shape, same server-owned scene presets,
+   same provider as the wiring you already have; only the version changes from
+   `v1`. It now appears in the Studio-origin discovery list, so the entitlement
+   fallback is no longer needed. `v1` must not be called — it is the research
+   row. The Track C disclosures below are now due for this tool in the same way
+   as for Smart resize.
 7. **UI for Generate image**: prompt box with character count (2,000 max),
    optional negative box (1,000 max), size dropdown restricted to `512x512`,
    `768x768`, `1024x1024`, `1280x1024`, `1024x1280`, optional seed. Reuse the
@@ -62,7 +68,7 @@ Both new rows are `status = active`, `registry_visibility = studio_safe`,
    | ---------------------------------------------------------------- | --------------------- | -------------------------- |
    | `image_generation`                                               | Generate image        | `flux_text_to_image:v2`    |
    | `smart_resize`                                                   | Smart resize          | `outpaint:v3`              |
-   | `product_scene`                                                  | Product scene         | `product_scene:v1`         |
+   | `product_scene`                                                  | Product scene         | `product_scene:v2`         |
    | `try_on`, `background_removal`, `upscale`, `generate_background` | Pixelcut-backed tools | not served by this API     |
 
    The last row matters: those four tools do not exist in our registry, so a
@@ -72,10 +78,12 @@ Both new rows are `status = active`, `registry_visibility = studio_safe`,
 4. **Tell us the credit price per run for each tool we serve**, so our metering
    rows carry the same figure. We record usage only; we never enforce limits.
 
-## Track C disclosures — still open, still blocking Product scene promotion
+## Track C disclosures — still open, now due for both BFL tools
 
-Applies now to **both** BFL-backed tools (Smart resize as well as Product
-scene), since `outpaint:v3` sends the customer's image to Black Forest Labs:
+Product scene was promoted on 2026-09-11 as an explicit business decision rather
+than waiting on these; they remain owed. They apply to **both** BFL-backed tools
+(`outpaint:v3` and `product_scene:v2`), since each sends the customer's image to
+Black Forest Labs:
 
 1. Flow the FLUX Usage Policy into Studio's end-user terms and AUP.
 2. Tell users, at the point of use, that a third party processes the image and
