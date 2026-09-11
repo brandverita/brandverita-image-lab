@@ -75,3 +75,11 @@ should not be "fixed" later by mistake:
   negation-free, with a promptless `bare` comparison mode behind
   `OUTPAINT_V2_PROMPT_MODE`. Registry row and config hash unchanged; redeploy of
   the Modal V6 app required.
+
+## Track F — Studio go-live (2026-09-11)
+
+- [x] Answer Studio: POST /v1/generations reads no origin (body, query, or header); origin=studio is only for GET /v1/workflows discovery
+- [x] Extend `advanced.resolve_advanced_request` with a second admission path: active + studio_safe + production_enabled + approved commercial status + env allowed (research path unchanged). Verified 6/6 gate cases, py_compile OK
+- [ ] Copy `backend/phase2b/advanced.py` to `modal-project/phase1-v6-staging/`, clear `__pycache__`, `modal deploy api.py` (user action)
+- [ ] Re-run `test_wp1_outpaint.py` / `test_wp2_product_scene.py` after deploy; then one real Smart Resize run from app.brandverita.io against `outpaint:v3`
+- [ ] Studio: wire Generate image to `flux_text_to_image:v2` (works today, no origin needed); retire Pixelcut for Smart resize in favor of `outpaint:v3`

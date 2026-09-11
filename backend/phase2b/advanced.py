@@ -474,7 +474,10 @@ def resolve_advanced_request(
 ) -> dict[str, Any]:
     """Gate order (also re-run at dispatch time):
       2. master + module flags
-      3. registry row: requires_source_asset, research_only, staging env, internal
+      3. registry row: requires_source_asset, then either the research path
+         (research_only, internal, draft/testing, staging env) or the studio
+         path (active, studio_safe, production_enabled, approved commercial
+         status, current env allowed)
       4. asset: exists, owned, kind=input, ready, not expired, right bucket
       5. input envelope + output preset
       6. strict params
@@ -496,13 +499,31 @@ def resolve_advanced_request(
         raise advanced_error("workflow_not_available", "This workflow is not available.")
     if not row.get("requires_source_asset"):
         raise advanced_error("invalid_request", "This workflow does not accept a source asset.")
-    if row.get("commercial_status") != "research_only":
-        raise advanced_error("workflow_not_available", "This workflow is not available.")
-    if environment != "staging" or "staging" not in (row.get("allowed_envs") or []):
-        raise advanced_error("workflow_not_available", "This workflow is not available.")
-    if row.get("registry_visibility") != "internal":
-        raise advanced_error("workflow_not_available", "This workflow is not available.")
-    if row.get("status") not in ("draft", "testing"):
+    # Two admission paths for the registry row:
+    #   research — internal Lab experiments: research_only + internal +
+    #              draft/testing, staging environment only.
+    #   studio   — approved Studio-facing rows: active + studio_safe +
+    #              production_enabled + an approved commercial status,
+    #              allowed in the current environment.
+    # Deferred import: registry imports this module at load time.
+    from registry import COMMERCIAL_APPROVED
+
+    allowed_envs = row.get("allowed_envs") or []
+    research_path = (
+        row.get("commercial_status") == "research_only"
+        and row.get("registry_visibility") == "internal"
+        and row.get("status") in ("draft", "testing")
+        and environment == "staging"
+        and "staging" in allowed_envs
+    )
+    studio_path = (
+        row.get("status") == "active"
+        and row.get("registry_visibility") == "studio_safe"
+        and bool(row.get("production_enabled"))
+        and row.get("commercial_status") in COMMERCIAL_APPROVED
+        and environment in allowed_envs
+    )
+    if not (research_path or studio_path):
         raise advanced_error("workflow_not_available", "This workflow is not available.")
 
     # 4 — source asset
