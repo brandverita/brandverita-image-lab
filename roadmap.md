@@ -122,3 +122,20 @@ should not be "fixed" later by mistake:
 - [ ] Deploy: copy `prompt_layers.py` + `api.py` to
       `modal-project/phase1-v6-staging/`, clear `__pycache__`, `modal deploy api.py` (user action)
 - [ ] Studio handoff: adopt `style` request + `/v1/prompt-layers` (see studio-export/06)
+
+## Track H — Redeploy orphan fix (2026-09-12)
+
+- [x] Diagnosed stuck job 4394c3b7: redeploy killed `run_generation` mid-flight at
+      `uploading_output`; AsyncUsageWarning in modal_comfyui.py was benign, not the cause.
+- [x] Closed the orphaned row (`failed`, `orphaned_by_deploy`, retry-safe message).
+- [x] `backend/phase2b/stale_jobs.py`: pure sweep — any non-terminal job whose
+      `updated_at` is older than 10 min is marked `expired`/`job_stale`; enforced
+      lazily on `GET /v1/generations/{job_id}` in api.py.
+- [x] `test_stale_jobs.py` 15/15; py_compile OK. Verified health 200 and
+      `/v1/prompt-layers` 401 (route live, auth enforced) on the current deploy.
+- [ ] Deploy: copy `stale_jobs.py` + `api.py` to `modal-project/phase1-v6-staging/`,
+      clear `__pycache__`, `modal deploy api.py` (user action).
+- [ ] Modal-side async fix (user action, outside this repo): in
+      `modal-project/phase1-v6-staging/adapters/modal_comfyui.py` change
+      `call = _dispatcher.spawn(` to `call = await _dispatcher.spawn.aio(`
+      (same in `modal_research_outpaint.py` where the caller is async), redeploy.
