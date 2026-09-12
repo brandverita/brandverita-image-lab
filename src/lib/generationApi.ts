@@ -72,6 +72,9 @@ export interface CreateGenerationInput {
   seed?: number | null;
   idempotencyKey: string;
   accessToken?: string | null;
+  /** Branding mode: the API composes the prompt from its own layer wording.
+   *  When present, no prompt is sent — the two are mutually exclusive. */
+  style?: { season: string; world: string; subject: string } | null;
 }
 
 export type GenerationErrorKind =
