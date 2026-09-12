@@ -100,3 +100,25 @@ should not be "fixed" later by mistake:
 - [ ] Copy `backend/phase2b/advanced.py` to `modal-project/phase1-v6-staging/`, clear `__pycache__`, `modal deploy api.py` (user action)
 - [ ] Re-run `test_wp1_outpaint.py` / `test_wp2_product_scene.py` after deploy; then one real Smart Resize run from app.brandverita.io against `outpaint:v3`
 - [ ] Studio: wire Generate image to `flux_text_to_image:v2` (works today, no origin needed); retire Pixelcut for Smart resize in favor of `outpaint:v3`
+
+## Track G — Brand consistency layers (2026-09-12)
+
+- [x] Server-owned three-layer prompt catalogue (`backend/phase2b/prompt_layers.py`):
+      Layer 1 occasion (Autumn, Sales, Promotion, Christmas, Halloween, Spring),
+      Layer 2 setting/visual DNA byte-identical per world (Coastal terrace,
+      Forest cabin, Urban loft), Layer 3 subject framing, fixed universal quality
+      tail (only the aspect note varies). Wording never leaves the server.
+- [x] `GET /v1/prompt-layers` — keys/labels/hints only, no wording.
+- [x] `POST /v1/generations` accepts `style {season, world, subject}` in place of
+      `prompt` (mutually exclusive, enum-only, subject <= 200 chars, newlines
+      collapsed); server composes and records a wording fingerprint (SHA-256 per
+      layer + `layer_table_version`) in `request_params.style` / `inputs.style`.
+      No registry version bump needed: normalized inputs are unchanged.
+- [x] Lab UI: two parallel modes — existing "Describe the picture you want"
+      free text kept exactly as before, plus a "Branding" picker; brand setting
+      and occasion remembered per device; seed field reusable for repeat runs.
+- [x] `test_prompt_layers.py` 14/14 (Layer 2 byte-identity, tail identity,
+      enum rejection, subject limits, prompt-length ceiling, no wording leak).
+- [ ] Deploy: copy `prompt_layers.py` + `api.py` to
+      `modal-project/phase1-v6-staging/`, clear `__pycache__`, `modal deploy api.py` (user action)
+- [ ] Studio handoff: adopt `style` request + `/v1/prompt-layers` (see studio-export/06)
