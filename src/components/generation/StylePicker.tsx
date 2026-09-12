@@ -127,9 +127,8 @@ export function StylePicker({ value, disabled, onChange, onReadyChange }: StyleP
             ))}
           </select>
           <p id="style-world-help" className="text-xs text-muted-foreground">
-            {catalog?.worlds.find((o) => o.key === value.world)?.hint ??
-              "Loading choices…"}{" "}
-            Kept for next time on this device.
+            {catalog?.worlds.find((o) => o.key === value.world)?.hint ?? "Loading choices…"} Kept
+            for next time on this device.
           </p>
         </div>
       </div>

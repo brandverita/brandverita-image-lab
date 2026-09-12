@@ -209,7 +209,10 @@ async function request<T>(
   try {
     return (await response.json()) as T;
   } catch {
-    throw new GenerationApiError("server_error", "The Generation API returned an unreadable response.");
+    throw new GenerationApiError(
+      "server_error",
+      "The Generation API returned an unreadable response.",
+    );
   }
 }
 
@@ -303,9 +306,7 @@ export function createGeneration(input: CreateGenerationInput): Promise<Generati
     body: JSON.stringify({
       workflow_id: WORKFLOW_ID,
       // Either a prompt (free text) or a style (branding) — never both.
-      ...(input.style
-        ? { style: input.style }
-        : { prompt: input.prompt }),
+      ...(input.style ? { style: input.style } : { prompt: input.prompt }),
       negative_prompt: input.negativePrompt || "",
       width: input.width,
       height: input.height,

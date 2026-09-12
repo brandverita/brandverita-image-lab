@@ -124,12 +124,10 @@ export function GenerationForm({ isSubmitting, disabled, onSubmit, onReset }: Ge
         aria-label="How to describe the image"
         className="inline-flex rounded-md border border-input bg-muted p-1"
       >
-        {(
-          [
-            { key: "free" as Mode, label: "Describe the picture you want" },
-            { key: "branding" as Mode, label: "Branding" },
-          ]
-        ).map((tab) => (
+        {[
+          { key: "free" as Mode, label: "Describe the picture you want" },
+          { key: "branding" as Mode, label: "Branding" },
+        ].map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -187,7 +185,6 @@ export function GenerationForm({ isSubmitting, disabled, onSubmit, onReset }: Ge
           </p>
         </div>
       )}
-
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between gap-4">
