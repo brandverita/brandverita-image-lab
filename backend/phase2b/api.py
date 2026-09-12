@@ -501,6 +501,16 @@ def list_workflows(origin: str = "lab", user_id: str = Depends(get_verified_user
     }
 
 
+@web_app.get("/v1/prompt-layers")
+def list_prompt_layers(user_id: str = Depends(get_verified_user_id)):
+    """Brand-consistency layer catalog for text-to-image: keys, labels and short
+    hints only. The wording behind each season/world stays server-side, which is
+    what keeps a whole campaign visually consistent."""
+    import prompt_layers
+
+    return prompt_layers.public_catalog()
+
+
 @web_app.get("/v1/scene-presets")
 def list_scene_presets(user_id: str = Depends(get_verified_user_id)):
     """Module B option catalog for the Lab UI: keys, labels and output presets
