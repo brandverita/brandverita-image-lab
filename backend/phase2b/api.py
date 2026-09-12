@@ -9,6 +9,7 @@ definition, web routes, request parsing, and dispatch. All logic lives in:
                                 plus optional extra issuers from
                                 EXTRA_JWT_ISSUER_URLS, e.g. the Studio project)
     registry.py               — workflow registry: gates, hashing, safe views
+    stale_jobs.py             — closes orphaned non-terminal jobs on polling GET
     jobs.py                   — job state machine + background orchestration
     assets.py                 — Phase 2A: private generation-asset lifecycle
     advanced.py               — Phase 2B WP0: shared Image Transformation
@@ -74,6 +75,7 @@ import assets
 import jwks_auth
 import jobs
 import registry
+import stale_jobs
 import supabase_rest
 from adapters import (
     bfl_api,
@@ -117,6 +119,7 @@ api_image = (
     .add_local_file("outpaint_geometry.py", "/root/outpaint_geometry.py", copy=True)
     .add_local_file("scene_presets.py", "/root/scene_presets.py", copy=True)
     .add_local_file("prompt_layers.py", "/root/prompt_layers.py", copy=True)
+    .add_local_file("stale_jobs.py", "/root/stale_jobs.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
     # Staging research flags. This deployment is isolated from Studio and the
     # main app (allowed_envs=[staging], internal registry visibility, Lab
@@ -884,7 +887,14 @@ def get_generation(job_id: str, user_id: str = Depends(get_verified_user_id)):
     )
     if not rows:
         raise HTTPException(status_code=404, detail="This generation job could not be found.")
-    return _job_response(rows[0], user_id)
+    row = rows[0]
+    # Sweep orphaned jobs: a redeploy kills the orchestrator mid-flight and
+    # leaves non-terminal rows (e.g. uploading_output) with no live owner.
+    stale = stale_jobs.stale_patch(row)
+    if stale:
+        jobs.patch_job(row["id"], stale)
+        row = {**row, **stale}
+    return _job_response(row, user_id)
 
 
 @web_app.get("/v1/generations/{job_id}/result")
