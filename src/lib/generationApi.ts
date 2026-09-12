@@ -213,6 +213,9 @@ async function request<T>(
   }
 }
 
+/** Shared authenticated JSON fetch for sibling API modules (same error mapping). */
+export { request as requestJson };
+
 export function newIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -299,7 +302,10 @@ export function createGeneration(input: CreateGenerationInput): Promise<Generati
     accessToken: input.accessToken,
     body: JSON.stringify({
       workflow_id: WORKFLOW_ID,
-      prompt: input.prompt,
+      // Either a prompt (free text) or a style (branding) — never both.
+      ...(input.style
+        ? { style: input.style }
+        : { prompt: input.prompt }),
       negative_prompt: input.negativePrompt || "",
       width: input.width,
       height: input.height,
