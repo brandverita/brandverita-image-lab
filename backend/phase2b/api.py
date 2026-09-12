@@ -779,6 +779,14 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             "output_preset": resolved_advanced.get("output_preset"),
             "params": resolved_advanced.get("request_params") or {},
         }
+    if style_fingerprint is not None:
+        # Provenance: which layer wording produced this picture. Hashes of the
+        # server constants, never the wording itself.
+        params = dict(payload.get("request_params") or {})
+        params["style"] = style_fingerprint
+        payload["request_params"] = params
+        payload["inputs"] = {**payload["inputs"], "style": style_fingerprint}
+
     inserted = supabase_rest.rest_insert("generation_jobs", payload)
     if not inserted:
         raise HTTPException(status_code=500, detail="Could not create generation job")
