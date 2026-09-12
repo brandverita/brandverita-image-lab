@@ -9,6 +9,7 @@ definition, web routes, request parsing, and dispatch. All logic lives in:
                                 plus optional extra issuers from
                                 EXTRA_JWT_ISSUER_URLS, e.g. the Studio project)
     registry.py               — workflow registry: gates, hashing, safe views
+    stale_jobs.py             — closes orphaned non-terminal jobs on polling GET
     jobs.py                   — job state machine + background orchestration
     assets.py                 — Phase 2A: private generation-asset lifecycle
     advanced.py               — Phase 2B WP0: shared Image Transformation
