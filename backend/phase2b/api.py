@@ -116,6 +116,7 @@ api_image = (
     .add_local_file("advanced.py", "/root/advanced.py", copy=True)
     .add_local_file("outpaint_geometry.py", "/root/outpaint_geometry.py", copy=True)
     .add_local_file("scene_presets.py", "/root/scene_presets.py", copy=True)
+    .add_local_file("prompt_layers.py", "/root/prompt_layers.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
     # Staging research flags. This deployment is isolated from Studio and the
     # main app (allowed_envs=[staging], internal registry visibility, Lab
@@ -500,6 +501,16 @@ def list_workflows(origin: str = "lab", user_id: str = Depends(get_verified_user
     }
 
 
+@web_app.get("/v1/prompt-layers")
+def list_prompt_layers(user_id: str = Depends(get_verified_user_id)):
+    """Brand-consistency layer catalog for text-to-image: keys, labels and short
+    hints only. The wording behind each season/world stays server-side, which is
+    what keeps a whole campaign visually consistent."""
+    import prompt_layers
+
+    return prompt_layers.public_catalog()
+
+
 @web_app.get("/v1/scene-presets")
 def list_scene_presets(user_id: str = Depends(get_verified_user_id)):
     """Module B option catalog for the Lab UI: keys, labels and output presets
@@ -584,6 +595,55 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
         top_level_key = body.get("idempotency_key")
         if top_level_key:
             raw_inputs = {**raw_inputs, "idempotency_key": top_level_key}
+
+    # ------------------------------------------------------------------
+    # Brand-consistency layers (text-to-image only).
+    # A caller may send {"style": {"season", "world", "subject"}} instead of a
+    # prompt. The prompt is then composed HERE from server-owned wording, so
+    # the world block (the brand anchor) and the quality tail are byte-for-byte
+    # identical on every run and no client can re-word them.
+    # ------------------------------------------------------------------
+    style_request = raw_inputs.get("style") if isinstance(raw_inputs, dict) else None
+    if style_request is None and isinstance(body.get("style"), dict):
+        style_request = body["style"]
+    style_fingerprint = None
+    if style_request is not None:
+        import prompt_layers
+
+        if not isinstance(style_request, dict):
+            raise HTTPException(
+                status_code=400, detail="invalid_request: style: must be an object"
+            )
+        if raw_inputs.get("prompt"):
+            raise HTTPException(
+                status_code=400,
+                detail="invalid_request: style: send either a prompt or a style, not both",
+            )
+        try:
+            width = int(raw_inputs.get("width") or 1024)
+            height = int(raw_inputs.get("height") or 1024)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=400, detail="invalid_request: width/height: must be whole numbers"
+            )
+        try:
+            composed = prompt_layers.compose(
+                season=str(style_request.get("season") or ""),
+                world=str(style_request.get("world") or ""),
+                subject=style_request.get("subject") or "",
+                width=width,
+                height=height,
+            )
+            style_fingerprint = prompt_layers.fingerprint(
+                season=str(style_request.get("season") or ""),
+                world=str(style_request.get("world") or ""),
+                width=width,
+                height=height,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"invalid_request: style: {exc}")
+        raw_inputs = {k: v for k, v in raw_inputs.items() if k != "style"}
+        raw_inputs["prompt"] = composed
 
     row = registry.resolve_workflow(str(workflow_id), workflow_version)
 
@@ -719,6 +779,14 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             "output_preset": resolved_advanced.get("output_preset"),
             "params": resolved_advanced.get("request_params") or {},
         }
+    if style_fingerprint is not None:
+        # Provenance: which layer wording produced this picture. Hashes of the
+        # server constants, never the wording itself.
+        params = dict(payload.get("request_params") or {})
+        params["style"] = style_fingerprint
+        payload["request_params"] = params
+        payload["inputs"] = {**payload["inputs"], "style": style_fingerprint}
+
     inserted = supabase_rest.rest_insert("generation_jobs", payload)
     if not inserted:
         raise HTTPException(status_code=500, detail="Could not create generation job")

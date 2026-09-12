@@ -101,3 +101,13 @@ Generate image is self-hosted and carries none of these.
   currently calls.
 - Redeploy of the Modal V6 app is **not** required for this change: the registry
   is read from the database with a 60-second cache.
+
+## Request (2026-09-12) — Branding mode for Generate image
+
+1. Add a second input mode beside the existing free-text field: occasion +
+   brand setting + "what you are selling", populated from `GET /v1/prompt-layers`.
+2. Send `inputs.style` instead of `inputs.prompt` in that mode (see 06).
+3. Never copy layer wording into Studio — read the catalogue at runtime.
+4. Remember the chosen brand setting for the user, and expose seed reuse so a
+   campaign set stays visually matched.
+5. Keep the free-text mode exactly as it is today.

@@ -78,3 +78,71 @@ in `03-integration-guide.md` step 8 apply to this tool. myaccount already sends
 
 Billing, credits, prompt suggestion or enhancement, batch generation, custom
 workflows, and any raw provider setting. None of those are exposed by the API.
+
+---
+
+## Brand consistency mode ("Branding") — 2026-09-12
+
+Text-to-image now accepts a **style request** instead of a prompt. The API
+composes the prompt from three server-owned layers, so every picture in a
+campaign shares the same setting and finish.
+
+    Layer 1  occasion / seasonal atmosphere   (chosen per picture)
+    Layer 2  setting & visual DNA             (the brand anchor — byte-identical every run)
+    Layer 3  subject hero                     (what is being sold, one short line)
+    + universal quality tail                  (fixed; only the aspect note follows the canvas)
+
+### Catalogue
+
+`GET /v1/prompt-layers` (bearer token required)
+
+```json
+{
+  "seasons": [{ "key": "autumn", "label": "Autumn", "hint": "Golden afternoon light, harvest tones" }],
+  "worlds":  [{ "key": "coastal_terrace", "label": "Coastal terrace", "hint": "Mediterranean stone, sea horizon" }],
+  "subject_max_chars": 200,
+  "layer_table_version": "prompt-layers-1"
+}
+```
+
+The layer wording is never returned. Do not mirror, cache, or re-word it
+client-side — a local copy is exactly how two apps drift apart.
+
+### Request
+
+`POST /v1/generations` — `style` replaces `prompt`; sending both is a 400.
+
+```json
+{
+  "workflow_id": "flux_text_to_image",
+  "workflow_version": "v2",
+  "inputs": {
+    "style": { "season": "autumn", "world": "coastal_terrace", "subject": "a hand-poured soy candle in an amber jar" },
+    "width": 1024,
+    "height": 1024,
+    "seed": 20260912,
+    "idempotency_key": "<uuid v4>"
+  }
+}
+```
+
+Rules enforced server-side: `season`/`world` must be catalogue keys (unknown
+keys are rejected, never defaulted); `subject` is required, max 200 characters,
+newlines collapsed; the composed prompt must stay within 2000 characters.
+
+### Consistency guidance
+
+* Keep one `world` per brand and change only `season` + `subject`.
+* Reuse the same `seed` across a set for the tightest match; change it only when
+  you want a genuinely different composition.
+* Validation errors name the field, e.g.
+  `invalid_request: style: unknown world: 'lagoon'`.
+
+### Provenance
+
+Each job records `request_params.style` with `season`, `world`, `aspect`,
+SHA-256 of each layer's exact text, and `layer_table_version`. That is how an
+older picture is traced to the wording that produced it. Wording changes ship as
+a new `layer_table_version`, never as an edit in place.
+
+Free-text generation is unchanged and remains fully supported in parallel.

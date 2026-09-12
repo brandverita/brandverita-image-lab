@@ -72,6 +72,9 @@ export interface CreateGenerationInput {
   seed?: number | null;
   idempotencyKey: string;
   accessToken?: string | null;
+  /** Branding mode: the API composes the prompt from its own layer wording.
+   *  When present, no prompt is sent — the two are mutually exclusive. */
+  style?: { season: string; world: string; subject: string } | null;
 }
 
 export type GenerationErrorKind =
@@ -206,9 +209,15 @@ async function request<T>(
   try {
     return (await response.json()) as T;
   } catch {
-    throw new GenerationApiError("server_error", "The Generation API returned an unreadable response.");
+    throw new GenerationApiError(
+      "server_error",
+      "The Generation API returned an unreadable response.",
+    );
   }
 }
+
+/** Shared authenticated JSON fetch for sibling API modules (same error mapping). */
+export { request as requestJson };
 
 export function newIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -296,7 +305,8 @@ export function createGeneration(input: CreateGenerationInput): Promise<Generati
     accessToken: input.accessToken,
     body: JSON.stringify({
       workflow_id: WORKFLOW_ID,
-      prompt: input.prompt,
+      // Either a prompt (free text) or a style (branding) — never both.
+      ...(input.style ? { style: input.style } : { prompt: input.prompt }),
       negative_prompt: input.negativePrompt || "",
       width: input.width,
       height: input.height,
