@@ -596,6 +596,55 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
         if top_level_key:
             raw_inputs = {**raw_inputs, "idempotency_key": top_level_key}
 
+    # ------------------------------------------------------------------
+    # Brand-consistency layers (text-to-image only).
+    # A caller may send {"style": {"season", "world", "subject"}} instead of a
+    # prompt. The prompt is then composed HERE from server-owned wording, so
+    # the world block (the brand anchor) and the quality tail are byte-for-byte
+    # identical on every run and no client can re-word them.
+    # ------------------------------------------------------------------
+    style_request = raw_inputs.get("style") if isinstance(raw_inputs, dict) else None
+    if style_request is None and isinstance(body.get("style"), dict):
+        style_request = body["style"]
+    style_fingerprint = None
+    if style_request is not None:
+        import prompt_layers
+
+        if not isinstance(style_request, dict):
+            raise HTTPException(
+                status_code=400, detail="invalid_request: style: must be an object"
+            )
+        if raw_inputs.get("prompt"):
+            raise HTTPException(
+                status_code=400,
+                detail="invalid_request: style: send either a prompt or a style, not both",
+            )
+        try:
+            width = int(raw_inputs.get("width") or 1024)
+            height = int(raw_inputs.get("height") or 1024)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=400, detail="invalid_request: width/height: must be whole numbers"
+            )
+        try:
+            composed = prompt_layers.compose(
+                season=str(style_request.get("season") or ""),
+                world=str(style_request.get("world") or ""),
+                subject=style_request.get("subject") or "",
+                width=width,
+                height=height,
+            )
+            style_fingerprint = prompt_layers.fingerprint(
+                season=str(style_request.get("season") or ""),
+                world=str(style_request.get("world") or ""),
+                width=width,
+                height=height,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"invalid_request: style: {exc}")
+        raw_inputs = {k: v for k, v in raw_inputs.items() if k != "style"}
+        raw_inputs["prompt"] = composed
+
     row = registry.resolve_workflow(str(workflow_id), workflow_version)
 
     # ------------------------------------------------------------------
