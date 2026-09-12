@@ -116,6 +116,7 @@ api_image = (
     .add_local_file("advanced.py", "/root/advanced.py", copy=True)
     .add_local_file("outpaint_geometry.py", "/root/outpaint_geometry.py", copy=True)
     .add_local_file("scene_presets.py", "/root/scene_presets.py", copy=True)
+    .add_local_file("prompt_layers.py", "/root/prompt_layers.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
     # Staging research flags. This deployment is isolated from Studio and the
     # main app (allowed_envs=[staging], internal registry visibility, Lab
