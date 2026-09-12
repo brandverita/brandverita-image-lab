@@ -38,8 +38,8 @@ export function StylePicker({ value, disabled, onChange, onReadyChange }: StyleP
         if (!active) return;
         setCatalog(loaded);
         setLoadError(null);
-        const season = rememberedSeason() ?? value.season || loaded.seasons[0]?.key ?? "";
-        const world = rememberedWorld() ?? value.world || loaded.worlds[0]?.key ?? "";
+        const season = rememberedSeason() || value.season || loaded.seasons[0]?.key || "";
+        const world = rememberedWorld() || value.world || loaded.worlds[0]?.key || "";
         const known = (list: { key: string }[], key: string) => list.some((o) => o.key === key);
         onChange({
           ...value,
