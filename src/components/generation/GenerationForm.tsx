@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { StylePicker } from "@/components/generation/StylePicker";
+import type { StyleRequest } from "@/lib/promptLayers";
 import {
   DIMENSION_OPTIONS,
   NEGATIVE_PROMPT_MAX_LENGTH,
@@ -18,6 +20,8 @@ export interface GenerationFormValues {
   width: number;
   height: number;
   seed: number | null;
+  /** Set in Branding mode; the API then composes the prompt from its own wording. */
+  style?: StyleRequest | null;
 }
 
 interface GenerationFormProps {
@@ -29,27 +33,24 @@ interface GenerationFormProps {
 
 const DEFAULT_DIMENSION = "1024x1024";
 
+type Mode = "free" | "branding";
+
 export function GenerationForm({ isSubmitting, disabled, onSubmit, onReset }: GenerationFormProps) {
+  const [mode, setMode] = useState<Mode>("free");
   const [prompt, setPrompt] = useState("");
+  const [style, setStyle] = useState<StyleRequest>({ season: "", world: "", subject: "" });
+  const [styleReady, setStyleReady] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState("");
   const [dimension, setDimension] = useState(DEFAULT_DIMENSION);
   const [seed, setSeed] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const busy = isSubmitting || Boolean(disabled);
+  const handleStyleReady = useCallback((ready: boolean) => setStyleReady(ready), []);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return; // guards against double submits
-    const trimmed = prompt.trim();
-    if (!trimmed) {
-      setError("A prompt is required.");
-      return;
-    }
-    if (trimmed.length > PROMPT_MAX_LENGTH) {
-      setError(`The prompt must be ${PROMPT_MAX_LENGTH} characters or fewer.`);
-      return;
-    }
 
     let seedValue: number | null = null;
     const rawSeed = seed.trim();
@@ -61,19 +62,54 @@ export function GenerationForm({ isSubmitting, disabled, onSubmit, onReset }: Ge
       seedValue = Number(rawSeed);
     }
 
-    setError(null);
     const [width, height] = dimension.split("x").map(Number);
+    const size = { width: width ?? 1024, height: height ?? 1024 };
+
+    if (mode === "branding") {
+      const subject = style.subject.trim();
+      if (!style.season || !style.world) {
+        setError("Choose an occasion and a brand setting.");
+        return;
+      }
+      if (!subject) {
+        setError("Say what you are selling.");
+        return;
+      }
+      setError(null);
+      onSubmit({
+        // Not sent to the service in this mode — used locally for the image description.
+        prompt: subject,
+        negativePrompt: negativePrompt.trim(),
+        ...size,
+        seed: seedValue,
+        style: { ...style, subject },
+      });
+      return;
+    }
+
+    const trimmed = prompt.trim();
+    if (!trimmed) {
+      setError("A prompt is required.");
+      return;
+    }
+    if (trimmed.length > PROMPT_MAX_LENGTH) {
+      setError(`The prompt must be ${PROMPT_MAX_LENGTH} characters or fewer.`);
+      return;
+    }
+
+    setError(null);
     onSubmit({
       prompt: trimmed,
       negativePrompt: negativePrompt.trim(),
-      width: width ?? 1024,
-      height: height ?? 1024,
+      ...size,
       seed: seedValue,
+      style: null,
     });
   }
 
   function handleReset() {
     setPrompt("");
+    setStyle((current) => ({ ...current, subject: "" }));
     setNegativePrompt("");
     setDimension(DEFAULT_DIMENSION);
     setSeed("");
