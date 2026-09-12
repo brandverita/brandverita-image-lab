@@ -263,7 +263,7 @@ export function GenerationForm({ isSubmitting, disabled, onSubmit, onReset }: Ge
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || (mode === "branding" && !styleReady)}>
           {isSubmitting ? "Generating…" : "Generate image"}
         </Button>
         <Button type="button" variant="outline" onClick={handleReset} disabled={isSubmitting}>

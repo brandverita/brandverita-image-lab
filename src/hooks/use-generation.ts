@@ -105,6 +105,7 @@ export function useGeneration() {
         width: values.width,
         height: values.height,
         seed: values.seed,
+        style: values.style ?? null,
         idempotencyKey,
         accessToken: await currentAccessToken(),
       });
