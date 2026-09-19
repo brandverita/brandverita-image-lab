@@ -195,6 +195,12 @@ export function TransformationLabPanel({ accessToken }: Props) {
     if (!allowed.includes(anchor)) setAnchor(allowed[0] as OutpaintAnchor);
   }, [direction, anchor]);
 
+  function editorialZonesFor(preset: string): { key: string; label: string }[] {
+    const fromCatalog = editorial?.output_presets.find((item) => item.key === preset);
+    if (fromCatalog) return fromCatalog.copy_zones;
+    return FALLBACK_ZONES[preset] ?? [];
+  }
+
   // The copy zone must exist on the chosen canvas shape; fall back to the
   // first zone of the new shape when switching sizes.
   useEffect(() => {
@@ -274,17 +280,33 @@ export function TransformationLabPanel({ accessToken }: Props) {
                 steps,
               },
             })
-          : await startProductScene({
-              sourceAssetId: source.asset_id,
-              idempotencyKey,
-              accessToken: tokenRef.current,
-              selection: {
-                outputPreset: scenePreset,
-                sceneDirection,
-                backgroundStyle,
-                presetVariant,
-              },
-            });
+          : module === "product_scene"
+            ? await startProductScene({
+                sourceAssetId: source.asset_id,
+                idempotencyKey,
+                accessToken: tokenRef.current,
+                selection: {
+                  outputPreset: scenePreset,
+                  sceneDirection,
+                  backgroundStyle,
+                  presetVariant,
+                },
+              })
+            : await startEditorialLayout({
+                sourceAssetId: source.asset_id,
+                idempotencyKey,
+                accessToken: tokenRef.current,
+                selection: {
+                  outputPreset: edPreset,
+                  look: edLook,
+                  people: edPeople,
+                  copyZone: edZone,
+                  typePreset: edType,
+                  headline: edHeadline.trim(),
+                  standfirst: edStandfirst.trim() || undefined,
+                  label: edLabel.trim() || undefined,
+                },
+              });
       if (runRef.current !== runId) return;
       setJob(created);
       if (isTerminalAdvancedStatus(created.status)) {
@@ -341,7 +363,7 @@ export function TransformationLabPanel({ accessToken }: Props) {
       </div>
 
       <div className="flex gap-2" role="tablist" aria-label="Feature">
-        {(["outpaint", "product_scene"] as AdvancedModule[]).map((value) => (
+        {(["outpaint", "product_scene", "editorial_layout"] as AdvancedModule[]).map((value) => (
           <button
             key={value}
             type="button"
@@ -358,7 +380,11 @@ export function TransformationLabPanel({ accessToken }: Props) {
                 : "border-border bg-card text-foreground"
             }`}
           >
-            {value === "outpaint" ? "Smart resize" : "Product scene"}
+            {value === "outpaint"
+              ? "Smart resize"
+              : value === "product_scene"
+                ? "Product scene"
+                : "Editorial layout"}
           </button>
         ))}
       </div>
