@@ -148,3 +148,12 @@ should not be "fixed" later by mistake:
 - [x] Adapter wiring + copy-zone check + registry row `editorial_layout:v1`
       (staging/research only) + spend cap
 - [x] Lab UI tab + eval scoring
+- [!] Deploy 2026-09-19: `python -m modal deploy api.py` OK (35s) — `run_editorial_layout_job`
+      created, `editorial_layout_adapter: bfl_editorial_layout` registered. BUT health
+      shows `modules.editorial_layout: false` while outpaint/product_scene are true.
+      Root cause: deployed `advanced.py` on the Mac is the stale Module B copy — its
+      `module_flag` has outpaint + product_scene branches but NOT the editorial branch
+      (env vars are all set; same image env, proven by the other two being true).
+      Fix: copy current `backend/phase2b/advanced.py` to `phase1-v6-staging/`,
+      clear `__pycache__`, `python -m modal deploy api.py`. Then health should read
+      `editorial_layout: true`. Then run registry migration + config hash + eval batch.
