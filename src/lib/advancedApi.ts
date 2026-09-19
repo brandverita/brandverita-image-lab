@@ -36,7 +36,19 @@ export const PRODUCT_SCENE_OUTPUT_PRESETS = [
   "1600x900",
 ] as const;
 
-export type AdvancedModule = "outpaint" | "product_scene";
+export const EDITORIAL_WORKFLOW = {
+  workflow_id: "editorial_layout",
+  workflow_version: "v1",
+} as const;
+
+export const EDITORIAL_OUTPUT_PRESETS = [
+  "1600x900",
+  "1080x1080",
+  "1080x1920",
+  "800x2000",
+] as const;
+
+export type AdvancedModule = "outpaint" | "product_scene" | "editorial_layout";
 
 export interface ResearchOptions {
   outpaint: { prompt_modes: string[]; guidance: number[]; steps: number[] };
@@ -49,6 +61,24 @@ export interface ScenePresetCatalog {
   output_presets: string[];
   preset_variants?: string[];
   default_preset_variant?: string;
+}
+
+export interface EditorialCatalog {
+  looks: { key: string; label: string }[];
+  people: { key: string; label: string }[];
+  output_presets: {
+    key: string;
+    width: number;
+    height: number;
+    copy_zones: { key: string; label: string }[];
+  }[];
+  preset_table_version: string;
+  type?: {
+    type_presets: { key: string; label: string }[];
+    headline_max_chars: number;
+    standfirst_max_chars: number;
+    label_max_chars: number;
+  };
 }
 
 export interface AdvancedJob {
@@ -173,6 +203,10 @@ export function getResearchOptions(accessToken?: string | null): Promise<Researc
   return request<ResearchOptions>("/v1/research-options", { method: "GET", accessToken });
 }
 
+export function getEditorialPresets(accessToken?: string | null): Promise<EditorialCatalog> {
+  return request<EditorialCatalog>("/v1/editorial-presets", { method: "GET", accessToken });
+}
+
 export interface OutpaintSelection {
   outputPreset: string;
   direction: OutpaintDirection;
@@ -240,6 +274,47 @@ export function startProductScene(input: {
         background_style: s.backgroundStyle,
         preserve_subject: true,
         ...(s.presetVariant ? { preset_variant: s.presetVariant } : {}),
+      },
+    }),
+  });
+}
+
+export interface EditorialSelection {
+  outputPreset: string;
+  look: string;
+  people: string;
+  copyZone: string;
+  typePreset: string;
+  headline: string;
+  standfirst?: string | undefined;
+  label?: string | undefined;
+}
+
+export function startEditorialLayout(input: {
+  sourceAssetId: string;
+  selection: EditorialSelection;
+  idempotencyKey: string;
+  accessToken?: string | null;
+}): Promise<AdvancedJob> {
+  const s = input.selection;
+  return request<AdvancedJob>("/v1/generations", {
+    method: "POST",
+    accessToken: input.accessToken,
+    // Run key in the body only — see startOutpaint. The copy fields are typeset
+    // locally by the service; they never reach the picture model.
+    body: JSON.stringify({
+      ...EDITORIAL_WORKFLOW,
+      source_asset_id: input.sourceAssetId,
+      output_preset: s.outputPreset,
+      idempotency_key: input.idempotencyKey,
+      params: {
+        look: s.look,
+        people: s.people,
+        copy_zone: s.copyZone,
+        type_preset: s.typePreset,
+        headline: s.headline,
+        ...(s.standfirst ? { standfirst: s.standfirst } : {}),
+        ...(s.label ? { label: s.label } : {}),
       },
     }),
   });
