@@ -9,6 +9,15 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# `assets` is deployment-only (not committed to this repo); stub the pieces
+# advanced.py touches at import/parse time.
+import types  # noqa: E402
+
+_assets_stub = types.ModuleType("assets")
+_assets_stub.BUCKET = "generation-assets"
+_assets_stub.ValidationResult = dict
+sys.modules["assets"] = _assets_stub
+
 import advanced  # noqa: E402
 import editorial_presets as ep  # noqa: E402
 
