@@ -437,7 +437,128 @@ export function TransformationLabPanel({ accessToken }: Props) {
 
           <div className="space-y-4">
             <h4 className="text-left text-sm font-semibold text-foreground">2. Settings</h4>
-            {module === "outpaint" ? (
+            {module === "editorial_layout" ? (
+              <>
+                <Field label="Final size">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edPreset}
+                    onChange={(event) => setEdPreset(event.target.value)}
+                  >
+                    {(editorial?.output_presets.map((item) => item.key) ??
+                      EDITORIAL_OUTPUT_PRESETS).map((preset) => (
+                      <option key={preset} value={preset}>
+                        {preset.replace("x", " x ")}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Look" hint="Fixed server-owned scene styles.">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edLook}
+                    onChange={(event) => setEdLook(event.target.value)}
+                  >
+                    {(editorial?.looks ?? [
+                      { key: "cover_shot", label: "Cover shot" },
+                      { key: "lifestyle_spread", label: "Lifestyle spread" },
+                      { key: "flat_lay", label: "Flat lay" },
+                      { key: "documentary", label: "Documentary" },
+                    ]).map((look) => (
+                      <option key={look.key} value={look.key}>
+                        {look.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="People in the scene">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edPeople}
+                    onChange={(event) => setEdPeople(event.target.value)}
+                  >
+                    {(editorial?.people ?? [
+                      { key: "none", label: "None" },
+                      { key: "background_figures", label: "Background figures" },
+                      { key: "foreground_model", label: "Foreground model" },
+                    ]).map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Where the text goes" hint="The scene keeps this area calm.">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edZone}
+                    onChange={(event) => setEdZone(event.target.value)}
+                  >
+                    {editorialZonesFor(edPreset).map((zone) => (
+                      <option key={zone.key} value={zone.key}>
+                        {zone.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Type style">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edType}
+                    onChange={(event) => setEdType(event.target.value)}
+                  >
+                    {(editorial?.type?.type_presets ?? [
+                      { key: "display_sans", label: "Display sans" },
+                      { key: "editorial_serif", label: "Editorial serif" },
+                      { key: "condensed_caps", label: "Condensed caps" },
+                    ]).map((preset) => (
+                      <option key={preset.key} value={preset.key}>
+                        {preset.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Headline" hint="Typeset by the service, never sent to the picture model.">
+                  <input
+                    type="text"
+                    className={inputClass}
+                    disabled={busy}
+                    required
+                    maxLength={editorial?.type?.headline_max_chars ?? 90}
+                    value={edHeadline}
+                    onChange={(event) => setEdHeadline(event.target.value)}
+                    aria-label="Headline"
+                  />
+                </Field>
+                <Field label="Standfirst (optional)">
+                  <input
+                    type="text"
+                    className={inputClass}
+                    disabled={busy}
+                    maxLength={editorial?.type?.standfirst_max_chars ?? 200}
+                    value={edStandfirst}
+                    onChange={(event) => setEdStandfirst(event.target.value)}
+                    aria-label="Standfirst"
+                  />
+                </Field>
+                <Field label="Small label (optional)">
+                  <input
+                    type="text"
+                    className={inputClass}
+                    disabled={busy}
+                    maxLength={editorial?.type?.label_max_chars ?? 40}
+                    value={edLabel}
+                    onChange={(event) => setEdLabel(event.target.value)}
+                    aria-label="Small label"
+                  />
+                </Field>
+              </>
+            ) : module === "outpaint" ? (
               <>
                 <Field label="Final size">
                   <select
@@ -598,7 +719,11 @@ export function TransformationLabPanel({ accessToken }: Props) {
           <Button
             type="button"
             className="w-full"
-            disabled={!source?.asset_id || busy}
+            disabled={
+              !source?.asset_id ||
+              busy ||
+              (module === "editorial_layout" && (!edHeadline.trim() || !edZone))
+            }
             onClick={() => void handleSubmit()}
           >
             {busy ? "Working…" : "Create image"}
@@ -641,7 +766,9 @@ export function TransformationLabPanel({ accessToken }: Props) {
                   alt={
                     module === "outpaint"
                       ? "Your picture extended to the chosen size"
-                      : "Your product shown in the chosen scene"
+                      : module === "product_scene"
+                        ? "Your product shown in the chosen scene"
+                        : "Your picture restyled with the chosen editorial layout and headline"
                   }
                   className="w-full rounded-lg border border-border"
                 />
@@ -657,6 +784,11 @@ export function TransformationLabPanel({ accessToken }: Props) {
                     jobId={job.job_id}
                     accessToken={accessToken}
                     askBrightness={module === "product_scene"}
+                    inventedLabel={
+                      module === "editorial_layout"
+                        ? "Subject changed or text unreadable"
+                        : undefined
+                    }
                     onSaved={() => setEvalRefreshKey((key) => key + 1)}
                   />
                 ) : null}
