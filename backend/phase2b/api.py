@@ -79,6 +79,7 @@ import stale_jobs
 import supabase_rest
 from adapters import (
     bfl_api,
+    bfl_editorial_layout,
     bfl_outpaint,
     bfl_product_scene,
     modal_comfyui,
@@ -120,7 +121,12 @@ api_image = (
     .add_local_file("scene_presets.py", "/root/scene_presets.py", copy=True)
     .add_local_file("prompt_layers.py", "/root/prompt_layers.py", copy=True)
     .add_local_file("stale_jobs.py", "/root/stale_jobs.py", copy=True)
+    .add_local_file("editorial_presets.py", "/root/editorial_presets.py", copy=True)
+    .add_local_file("editorial_typography.py", "/root/editorial_typography.py", copy=True)
     .add_local_dir("adapters", "/root/adapters", copy=True)
+    # Module C typefaces (SIL OFL), loaded by editorial_typography at
+    # os.path.dirname(__file__)/fonts — i.e. /root/fonts inside the image.
+    .add_local_dir("fonts", "/root/fonts", copy=True)
     # Staging research flags. This deployment is isolated from Studio and the
     # main app (allowed_envs=[staging], internal registry visibility, Lab
     # allow-list), so the advanced modules stay on rather than requiring a
@@ -135,6 +141,9 @@ api_image = (
             # switches must be on before any request can leave this deployment.
             "MODULE_B_ENABLED": "true",
             "PRODUCT_SCENE_EVAL_ENABLED": "true",
+            # Module C (editorial layout) — same hosted-provider discipline.
+            "MODULE_C_ENABLED": "true",
+            "EDITORIAL_LAYOUT_EVAL_ENABLED": "true",
             "HOSTED_PROVIDER_DISPATCH_ENABLED": "true",
             "PROVIDER_BFL_ENABLED": "true",
             "PROVIDER_REPLICATE_ENABLED": "false",
@@ -164,6 +173,7 @@ ADAPTERS = {
     "modal_research_2b": modal_research_outpaint,
     "bfl_outpaint": bfl_outpaint,
     "bfl_product_scene": bfl_product_scene,
+    "bfl_editorial_layout": bfl_editorial_layout,
     "replicate": replicate,
     "bfl_api": bfl_api,
 }
@@ -240,6 +250,10 @@ def advanced_preset_size(module: str, output_preset: str) -> tuple[int, int]:
         import scene_presets
 
         return scene_presets.resolve_output_preset(output_preset)
+    if module == "editorial_layout":
+        import editorial_presets
+
+        return editorial_presets.resolve_output_preset(output_preset)
 
     import outpaint_geometry
 
@@ -417,6 +431,17 @@ def run_product_scene_job(job_id: str, user_id: str) -> None:
 bfl_product_scene.set_dispatcher(run_product_scene_job)
 
 
+# Module C — editorial layout orchestration. Same hosted-provider isolation as
+# WP2: this function and the product-scene one are the only carriers of the
+# BFL credential.
+@app.function(image=api_image, secrets=[supabase_secret, bfl_secret], timeout=900)
+def run_editorial_layout_job(job_id: str, user_id: str) -> None:
+    bfl_editorial_layout.run_editorial_layout(job_id=job_id, user_id=user_id)
+
+
+bfl_editorial_layout.set_dispatcher(run_editorial_layout_job)
+
+
 # Phase 2B WP1b — Module A Smart Resize on the hosted expand provider. Same
 # isolation as WP2: this is the only other function carrying the BFL credential.
 @app.function(image=api_image, secrets=[supabase_secret, bfl_secret], timeout=900)
@@ -468,8 +493,10 @@ def health_check():
         "modules": {
             "outpaint": advanced.module_flag("outpaint"),
             "product_scene": advanced.module_flag("product_scene"),
+            "editorial_layout": advanced.module_flag("editorial_layout"),
         },
         "product_scene_adapter": bfl_product_scene.PROVIDER,
+        "editorial_layout_adapter": bfl_editorial_layout.PROVIDER,
         "hosted_outpaint_adapter": bfl_outpaint.PROVIDER,
         "hosted_dispatch_enabled": bfl_product_scene.hosted_dispatch_enabled(),
         # Trusted JWT issuers, as short key-free labels (project refs only).
@@ -529,6 +556,21 @@ def list_scene_presets(user_id: str = Depends(get_verified_user_id)):
         "preset_variants": list(scene_presets.PRESET_VARIANTS),
         "default_preset_variant": scene_presets.DEFAULT_PRESET_VARIANT,
     }
+
+
+@web_app.get("/v1/editorial-presets")
+def list_editorial_presets(user_id: str = Depends(get_verified_user_id)):
+    """Module C option catalog for the Lab UI: looks, people options, output
+    presets with their copy zones, type presets and copy limits only. The
+    instruction wording and font files stay server-side."""
+    import editorial_presets
+    import editorial_typography
+
+    if not (advanced.advanced_enabled() and advanced.module_flag("editorial_layout")):
+        raise HTTPException(status_code=403, detail="workflow_not_available")
+    catalog = editorial_presets.public_catalog()
+    catalog["type"] = editorial_typography.public_type_catalog()
+    return catalog
 
 
 @web_app.get("/v1/research-options")

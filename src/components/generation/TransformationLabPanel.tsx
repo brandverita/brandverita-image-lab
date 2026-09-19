@@ -23,15 +23,19 @@ import {
   OUTPAINT_DIRECTIONS,
   OUTPAINT_OUTPUT_PRESETS,
   PRODUCT_SCENE_OUTPUT_PRESETS,
+  EDITORIAL_OUTPUT_PRESETS,
   getAdvancedJob,
+  getEditorialPresets,
   getResearchOptions,
   getScenePresets,
   isTerminalAdvancedStatus,
   refreshAdvancedResultUrl,
+  startEditorialLayout,
   startOutpaint,
   startProductScene,
   type AdvancedJob,
   type AdvancedModule,
+  type EditorialCatalog,
   type OutpaintDirection,
   type OutpaintAnchor,
   type ResearchOptions,
@@ -65,6 +69,30 @@ function Field({
 const selectClass =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50";
 
+const inputClass = selectClass;
+
+// Server catalog drives the zone list per canvas; these are the fallbacks
+// matching the server-owned preset table when the catalog is unavailable.
+const FALLBACK_ZONES: Record<string, { key: string; label: string }[]> = {
+  "1600x900": [
+    { key: "left_third", label: "Left third" },
+    { key: "right_third", label: "Right third" },
+    { key: "lower_third", label: "Lower third" },
+  ],
+  "1080x1080": [
+    { key: "lower_third", label: "Lower third" },
+    { key: "upper_third", label: "Upper third" },
+  ],
+  "1080x1920": [
+    { key: "upper_third", label: "Upper third" },
+    { key: "lower_third", label: "Lower third" },
+  ],
+  "800x2000": [
+    { key: "upper_third", label: "Upper third" },
+    { key: "lower_third", label: "Lower third" },
+  ],
+};
+
 export function TransformationLabPanel({ accessToken }: Props) {
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
@@ -86,6 +114,16 @@ export function TransformationLabPanel({ accessToken }: Props) {
   const [sceneDirection, setSceneDirection] = useState<string>("clean_studio");
   const [backgroundStyle, setBackgroundStyle] = useState<string>("neutral");
   const [presetVariant, setPresetVariant] = useState<string>("v1");
+
+  const [editorial, setEditorial] = useState<EditorialCatalog | null>(null);
+  const [edPreset, setEdPreset] = useState<string>(EDITORIAL_OUTPUT_PRESETS[0]);
+  const [edLook, setEdLook] = useState<string>("cover_shot");
+  const [edPeople, setEdPeople] = useState<string>("none");
+  const [edZone, setEdZone] = useState<string>("left_third");
+  const [edType, setEdType] = useState<string>("display_sans");
+  const [edHeadline, setEdHeadline] = useState<string>("");
+  const [edStandfirst, setEdStandfirst] = useState<string>("");
+  const [edLabel, setEdLabel] = useState<string>("");
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [job, setJob] = useState<AdvancedJob | null>(null);
@@ -123,6 +161,12 @@ export function TransformationLabPanel({ accessToken }: Props) {
       } catch {
         /* keep defaults */
       }
+      try {
+        const catalog = await getEditorialPresets(tokenRef.current);
+        if (!cancelled) setEditorial(catalog);
+      } catch {
+        /* keep defaults */
+      }
     })();
     return () => {
       cancelled = true;
@@ -150,6 +194,20 @@ export function TransformationLabPanel({ accessToken }: Props) {
     const allowed = OUTPAINT_ANCHORS_BY_DIRECTION[direction];
     if (!allowed.includes(anchor)) setAnchor(allowed[0] as OutpaintAnchor);
   }, [direction, anchor]);
+
+  function editorialZonesFor(preset: string): { key: string; label: string }[] {
+    const fromCatalog = editorial?.output_presets.find((item) => item.key === preset);
+    if (fromCatalog) return fromCatalog.copy_zones;
+    return FALLBACK_ZONES[preset] ?? [];
+  }
+
+  // The copy zone must exist on the chosen canvas shape; fall back to the
+  // first zone of the new shape when switching sizes.
+  useEffect(() => {
+    const zones = editorialZonesFor(edPreset);
+    if (!zones.some((zone) => zone.key === edZone)) setEdZone(zones[0]?.key ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edPreset, editorial]);
 
   const busy = phase === "submitting" || phase === "polling" || upload.busy;
 
@@ -222,17 +280,33 @@ export function TransformationLabPanel({ accessToken }: Props) {
                 steps,
               },
             })
-          : await startProductScene({
-              sourceAssetId: source.asset_id,
-              idempotencyKey,
-              accessToken: tokenRef.current,
-              selection: {
-                outputPreset: scenePreset,
-                sceneDirection,
-                backgroundStyle,
-                presetVariant,
-              },
-            });
+          : module === "product_scene"
+            ? await startProductScene({
+                sourceAssetId: source.asset_id,
+                idempotencyKey,
+                accessToken: tokenRef.current,
+                selection: {
+                  outputPreset: scenePreset,
+                  sceneDirection,
+                  backgroundStyle,
+                  presetVariant,
+                },
+              })
+            : await startEditorialLayout({
+                sourceAssetId: source.asset_id,
+                idempotencyKey,
+                accessToken: tokenRef.current,
+                selection: {
+                  outputPreset: edPreset,
+                  look: edLook,
+                  people: edPeople,
+                  copyZone: edZone,
+                  typePreset: edType,
+                  headline: edHeadline.trim(),
+                  standfirst: edStandfirst.trim() || undefined,
+                  label: edLabel.trim() || undefined,
+                },
+              });
       if (runRef.current !== runId) return;
       setJob(created);
       if (isTerminalAdvancedStatus(created.status)) {
@@ -289,7 +363,7 @@ export function TransformationLabPanel({ accessToken }: Props) {
       </div>
 
       <div className="flex gap-2" role="tablist" aria-label="Feature">
-        {(["outpaint", "product_scene"] as AdvancedModule[]).map((value) => (
+        {(["outpaint", "product_scene", "editorial_layout"] as AdvancedModule[]).map((value) => (
           <button
             key={value}
             type="button"
@@ -306,7 +380,11 @@ export function TransformationLabPanel({ accessToken }: Props) {
                 : "border-border bg-card text-foreground"
             }`}
           >
-            {value === "outpaint" ? "Smart resize" : "Product scene"}
+            {value === "outpaint"
+              ? "Smart resize"
+              : value === "product_scene"
+                ? "Product scene"
+                : "Editorial layout"}
           </button>
         ))}
       </div>
@@ -359,7 +437,128 @@ export function TransformationLabPanel({ accessToken }: Props) {
 
           <div className="space-y-4">
             <h4 className="text-left text-sm font-semibold text-foreground">2. Settings</h4>
-            {module === "outpaint" ? (
+            {module === "editorial_layout" ? (
+              <>
+                <Field label="Final size">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edPreset}
+                    onChange={(event) => setEdPreset(event.target.value)}
+                  >
+                    {(editorial?.output_presets.map((item) => item.key) ??
+                      EDITORIAL_OUTPUT_PRESETS).map((preset) => (
+                      <option key={preset} value={preset}>
+                        {preset.replace("x", " x ")}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Look" hint="Fixed server-owned scene styles.">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edLook}
+                    onChange={(event) => setEdLook(event.target.value)}
+                  >
+                    {(editorial?.looks ?? [
+                      { key: "cover_shot", label: "Cover shot" },
+                      { key: "lifestyle_spread", label: "Lifestyle spread" },
+                      { key: "flat_lay", label: "Flat lay" },
+                      { key: "documentary", label: "Documentary" },
+                    ]).map((look) => (
+                      <option key={look.key} value={look.key}>
+                        {look.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="People in the scene">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edPeople}
+                    onChange={(event) => setEdPeople(event.target.value)}
+                  >
+                    {(editorial?.people ?? [
+                      { key: "none", label: "None" },
+                      { key: "background_figures", label: "Background figures" },
+                      { key: "foreground_model", label: "Foreground model" },
+                    ]).map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Where the text goes" hint="The scene keeps this area calm.">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edZone}
+                    onChange={(event) => setEdZone(event.target.value)}
+                  >
+                    {editorialZonesFor(edPreset).map((zone) => (
+                      <option key={zone.key} value={zone.key}>
+                        {zone.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Type style">
+                  <select
+                    className={selectClass}
+                    disabled={busy}
+                    value={edType}
+                    onChange={(event) => setEdType(event.target.value)}
+                  >
+                    {(editorial?.type?.type_presets ?? [
+                      { key: "display_sans", label: "Display sans" },
+                      { key: "editorial_serif", label: "Editorial serif" },
+                      { key: "condensed_caps", label: "Condensed caps" },
+                    ]).map((preset) => (
+                      <option key={preset.key} value={preset.key}>
+                        {preset.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Headline" hint="Typeset by the service, never sent to the picture model.">
+                  <input
+                    type="text"
+                    className={inputClass}
+                    disabled={busy}
+                    required
+                    maxLength={editorial?.type?.headline_max_chars ?? 90}
+                    value={edHeadline}
+                    onChange={(event) => setEdHeadline(event.target.value)}
+                    aria-label="Headline"
+                  />
+                </Field>
+                <Field label="Standfirst (optional)">
+                  <input
+                    type="text"
+                    className={inputClass}
+                    disabled={busy}
+                    maxLength={editorial?.type?.standfirst_max_chars ?? 200}
+                    value={edStandfirst}
+                    onChange={(event) => setEdStandfirst(event.target.value)}
+                    aria-label="Standfirst"
+                  />
+                </Field>
+                <Field label="Small label (optional)">
+                  <input
+                    type="text"
+                    className={inputClass}
+                    disabled={busy}
+                    maxLength={editorial?.type?.label_max_chars ?? 40}
+                    value={edLabel}
+                    onChange={(event) => setEdLabel(event.target.value)}
+                    aria-label="Small label"
+                  />
+                </Field>
+              </>
+            ) : module === "outpaint" ? (
               <>
                 <Field label="Final size">
                   <select
@@ -520,7 +719,11 @@ export function TransformationLabPanel({ accessToken }: Props) {
           <Button
             type="button"
             className="w-full"
-            disabled={!source?.asset_id || busy}
+            disabled={
+              !source?.asset_id ||
+              busy ||
+              (module === "editorial_layout" && (!edHeadline.trim() || !edZone))
+            }
             onClick={() => void handleSubmit()}
           >
             {busy ? "Working…" : "Create image"}
@@ -563,7 +766,9 @@ export function TransformationLabPanel({ accessToken }: Props) {
                   alt={
                     module === "outpaint"
                       ? "Your picture extended to the chosen size"
-                      : "Your product shown in the chosen scene"
+                      : module === "product_scene"
+                        ? "Your product shown in the chosen scene"
+                        : "Your picture restyled with the chosen editorial layout and headline"
                   }
                   className="w-full rounded-lg border border-border"
                 />
@@ -579,6 +784,11 @@ export function TransformationLabPanel({ accessToken }: Props) {
                     jobId={job.job_id}
                     accessToken={accessToken}
                     askBrightness={module === "product_scene"}
+                    inventedLabel={
+                      module === "editorial_layout"
+                        ? "Subject changed or text unreadable"
+                        : undefined
+                    }
                     onSaved={() => setEvalRefreshKey((key) => key + 1)}
                   />
                 ) : null}

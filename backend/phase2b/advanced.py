@@ -53,6 +53,8 @@ def module_flag(module: str) -> bool:
         return _flag("OUTPAINT_EVAL_ENABLED")
     if module == "product_scene":
         return _flag("PRODUCT_SCENE_EVAL_ENABLED")
+    if module == "editorial_layout":
+        return _flag("EDITORIAL_LAYOUT_EVAL_ENABLED")
     return False
 
 
@@ -145,7 +147,7 @@ def write_eval_run(row: dict[str, Any]) -> None:
 # Evaluation scores (staging, internal Lab only)
 # --------------------------------------------------------------------------- #
 
-SCORE_MODULES = ("outpaint", "product_scene")
+SCORE_MODULES = ("outpaint", "product_scene", "editorial_layout")
 
 
 def _eval_run_for_job(job_id: str) -> Optional[dict]:
@@ -449,11 +451,78 @@ def parse_product_scene_params(params: dict[str, Any], row: dict[str, Any]) -> d
 
 
 
-def parse_params(module: str, params: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
+_EDITORIAL_ALLOWED = {
+    "look",
+    "people",
+    "copy_zone",
+    "headline",
+    "standfirst",
+    "label",
+    "type_preset",
+}
+
+
+def parse_editorial_params(
+    params: dict[str, Any], row: dict[str, Any], output_preset: str
+) -> dict[str, Any]:
+    """Module C accepts enum keys plus the typeset copy. The copy is drawn
+    locally by the type stage and never reaches the provider instruction,
+    which is composed from server-owned wording only (editorial_presets)."""
+    import editorial_presets
+    import editorial_typography
+
+    if not isinstance(params, dict):
+        raise advanced_error("invalid_request", "params must be an object.")
+    for key in params:
+        if key in FORBIDDEN_KEYS or key not in _EDITORIAL_ALLOWED:
+            raise advanced_error("invalid_request", f"Unsupported parameter: {key!r}.")
+    try:
+        editorial_presets.resolve_output_preset(output_preset)
+    except ValueError:
+        raise advanced_error("invalid_request", "This output preset is not allowed for the workflow.")
+    look = params.get("look")
+    if look not in editorial_presets.EDITORIAL_LOOKS:
+        raise advanced_error("invalid_request", "Invalid look.")
+    allowed_looks = ((row.get("input_schema") or {}).get("look_enum")) or []
+    if allowed_looks and look not in allowed_looks:
+        raise advanced_error("invalid_request", "Invalid look.")
+    people = params.get("people") or editorial_presets.DEFAULT_PEOPLE
+    if people not in editorial_presets.PEOPLE_OPTIONS:
+        raise advanced_error("invalid_request", "Invalid people option.")
+    copy_zone = params.get("copy_zone") or editorial_presets.DEFAULT_ZONE.get(output_preset)
+    try:
+        editorial_presets.zone_instruction(copy_zone, output_preset)
+    except ValueError:
+        raise advanced_error("invalid_request", "Invalid copy zone for this output preset.")
+    type_preset = params.get("type_preset") or editorial_typography.DEFAULT_TYPE_PRESET
+    if type_preset not in editorial_typography.TYPE_PRESETS:
+        raise advanced_error("invalid_request", "Invalid type preset.")
+    try:
+        copy = editorial_typography.validate_copy(
+            params.get("headline"), params.get("standfirst"), params.get("label")
+        )
+    except ValueError as exc:
+        raise advanced_error("invalid_request", str(exc))
+    return {
+        "look": look,
+        "people": people,
+        "copy_zone": copy_zone,
+        "type_preset": type_preset,
+        "headline": copy["headline"],
+        "standfirst": copy["standfirst"],
+        "label": copy["label"],
+    }
+
+
+def parse_params(
+    module: str, params: dict[str, Any], row: dict[str, Any], output_preset: str = ""
+) -> dict[str, Any]:
     if module == "outpaint":
         return parse_outpaint_params(params)
     if module == "product_scene":
         return parse_product_scene_params(params, row)
+    if module == "editorial_layout":
+        return parse_editorial_params(params, row, output_preset)
     raise advanced_error("workflow_not_available", "This workflow is not available.")
 
 
@@ -493,7 +562,9 @@ def resolve_advanced_request(
     if row is None:
         raise advanced_error("workflow_not_available", "This workflow is not available.")
     module = "outpaint" if str(workflow_key).startswith("outpaint") else (
-        "product_scene" if str(workflow_key).startswith("product_scene") else "other"
+        "product_scene" if str(workflow_key).startswith("product_scene") else (
+            "editorial_layout" if str(workflow_key).startswith("editorial_layout") else "other"
+        )
     )
     if not module_flag(module):
         raise advanced_error("workflow_not_available", "This workflow is not available.")
@@ -564,7 +635,7 @@ def resolve_advanced_request(
         raise advanced_error("invalid_request", "This output preset is not allowed for the workflow.")
 
     # 6 — strict params
-    validated = parse_params(module, params, row)
+    validated = parse_params(module, params, row, output_preset)
 
     return {
         "registry_row": row,
