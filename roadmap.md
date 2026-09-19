@@ -147,4 +147,4 @@ should not be "fixed" later by mistake:
 - [ ] Typography layer (Pillow, open-licence fonts), layered output (offline tests)
 - [ ] Adapter wiring + copy-zone check + registry row `editorial_layout:v1`
       (staging/research only) + spend cap
-- [ ] Lab UI tab + eval scoring
+- [x] Lab UI tab + eval scoring
