@@ -1,87 +1,81 @@
 # Pre-deploy status — Module C editorial layout (brandverita-api-v6)
 
-**Status: NOT ready to deploy yet.** Your readiness check caught two missing
-items in `~/Desktop/modal-project/phase1-v6-staging/`. Fix them first, then the
-deploy is safe. No code changes — you copy files and re-run one check.
+**Status: code is ready; the deploy is blocked by the `modal` command running
+on the wrong Python.** Your two earlier blockers (missing files) are now fixed.
+One environment fix remains, then the deploy works. No code changes.
 
-## What your check confirmed is GOOD
+## Now confirmed GOOD
 
-- `import api` → `api import ok`: full top-level import graph resolves, **no
-  SyntaxError**. (The editorial adapter IS imported at module load via
-  `from adapters import (..., bfl_editorial_layout, ...)`, so it was exercised.)
-- All four adapters are in the **safe sync shape** (`def submit_generation` +
-  `_dispatcher.spawn(...)`), not the broken `async`/`await` version — the shape
-  that completed jobs all along.
-- Adapters directory is **complete**: `__init__.py`, `base.py`, `bfl_api.py`,
-  `bfl_editorial_layout.py`, `bfl_outpaint.py`, `bfl_product_scene.py`,
-  `modal_comfyui.py`, `modal_research_outpaint.py`, `replicate.py` all present.
-- All 11 non-editorial modules present: jwks_auth, supabase_rest, registry,
-  jobs, assets, usage, advanced, outpaint_geometry, scene_presets,
-  prompt_layers, stale_jobs.
+- `editorial_presets.py`, `editorial_typography.py`, and `fonts/` are copied in —
+  `presets OK` and `typography OK` both pass.
+- `import api` → clean, **no SyntaxError**; adapters in the safe sync shape.
+- Your adapters dir and all 11 other modules are present.
 
-(The `zsh: command not found: #` / `No such file or directory` noise in Step 1
-was just the inline `#` comments in my `ls` lines being pasted as commands —
-harmless. The real `adapters/` listing above is complete and correct.)
+## The deploy failure — root cause
 
-## Blocker 1 — missing the two editorial modules
-
-Step 1 and Step 2 both show:
+The traceback's top line is the key:
 
 ```
-MISSING editorial_presets.py
-MISSING editorial_typography.py
-ModuleNotFoundError: No module named 'editorial_presets'
+/Users/andreasmacbook/Desktop/modal-project/venv/lib/python3.8/site-packages/modal/...
 ```
 
-`import api` passed only because these are imported *inside* the worker function,
-not at module load. The first editorial job would crash on the live API without
-them. Copy both from the project's `backend/phase2b/` into your staging dir:
+That is your **old `venv` on Python 3.8**, NOT the `venv310` (Python 3.10) you
+activated. The failing import chain is:
 
-```bash
-# run from wherever your generation-test-ui repo/project copy lives
-cp backend/phase2b/editorial_presets.py   ~/Desktop/modal-project/phase1-v6-staging/
-cp backend/phase2b/editorial_typography.py ~/Desktop/modal-project/phase1-v6-staging/
+```
+api.py:73  import advanced
+advanced.py:36  import assets
+assets.py:33  from PIL import Image   →  ModuleNotFoundError: No module named 'PIL'
 ```
 
-## Blocker 2 — missing the `fonts/` directory
+The old py3.8 `venv` does not have Pillow. Your import checks passed because
+those ran under `venv310`, which DOES have Pillow. So the situation is:
 
-Step 1 showed `ls -1 fonts/ → No such file or directory`. The image bundles it
-via `.add_local_dir("fonts", "/root/fonts", copy=True)` (api.py), so **`modal
-deploy` itself fails at image build** if it's absent. Copy the whole folder
-(three OFL typefaces) from `backend/phase2b/fonts/`:
+- `python` → venv310 (py3.10, has Pillow) ✅
+- `modal` → old `venv` (py3.8, no Pillow) ❌
 
-```bash
-cp -r backend/phase2b/fonts ~/Desktop/modal-project/phase1-v6-staging/
-# must contain: LibreFranklin.ttf  LibreBaskerville.ttf  Oswald.ttf
-```
+`venv310` doesn't have the Modal CLI installed, so `modal` falls through on your
+PATH to the old py3.8 `venv`. The "Modal will soon drop support for Python 3.8"
+warning you saw earlier confirms `modal` has been running on py3.8 all along.
 
-## Re-run the check after copying
+Why this matters: `modal deploy` must *import `api.py` locally* to discover the
+app and image definition. The local CLI Python therefore needs api.py's
+import-time deps (fastapi, pydantic, and now Pillow via `advanced → assets`).
+It does NOT need to match the remote image (the image is py3.11 and pip_installs
+its own Pillow) — it only needs Pillow in whichever Python runs the CLI.
+
+## The fix — make `modal` run under venv310
+
+Install the Modal CLI into `venv310` so it runs on Python 3.10, where everything
+(including Pillow) already works:
 
 ```bash
 cd ~/Desktop/modal-project/phase1-v6-staging
-rm -rf __pycache__ adapters/__pycache__
-python -c "import api; import editorial_presets; print('presets OK')"
-python -c "import editorial_typography; print('typography OK')"
-```
-
-Expected: `presets OK`, then `typography OK`.
-
-Caveat on the typography line: `editorial_typography` imports PIL at top level.
-If your `venv310` doesn't have Pillow, it fails **locally** with
-`ModuleNotFoundError: No module named 'PIL'` — but that's a local-venv gap, NOT
-a deploy problem (the Modal image `pip_install`s Pillow). Either
-`pip install Pillow` to make the local check pass, or accept that line failing
-locally and rely on the image. `editorial_presets` must import cleanly either
-way (no third-party deps).
-
-## Then deploy
-
-```bash
+source ~/Desktop/modal-project/venv310/bin/activate
+python -m pip install modal
+which modal             # MUST show a path inside venv310, e.g. .../venv310/bin/modal
+modal profile current   # should still show: brandverita  (auth is user-level, carries over)
 modal deploy api.py
 ```
 
-This replaces only the `brandverita-api-v6` revision. V5 and the
-`comfyui-generation-worker-v6` worker are untouched.
+The important verification is `which modal` — it must point inside `venv310`.
+If it still shows the old `venv` path, the old venv's `bin` is ahead on your
+PATH; run `hash -r` (zsh) and re-check, or invoke it directly as
+`~/Desktop/modal-project/venv310/bin/modal deploy api.py`.
+
+## Fallback (only if `pip install modal` on py3.10 hits your old-hardware issues)
+
+Install just the one missing package into the py3.8 venv the CLI is already
+using, then deploy:
+
+```bash
+~/Desktop/modal-project/venv/bin/python -m pip install Pillow
+cd ~/Desktop/modal-project/phase1-v6-staging
+modal deploy api.py
+```
+
+Prefer the venv310 route — Modal is dropping Python 3.8, so the old venv will
+stop working for deploys regardless.
 
 ## Post-deploy verification
 
@@ -91,15 +85,14 @@ curl --fail-with-body --max-time 30 \
 ```
 
 Expect `version: v6`, `app_name: brandverita-api-v6`, and in `modules` both
-`editorial_layout: true` and an `editorial_layout_adapter` entry. A 200 means
-the new revision started without `ModuleNotFoundError`. Then watch the Modal
-log for the new revision: no fresh `ModuleNotFoundError`, no `SyntaxError`.
+`editorial_layout: true` and an `editorial_layout_adapter` entry. Then watch the
+Modal log for the new revision: no fresh `ModuleNotFoundError`, no `SyntaxError`.
 
 ## Rollback
 
 If the new revision fails health, redeploy the last-known-good `api.py` (without
 the editorial additions), or stop `brandverita-api-v6` and keep Image Lab on V5.
-Do NOT touch V5 or the worker.
+Do NOT touch V5 or the `comfyui-generation-worker-v6` worker.
 
 ## After the deploy (separate, not part of this checklist)
 
@@ -108,3 +101,9 @@ Do NOT touch V5 or the worker.
   (from the workspace that has `backend/phase2b/`; needs the service-role secret).
 - Run a capped editorial evaluation batch, then close BFL disclosures and decide
   Studio exposure.
+
+## Note
+
+A `roadmap.md` entry for this blocker could not be written — plan mode locks
+all files except this plan. It's recorded here; I can add it to the roadmap once
+you switch to build mode.
