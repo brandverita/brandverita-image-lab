@@ -1,48 +1,132 @@
-# Fix the deploy SyntaxError and silence the Modal async warning properly
+# Module C — Editorial layouts (text-on-image)
 
-## What happened (confirmed)
+Feasibility study and build plan. Nothing is implemented until approved.
 
-- The deploy failed at import time: `'await' outside async function` in `adapters/modal_comfyui.py:99`. The previous deploy is still live, so the service is not down.
-- Root cause: `submit_generation(job, inputs, row)` is a **plain `def`**, not `async def`, in every adapter (`modal_comfyui.py`, `modal_research_outpaint.py`, `bfl_outpaint.py`, `bfl_product_scene.py`), and `api.py` calls it synchronously (`provider_ref = adapter.submit_generation(...)`, no `await`). An `await` inside it can never parse.
-- So the one-line change I suggested was wrong as given — it only works if the whole call chain becomes async. This plan does that correctly.
+## What you asked for
 
-## The fix — make the dispatch chain async (4 small edits)
+An editorial counterpart to Product scene: the uploaded subject stays exactly as
+it is, the surroundings become an editorial picture, generated people are
+allowed, and the result is a layout with a headline on it — in banner, square and
+tall banner shapes.
 
-1. **`adapters/modal_comfyui.py`** — `def submit_generation(` → `async def submit_generation(`, and keep `call = await _dispatcher.spawn.aio(job_id=..., user_id=...)` (the line already changed).
+## The one honest constraint
 
-2. **`adapters/modal_research_outpaint.py`** — same: `def submit_generation(` → `async def submit_generation(` and `call = _dispatcher.spawn(...)` → `call = await _dispatcher.spawn.aio(...)`.
-   - Do NOT touch the `worker.outpaint.spawn(...)` inside `run_outpaint` — that runs in the background Modal function (sync context), it is fine and produces no warning.
+Image models do not render reliable text. Asking the picture model for a headline
+produces misspelt, unusable type at every quality tier — that is a model
+property, not a tuning problem. So the module splits in two:
 
-3. **`adapters/bfl_outpaint.py` and `adapters/bfl_product_scene.py`** — `def submit_generation(` → `async def submit_generation(` only. Their bodies use `.spawn(...)`? If they call `.spawn`, switch to `await ...spawn.aio(...)` the same way; if not, no body change needed. (Their signatures must match so the shared call site can `await` them.)
+1. **Picture stage** — the scene is generated with a deliberately empty area
+   reserved for copy (a "copy-safe zone"): calm surface, low detail, no subject
+   and no face inside it.
+2. **Type stage** — the headline is drawn afterwards as real text by the server,
+   with a chosen font, size and colour. Perfect spelling, perfect kerning,
+   editable later, and exactly reproducible.
 
-4. **`api.py`** (one line, ~line 818) — the call site becomes:
-   ```python
-   provider_ref = await adapter.submit_generation(
-   ```
-   `start_generation` is already `async def`, so this is valid.
+This is how every real editorial tool works, and it is the only way to get
+publishable type. It also means the headline can be changed without paying for a
+new picture.
 
-Nothing else changes: no registry, no workflow envelopes, no frontend, no behavior — `.spawn.aio()` queues the background job exactly like `.spawn()`, just without blocking the event loop.
+## Doability verdict on the current stack
 
-## Pre-deploy check (in modal-project/phase1-v6-staging)
+The existing stack carries about 80% of this with no new infrastructure:
 
-```bash
-grep -n "async def submit_generation" adapters/*.py   # must list all 4 adapters
-grep -n "await adapter.submit_generation" api.py       # must print 1 line
-rm -rf __pycache__ adapters/__pycache__
-python -c "import api; print('import OK')"
-modal deploy api.py
-```
+- Subject-untouched restyling: already proven by Product scene (hosted
+  subject-preserving edit model), same adapter shape, same private-asset flow.
+- Server-owned preset wording, enum-only requests, config-hash immutability,
+  provenance fingerprints, private storage + signed URLs, evaluation scoring:
+  all reusable as-is.
+- Output size presets, aspect handling and the result/asset contract: reusable.
 
-## Verification after deploy
+What genuinely does not exist yet:
 
-1. `curl https://brandverita--brandverita-api-v6-fastapi-app.modal.run/health` → 200.
-2. Run one normal free-text generation; confirm it completes end to end and the Modal log shows **no** `AsyncUsageWarning`.
-3. Confirm the failed deploy attempt left no damage: the currently live app is still the previous working build until this deploy succeeds.
+- A **typography layer**: fonts, text fitting, line breaking, colour contrast
+  check, and composition of type over the picture.
+- A **copy-zone model**: where the empty area sits per shape, and a check that
+  the generated picture actually left it usable.
+- **Tall banner** output presets.
 
-## Rollback
+No alternative platform is needed. The one new dependency is a server-side image
+compositor for the type stage. Recommendation: keep it in the existing Python
+worker image (Pillow, already present for validation, plus bundled fonts) rather
+than adding a browser or headless-renderer service — it stays inside the
+provider-neutral gateway, stays testable offline, and adds no new vendor.
 
-If anything misbehaves: revert the 5 edits (back to `def` + `.spawn(` + non-awaited call site) and redeploy — that is exactly the build that has been completing jobs all along.
+## What gets built
+
+### 1. Editorial presets (server-owned, new file `editorial_presets.py`)
+
+Enum-only, wording never leaves the server, same discipline as
+`scene_presets.py`. Starting set of looks, each written to leave the copy zone
+clear:
+
+- Cover shot — single subject, strong key light, deep calm background
+- Lifestyle spread — generated people present, candid mid-distance, warm daylight
+- Flat-lay — overhead, arranged surface, even light
+- Documentary — natural location, cooler light, reportage feel
+
+Plus a people switch per run (`none` / `background_figures` / `foreground_model`)
+so the same look can be ordered with or without people. Uploads containing
+identifiable people stay prohibited, unchanged.
+
+### 2. Copy-zone geometry
+
+Per output shape, a fixed zone: left third (banner), lower third (square), upper
+third (tall banner). The zone is chosen from an enum, never free coordinates. The
+instruction text tells the model to keep that region quiet, and after generation
+the server measures detail and contrast inside the zone; a zone that came back
+too busy is reported so the run can be reordered rather than shipped.
+
+### 3. Type stage
+
+- Headline (required, short limit), optional standfirst, optional small label.
+- A small set of server-owned type presets (font, weight, scale, alignment,
+  colour pair) — no arbitrary fonts or CSS from the client.
+- Automatic contrast check against the pixels behind the text, with an optional
+  scrim.
+- Two deliverables per run: the clean picture and the typeset layout, so the
+  picture can be reused with different copy.
+
+### 4. Output presets
+
+Banner `1600x900`, square `1080x1080`, tall banner `1080x1920` and a quarter-page
+tall `800x2000`. Exact pixel sizes only, resized server-side after the provider
+call, as Product scene already does.
+
+### 5. Registry, cost and gating
+
+New immutable registry row `editorial_layout:v1`, research/staging only,
+`enabled_for_studio` false and `production_enabled` false until it is evaluated
+and the disclosure work closes. Per-run cost is one hosted edit call (same order
+as Product scene, about $0.04) plus free local typesetting. Spend cap set at the
+same shape as Module B's.
+
+### 6. Lab UI + evaluation
+
+A third tab beside Smart resize and Product scene: pick source asset, look,
+people option, shape, copy zone, type preset, enter the copy, generate, then
+score the result on the existing eval table (subject fidelity, zone usability,
+type legibility, overall).
+
+## Sequencing
+
+1. Presets + copy-zone geometry + fingerprints, with offline tests (no spend).
+2. Typography layer and composition, offline tests on fixed pictures (no spend).
+3. Adapter wiring to the hosted edit model, registry row, capped evaluation run.
+4. Lab UI and scoring.
+5. Read the scores, pick the winning preset variants, then decide on Studio
+   exposure and the disclosure items separately.
+
+## Open items to confirm
+
+- Exact pixel sizes behind "banner" and "square vertical banner 1/4" — the four
+  above are proposals.
+- Brand fonts: if BrandVerita has licensed fonts for headlines, they need to be
+  supplied for embedding; otherwise the type presets use open-licence families.
+- Whether the typeset layout should also be downloadable as a layered file
+  (picture + text as separate assets) or flattened image only.
 
 ## Out of scope
 
-- No changes to stale-job expiry (`stale_jobs.py` — already prepared separately and unaffected), frontend, Studio, registry, or worker apps.
+Studio exposure, production dispatch, billing/credits, free-text prompts into
+this module, uploads containing people, multi-page layouts, and any change to the
+existing three shipped tools.
