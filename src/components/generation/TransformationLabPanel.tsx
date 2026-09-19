@@ -23,15 +23,19 @@ import {
   OUTPAINT_DIRECTIONS,
   OUTPAINT_OUTPUT_PRESETS,
   PRODUCT_SCENE_OUTPUT_PRESETS,
+  EDITORIAL_OUTPUT_PRESETS,
   getAdvancedJob,
+  getEditorialPresets,
   getResearchOptions,
   getScenePresets,
   isTerminalAdvancedStatus,
   refreshAdvancedResultUrl,
+  startEditorialLayout,
   startOutpaint,
   startProductScene,
   type AdvancedJob,
   type AdvancedModule,
+  type EditorialCatalog,
   type OutpaintDirection,
   type OutpaintAnchor,
   type ResearchOptions,
@@ -65,6 +69,30 @@ function Field({
 const selectClass =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50";
 
+const inputClass = selectClass;
+
+// Server catalog drives the zone list per canvas; these are the fallbacks
+// matching the server-owned preset table when the catalog is unavailable.
+const FALLBACK_ZONES: Record<string, { key: string; label: string }[]> = {
+  "1600x900": [
+    { key: "left_third", label: "Left third" },
+    { key: "right_third", label: "Right third" },
+    { key: "lower_third", label: "Lower third" },
+  ],
+  "1080x1080": [
+    { key: "lower_third", label: "Lower third" },
+    { key: "upper_third", label: "Upper third" },
+  ],
+  "1080x1920": [
+    { key: "upper_third", label: "Upper third" },
+    { key: "lower_third", label: "Lower third" },
+  ],
+  "800x2000": [
+    { key: "upper_third", label: "Upper third" },
+    { key: "lower_third", label: "Lower third" },
+  ],
+};
+
 export function TransformationLabPanel({ accessToken }: Props) {
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
@@ -86,6 +114,16 @@ export function TransformationLabPanel({ accessToken }: Props) {
   const [sceneDirection, setSceneDirection] = useState<string>("clean_studio");
   const [backgroundStyle, setBackgroundStyle] = useState<string>("neutral");
   const [presetVariant, setPresetVariant] = useState<string>("v1");
+
+  const [editorial, setEditorial] = useState<EditorialCatalog | null>(null);
+  const [edPreset, setEdPreset] = useState<string>(EDITORIAL_OUTPUT_PRESETS[0]);
+  const [edLook, setEdLook] = useState<string>("cover_shot");
+  const [edPeople, setEdPeople] = useState<string>("none");
+  const [edZone, setEdZone] = useState<string>("left_third");
+  const [edType, setEdType] = useState<string>("display_sans");
+  const [edHeadline, setEdHeadline] = useState<string>("");
+  const [edStandfirst, setEdStandfirst] = useState<string>("");
+  const [edLabel, setEdLabel] = useState<string>("");
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [job, setJob] = useState<AdvancedJob | null>(null);
@@ -123,6 +161,12 @@ export function TransformationLabPanel({ accessToken }: Props) {
       } catch {
         /* keep defaults */
       }
+      try {
+        const catalog = await getEditorialPresets(tokenRef.current);
+        if (!cancelled) setEditorial(catalog);
+      } catch {
+        /* keep defaults */
+      }
     })();
     return () => {
       cancelled = true;
@@ -150,6 +194,14 @@ export function TransformationLabPanel({ accessToken }: Props) {
     const allowed = OUTPAINT_ANCHORS_BY_DIRECTION[direction];
     if (!allowed.includes(anchor)) setAnchor(allowed[0] as OutpaintAnchor);
   }, [direction, anchor]);
+
+  // The copy zone must exist on the chosen canvas shape; fall back to the
+  // first zone of the new shape when switching sizes.
+  useEffect(() => {
+    const zones = editorialZonesFor(edPreset);
+    if (!zones.some((zone) => zone.key === edZone)) setEdZone(zones[0]?.key ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edPreset, editorial]);
 
   const busy = phase === "submitting" || phase === "polling" || upload.busy;
 
