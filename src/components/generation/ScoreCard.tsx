@@ -9,6 +9,8 @@ interface ScoreCardProps {
   accessToken: string | null;
   /** Shown only for Product Scene, where exposure is the thing being compared. */
   askBrightness: boolean;
+  /** Overrides the invented-content checkbox wording for other modules. */
+  inventedLabel?: string | undefined;
   onSaved: () => void;
 }
 
@@ -53,7 +55,7 @@ function RatingRow({
   );
 }
 
-export function ScoreCard({ jobId, accessToken, askBrightness, onSaved }: ScoreCardProps) {
+export function ScoreCard({ jobId, accessToken, askBrightness, inventedLabel, onSaved }: ScoreCardProps) {
   const [overall, setOverall] = useState<number | null>(null);
   const [brightness, setBrightness] = useState<number | null>(null);
   const [invented, setInvented] = useState(false);
@@ -125,7 +127,8 @@ export function ScoreCard({ jobId, accessToken, askBrightness, onSaved }: ScoreC
           className="mt-0.5 h-4 w-4 rounded border-border outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
         <span>
-          It added something that was not in my picture (a face, an object, text or a seam).
+          {inventedLabel ??
+            "It added something that was not in my picture (a face, an object, text or a seam)."}
         </span>
       </label>
 
