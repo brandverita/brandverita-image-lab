@@ -142,7 +142,7 @@ should not be "fixed" later by mistake:
 
 ## Track I — Module C: Editorial layouts (2026-09-19, plan approved)
 
-- [ ] `editorial_presets.py` — looks, people switch, copy zones, output presets,
+- [x] `editorial_presets.py` — looks, people switch, copy zones, output presets,
       fingerprints (offline tests, no spend)
 - [x] Typography layer (Pillow, open-licence fonts), layered output (offline tests)
 - [x] Adapter wiring + copy-zone check + registry row `editorial_layout:v1`
