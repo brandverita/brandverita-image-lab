@@ -144,7 +144,7 @@ should not be "fixed" later by mistake:
 
 - [ ] `editorial_presets.py` — looks, people switch, copy zones, output presets,
       fingerprints (offline tests, no spend)
-- [ ] Typography layer (Pillow, open-licence fonts), layered output (offline tests)
-- [ ] Adapter wiring + copy-zone check + registry row `editorial_layout:v1`
+- [x] Typography layer (Pillow, open-licence fonts), layered output (offline tests)
+- [x] Adapter wiring + copy-zone check + registry row `editorial_layout:v1`
       (staging/research only) + spend cap
 - [x] Lab UI tab + eval scoring
