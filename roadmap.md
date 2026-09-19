@@ -139,3 +139,12 @@ should not be "fixed" later by mistake:
       `modal-project/phase1-v6-staging/adapters/modal_comfyui.py` change
       `call = _dispatcher.spawn(` to `call = await _dispatcher.spawn.aio(`
       (same in `modal_research_outpaint.py` where the caller is async), redeploy.
+
+## Track I — Module C: Editorial layouts (2026-09-19, plan approved)
+
+- [ ] `editorial_presets.py` — looks, people switch, copy zones, output presets,
+      fingerprints (offline tests, no spend)
+- [ ] Typography layer (Pillow, open-licence fonts), layered output (offline tests)
+- [ ] Adapter wiring + copy-zone check + registry row `editorial_layout:v1`
+      (staging/research only) + spend cap
+- [ ] Lab UI tab + eval scoring
