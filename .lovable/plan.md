@@ -116,14 +116,15 @@ type legibility, overall).
 5. Read the scores, pick the winning preset variants, then decide on Studio
    exposure and the disclosure items separately.
 
-## Open items to confirm
+## Decisions confirmed (2026-09-19)
 
-- Exact pixel sizes behind "banner" and "square vertical banner 1/4" — the four
-  above are proposals.
-- Brand fonts: if BrandVerita has licensed fonts for headlines, they need to be
-  supplied for embedding; otherwise the type presets use open-licence families.
-- Whether the typeset layout should also be downloadable as a layered file
-  (picture + text as separate assets) or flattened image only.
+- Sizes: the four presets above stand as proposed. Per-run cost is a flat hosted
+  call (~$0.04) regardless of pixel size, so no 20% reduction is needed.
+- Fonts: open-licence families only (type presets select from bundled open
+  fonts; no licensed font files required).
+- Output: layered — every run stores the clean picture and the typeset layout as
+  separate assets, with the text and type-preset settings recorded as metadata
+  so copy can be re-typeset later without re-generating the picture.
 
 ## Out of scope
 
