@@ -289,11 +289,11 @@ def run_editorial_layout(job_id: str, user_id: str) -> None:
 
         # 3 — instruction from the server preset table only. Copy (headline
         # etc.) is deliberately NOT part of it: text is typeset locally.
-        instruction = __import__("editorial_presets").compose_instruction(
-            validated["look"], validated["people"], validated["copy_zone"], preset
-        )
         import editorial_presets
 
+        instruction = editorial_presets.compose_instruction(
+            validated["look"], validated["people"], validated["copy_zone"], preset
+        )
         preset_fingerprint = editorial_presets.fingerprint(
             validated["look"], validated["people"], validated["copy_zone"], preset
         )
