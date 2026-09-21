@@ -868,6 +868,18 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
             },
             row,
         )
+        # An adapter declared `async def` returns an un-started coroutine here
+        # instead of a call id: nothing was dispatched, yet no exception was
+        # raised. That silently stranded every Flux job at "queued"
+        # (2026-09-21). Anything that is not a plain string is a dispatch bug.
+        if not isinstance(provider_ref, str) or not provider_ref:
+            if hasattr(provider_ref, "close"):
+                provider_ref.close()  # release the un-awaited coroutine
+            raise RuntimeError(
+                "adapter_returned_no_call_id: "
+                f"{type(provider_ref).__name__} — submit_generation must be a "
+                "synchronous function returning the call id"
+            )
         jobs.patch_job(
             job_id,
             # A literal fallback keeps NULL meaningful: after this deploy, a NULL
