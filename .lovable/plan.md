@@ -11,61 +11,66 @@ Your two runs today are recorded, but they never left the queue:
 | 20 Sep 02:44 | Flux text-to-image (v2) | queued | none |
 | 19 Sep 14:01 | Editorial layout | completed | present |
 
-Facts confirmed from the records:
+Confirmed:
 
 - All three stuck runs are **plain Flux text-to-image**, handled by the self-hosted GPU worker — not BFL.
 - Every BFL-backed run (editorial layout, smart resize, product scene) completed normally, the most recent on 19 Sep at 14:01.
-- All three stuck rows have **no dispatch reference at all**, `progress` 0, and no start time. That means the hand-off to the GPU worker never returned — the job was recorded, then nothing happened. No error was recorded either, which is why the app just spins.
-- The last successful Flux run was 19 Sep 12:11, shortly **before** the redeploy that afternoon. Everything Flux since then has hung.
+- All three stuck rows have **no dispatch reference at all**, `progress` 0, and no start time: the hand-off to the GPU worker never returned. No error was recorded either, which is why the app just spins.
+- The last successful Flux run was 19 Sep 12:11, shortly **before** that afternoon's redeploy. Everything Flux since then has hung.
 
-So this is not a BFL problem and not a prompt/preset problem. The self-hosted Flux worker stopped accepting work after the 19 Sep redeploy, and the service does not notice or report it.
+From your two commands:
 
-## Unconfirmed part
+- The GPU worker app is **deployed** but running **0 tasks** — it has never been woken by these jobs.
+- The service log for the stall window contains **only the app's own status checks** (`GET /v1/generations/...` and `/health`). There is no record of the submission itself and no dispatch or error line at all.
 
-Why the hand-off silently fails is not yet confirmed — the records cannot show it. The most likely causes, in order:
+So this is not a BFL problem and not a prompt or preset problem. The Flux hand-off is failing silently, and the service records nothing when it does.
 
-1. The GPU worker app the service points at (`comfyui-generation-worker-v6`) is no longer deployed, was renamed, or its class lookup now fails.
-2. The hand-off call raises an error that the service swallows instead of recording on the job.
+## Still to confirm (one short step)
 
-Step 1 of the plan is to confirm which, from the live logs, before changing anything.
+Two candidates remain, and the log excerpt you pasted cannot separate them:
+
+1. **Name mismatch.** The app list truncated both worker names to `comfyui-generation-wo…`. There are two of them, created 15 Aug and 27 Aug. If the one the service looks up (`comfyui-generation-worker-v6`) isn't the exact name of either, every lookup fails.
+2. **A swallowed error.** The hand-off raises, the service catches it, leaves the job queued and logs nothing.
+
+### What to run (two commands)
+
+```
+python -m modal app list --json | grep -i comfyui
+python -m modal app logs brandverita-api-v6 | grep -iE "spawn|dispatch|worker|Error|Traceback|POST /v1/generations"
+```
+
+Paste back the full worker names and any matching lines. If the second command returns nothing at all, that itself confirms candidate 2 — the failure is being swallowed.
 
 ## Plan
 
-### 1. Confirm the cause (you, one command each)
+### 1. Fix the dispatch
 
-Run in the activated Python 3.10 environment:
+- **Name mismatch** — point the service at the exact deployed worker app name and redeploy the service. No code-shape change.
+- **Swallowed error** — the hand-off gets a real failure path: on any exception the job is marked failed with a specific error code and a human-readable message, and the exception is logged. Then the next run shows the actual reason instead of hanging.
 
-```
-python -m modal app list
-python -m modal app logs brandverita-api-v6
-```
+### 2. Make a silent stall impossible to miss
 
-What to look for and paste back:
-- whether `comfyui-generation-worker-v6` appears in the app list and is **deployed** (not stopped);
-- the log lines from 13:38 and 13:45 today — specifically any `NotFoundError`, `Cls.from_name`, `lookup`, or `spawn` error.
+- A run still holding no dispatch reference after a short grace period is failed automatically, so the app shows a clear error with a retry instead of spinning for seven minutes. The stale-job expiry added on 19 Sep only fires while a job is being actively polled, which is why the 20 Sep run is still sitting in the queue.
+- `/health` gains a real worker-reachability check instead of only reporting that dispatch is configured.
 
-### 2. Fix according to what the logs say
+### 3. Close out the three stuck runs
 
-- **Worker app not deployed / stopped** — redeploy the GPU worker from the worker project, then re-run one Flux generation to confirm.
-- **Name mismatch** — align the worker app/class name the service looks up with the deployed worker; no code shape change.
-- **Hand-off error being swallowed** — the dispatch step gets a proper failure path: the job is marked failed with a real error code and message instead of sitting in the queue forever.
+Marked failed with an explicit reason so the history is honest.
 
-### 3. Make this visible next time (small, safe change)
+### 4. Verify
 
-Two gaps this incident exposed:
-
-- A run with no dispatch reference should be failed automatically after a short grace period, so the app shows a clear error and a retry instead of spinning for 7 minutes. The stale-job expiry added on 19 Sep only triggers while a job is actively being polled, which is why the 20 Sep run is still sitting in the queue.
-- The three currently stuck rows get closed out with an explicit reason so history is honest.
+One Flux text-to-image run end to end from the test app: image returned, dispatch reference present, no queued leftovers.
 
 ## Out of scope
 
-- No change to BFL modules (editorial layout, smart resize, product scene) — all verified working.
+- No change to the BFL modules (editorial layout, smart resize, product scene) — all verified working.
 - No registry, preset, pricing, or Studio-exposure changes.
-- No change to the image-service request shape or the app's forms.
+- No change to the request shape or the app's forms.
 
 ## Technical notes
 
 - Stuck job ids: `ca39c3d0-ffe5-4686-952b-a5eed88e38bd`, `db1c837a-5495-4a15-956c-317d426b0dd5`, `7e9aa563-3906-4afc-bcca-adb8e194721d`.
-- `modal_call_id IS NULL` on a `queued` row is the unique signal that `spawn` never returned; every completed row has a value.
+- `modal_call_id IS NULL` on a `queued` row is the unique signal that `spawn` never returned; every completed row carries a value.
 - Both `flux_text_to_image:v1` and `:v2` hang, so it is the dispatch path, not a single registry row.
-- `/health` reports `dispatch: true`, which only reflects configuration, not a live worker lookup — hence no warning in the UI.
+- Service reads `WORKER_APP_NAME` (default `comfyui-generation-worker-v6`) and `ComfyUIWorker` via `modal.Cls.from_name`; a wrong name fails only at call time, which is consistent with a healthy `/health`.
+- `/health` reports `dispatch: true` from configuration alone, so it cannot detect this class of failure today.
