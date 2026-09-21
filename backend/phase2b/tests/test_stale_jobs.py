@@ -78,6 +78,51 @@ check(
     sj.stale_patch({"status": "uploading_output", "updated_at": old}) is not None,
 )
 
+# Never-dispatched queued jobs close on the short clock (2026-09-21 incident):
+# no modal_call_id means no worker was ever asked to run.
+never = (NOW - timedelta(minutes=2)).isoformat()
+patch = sj.stale_patch({"status": "queued", "queued_at": never, "updated_at": never}, NOW)
+check(
+    "never-dispatched queued fails fast",
+    patch is not None
+    and patch["status"] == "failed"
+    and patch["error_code"] == "dispatch_never_started"
+    and patch["error_category"] == "dispatch",
+)
+
+# created_at is the fallback heartbeat when queued_at is absent.
+check(
+    "never-dispatched falls back to created_at",
+    (sj.stale_patch({"status": "queued", "created_at": never}, NOW) or {}).get("error_code")
+    == "dispatch_never_started",
+)
+
+# A dispatched job is slow, not broken — it waits out the long clock instead.
+check(
+    "dispatched queued not fast-failed",
+    sj.stale_patch(
+        {"status": "queued", "modal_call_id": "fc-123", "queued_at": never, "updated_at": never},
+        NOW,
+    )
+    is None,
+)
+
+# Inside the grace period nothing is closed.
+check(
+    "fresh queued untouched",
+    sj.stale_patch(
+        {"status": "queued", "queued_at": (NOW - timedelta(seconds=30)).isoformat()}, NOW
+    )
+    is None,
+)
+
+# Only queued rows take the fast path; a dispatching row is mid-flight.
+check(
+    "dispatching not fast-failed",
+    sj.stale_patch({"status": "dispatching", "queued_at": never, "updated_at": never}, NOW)
+    is None,
+)
+
 if failures:
     print(f"\n{len(failures)} FAILURES")
     sys.exit(1)
