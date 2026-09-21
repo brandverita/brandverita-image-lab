@@ -899,7 +899,12 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
         )
         raise
     except Exception as exc:  # noqa: BLE001
-        print(f"dispatch_failed job={job_id} type={type(exc).__name__}")
+        # The message, not just the type: a bare type name is not greppable
+        # enough to diagnose a stall from the deployment logs.
+        print(
+            f"dispatch_failed job={job_id} type={type(exc).__name__} "
+            f"detail={str(exc)[:300]}"
+        )
         jobs.patch_job(
             job_id,
             {
