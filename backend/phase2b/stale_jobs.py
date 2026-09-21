@@ -30,6 +30,17 @@ _STALE_MESSAGE = (
     "Running it again is safe."
 )
 
+# A queued row that still carries no dispatch reference was never handed to a
+# worker at all (2026-09-21 incident: the Flux adapter returned without
+# spawning). That is not slowness, so it must not wait out STALE_AFTER.
+NO_DISPATCH_AFTER = timedelta(seconds=90)
+
+NO_DISPATCH_ERROR_CODE = "dispatch_never_started"
+
+_NO_DISPATCH_MESSAGE = (
+    "The image worker was never started for this generation. Please retry."
+)
+
 
 def parse_timestamp(raw: object) -> Optional[datetime]:
     """Parse a Supabase timestamptz value; None when absent or unreadable."""
