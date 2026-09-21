@@ -63,10 +63,26 @@ def stale_patch(row: dict, now: Optional[datetime] = None) -> Optional[dict]:
     """
     if row.get("status") in TERMINAL_STATUSES:
         return None
+    current = now or datetime.now(timezone.utc)
+
+    # Never-dispatched jobs are closed on a much shorter clock: no worker was
+    # ever asked to run, so waiting cannot change the outcome.
+    if row.get("status") == "queued" and not row.get("modal_call_id"):
+        queued = parse_timestamp(row.get("queued_at")) or parse_timestamp(
+            row.get("created_at")
+        )
+        if queued is not None and current - queued > NO_DISPATCH_AFTER:
+            return {
+                "status": "failed",
+                "error_code": NO_DISPATCH_ERROR_CODE,
+                "error_category": "dispatch",
+                "error_message": _NO_DISPATCH_MESSAGE,
+                "completed_at": current.isoformat(),
+            }
+
     updated = parse_timestamp(row.get("updated_at"))
     if updated is None:
         return None
-    current = now or datetime.now(timezone.utc)
     if current - updated <= STALE_AFTER:
         return None
     return {
