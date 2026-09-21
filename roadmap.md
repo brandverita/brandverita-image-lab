@@ -161,3 +161,17 @@ should not be "fixed" later by mistake:
 - [ ] Eval batch (user action): a few editorial jobs from the Lab "Editorial layout"
       tab, score them, confirm rows under `editorial_layout`. Respect the $10 cap.
 - [ ] Close-out: BFL disclosures; Studio exposure decision (separate approval).
+
+## Flux dispatch stall (2026-09-21)
+
+- [x] Diagnosed: `adapters/modal_comfyui.py` `submit_generation` is `async` while
+      `api.py` calls it synchronously, so `spawn` never ran — jobs stranded at `queued`
+      with no `modal_call_id` and no error. Only Flux affected; hosted modules fine.
+- [x] `api.py`: dispatch now rejects a non-string call id (un-awaited coroutine included),
+      closes it, and fails the job `dispatch_failed`; log line carries the exception detail.
+- [x] `stale_jobs.py`: queued + no `modal_call_id` for >90s fails fast with
+      `dispatch_never_started` (tests 20/20).
+- [x] Three stranded runs closed out (two already swept as `job_stale`, one failed).
+- [ ] User action: paste the synchronous `submit_generation` block into
+      `adapters/modal_comfyui.py`, clear caches, `import api` check, `python -m modal deploy api.py`,
+      then one Flux run + one hosted-module run to verify.
