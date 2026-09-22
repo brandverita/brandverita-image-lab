@@ -59,6 +59,7 @@ Requires the Modal secret `brandverita-supabase-comfy-ui` containing:
     SUPABASE_SERVICE_ROLE_KEY
 """
 
+import inspect
 import os
 import uuid
 from datetime import datetime, timezone
@@ -871,15 +872,24 @@ async def start_generation(request: Request, user_id: str = Depends(get_verified
         # An adapter declared `async def` returns an un-started coroutine here
         # instead of a call id: nothing was dispatched, yet no exception was
         # raised. That silently stranded every Flux job at "queued"
-        # (2026-09-21). Anything that is not a plain string is a dispatch bug.
-        if not isinstance(provider_ref, str) or not provider_ref:
+        # (2026-09-21). Only that case — an awaitable, or an empty string — is a
+        # dispatch bug. A missing platform reference (None) means the worker was
+        # started but exposed no id, and must NOT fail the run: treating it as a
+        # failure broke every hosted module on 2026-09-22.
+        if inspect.isawaitable(provider_ref):
             if hasattr(provider_ref, "close"):
                 provider_ref.close()  # release the un-awaited coroutine
             raise RuntimeError(
-                "adapter_returned_no_call_id: "
+                "adapter_returned_awaitable: "
                 f"{type(provider_ref).__name__} — submit_generation must be a "
                 "synchronous function returning the call id"
             )
+        if isinstance(provider_ref, str) and not provider_ref.strip():
+            raise RuntimeError("adapter_returned_empty_call_id")
+        if provider_ref is None:
+            provider_ref = "spawned"
+        elif not isinstance(provider_ref, str):
+            provider_ref = str(provider_ref)
         jobs.patch_job(
             job_id,
             # A literal fallback keeps NULL meaningful: after this deploy, a NULL

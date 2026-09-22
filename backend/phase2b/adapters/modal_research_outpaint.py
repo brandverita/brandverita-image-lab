@@ -58,7 +58,9 @@ def submit_generation(job: dict, _inputs: dict, _row: dict) -> Optional[str]:
             detail="dispatch_failed: the research worker is not available.",
         )
     call = _dispatcher.spawn(job_id=job["job_id"], user_id=job["user_id"])
-    return getattr(call, "object_id", None)
+    # The worker IS started at this point; a missing platform reference must not
+    # be read as a dispatch failure (2026-09-22 false positive).
+    return getattr(call, "object_id", None) or "spawned"
 
 
 def _iso(moment: datetime) -> str:
