@@ -59,6 +59,7 @@ Requires the Modal secret `brandverita-supabase-comfy-ui` containing:
     SUPABASE_SERVICE_ROLE_KEY
 """
 
+import inspect
 import os
 import uuid
 from datetime import datetime, timezone
