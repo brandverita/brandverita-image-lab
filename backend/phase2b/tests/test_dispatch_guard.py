@@ -10,8 +10,22 @@ Run:  python backend/phase2b/tests/test_dispatch_guard.py
 import inspect
 import os
 import sys
+import types
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+# Offline stub: the adapters import fastapi only for HTTPException.
+if "fastapi" not in sys.modules:
+    stub = types.ModuleType("fastapi")
+
+    class HTTPException(Exception):
+        def __init__(self, status_code: int = 500, detail: str = ""):
+            super().__init__(detail)
+            self.status_code = status_code
+            self.detail = detail
+
+    stub.HTTPException = HTTPException  # type: ignore[attr-defined]
+    sys.modules["fastapi"] = stub
 
 failures: list[str] = []
 
