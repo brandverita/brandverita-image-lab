@@ -117,10 +117,6 @@ export function TransformationLabPanel({ accessToken }: Props) {
 
   const [editorial, setEditorial] = useState<EditorialCatalog | null>(null);
   const [edPreset, setEdPreset] = useState<string>(EDITORIAL_OUTPUT_PRESETS[0]);
-  const [edLook, setEdLook] = useState<string>("cover_shot");
-  const [edPeople, setEdPeople] = useState<string>("none");
-  const [edZone, setEdZone] = useState<string>("left_third");
-  const [edType, setEdType] = useState<string>("display_sans");
   const [edHeadline, setEdHeadline] = useState<string>("");
   const [edStandfirst, setEdStandfirst] = useState<string>("");
   const [edLabel, setEdLabel] = useState<string>("");
@@ -195,20 +191,6 @@ export function TransformationLabPanel({ accessToken }: Props) {
     const allowed = OUTPAINT_ANCHORS_BY_DIRECTION[direction];
     if (!allowed.includes(anchor)) setAnchor(allowed[0] as OutpaintAnchor);
   }, [direction, anchor]);
-
-  function editorialZonesFor(preset: string): { key: string; label: string }[] {
-    const fromCatalog = editorial?.output_presets.find((item) => item.key === preset);
-    if (fromCatalog) return fromCatalog.copy_zones;
-    return FALLBACK_ZONES[preset] ?? [];
-  }
-
-  // The copy zone must exist on the chosen canvas shape; fall back to the
-  // first zone of the new shape when switching sizes.
-  useEffect(() => {
-    const zones = editorialZonesFor(edPreset);
-    if (!zones.some((zone) => zone.key === edZone)) setEdZone(zones[0]?.key ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edPreset, editorial]);
 
   const busy = phase === "submitting" || phase === "polling" || upload.busy;
 
@@ -669,7 +651,7 @@ export function TransformationLabPanel({ accessToken }: Props) {
             disabled={
               !source?.asset_id ||
               busy ||
-              (module === "editorial_layout" && (!edHeadline.trim() || !edZone))
+              (module === "editorial_layout" && !edHeadline.trim())
             }
             onClick={() => void handleSubmit()}
           >
