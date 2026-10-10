@@ -117,6 +117,19 @@ check("aspect for every preset", all(ep.aspect_ratio(k) for k in ep.OUTPUT_PRESE
 # Default people option is the safe one.
 check("default people is none", ep.DEFAULT_PEOPLE == "none")
 
+# The single marketing design is bright, fixed, and supports the three test shapes.
+marketing = ep.marketing_design_instruction("magazine_promo_card", "1600x900")
+check("marketing design requests high-key light", "high-key commercial lighting" in marketing)
+check("marketing design preserves subject", "Keep the photographed subject exactly" in marketing)
+check("marketing design rejects quarter-page", _rejects(ep.marketing_design_instruction, "magazine_promo_card", "800x2000"))
+for shape in ep.MARKETING_OUTPUT_PRESETS:
+    w, h = ep.resolve_output_preset(shape)
+    a, b, c, d = ep.marketing_card_rect(shape)
+    check(f"marketing card fits {shape}", 0 <= a < c <= w and 0 <= b < d <= h)
+mf1 = ep.marketing_fingerprint("magazine_promo_card", "1600x900")
+mf2 = ep.marketing_fingerprint("magazine_promo_card", "1600x900")
+check("marketing fingerprint deterministic", mf1 == mf2)
+
 # Composed instruction stays within the length ceiling for every combination.
 fits = all(
     len(ep.compose_instruction(look, people, zone, shape)) <= ep.COMPOSED_INSTRUCTION_MAX_CHARS
