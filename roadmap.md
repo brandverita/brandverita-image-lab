@@ -161,6 +161,12 @@ should not be "fixed" later by mistake:
 - [ ] Eval batch (user action): a few editorial jobs from the Lab "Editorial layout"
       tab, score them, confirm rows under `editorial_layout`. Respect the $10 cap.
 - [ ] Close-out: BFL disclosures; Studio exposure decision (separate approval).
+- [x] Magazine Promo Card staging design: fixed bright commercial picture
+      treatment, fixed translucent placard, exact local typography, three
+      output shapes, and narrowed Lab controls. Existing editorial presets remain.
+- [ ] Magazine Promo Card capped evaluation: dark, light, and labelled products
+      across landscape, square, and tall portrait; score exposure, fidelity,
+      readability, and commercial usefulness.
 
 ## Flux dispatch stall (2026-09-21)
 

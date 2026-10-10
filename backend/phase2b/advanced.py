@@ -452,6 +452,7 @@ def parse_product_scene_params(params: dict[str, Any], row: dict[str, Any]) -> d
 
 
 _EDITORIAL_ALLOWED = {
+    "design_style",
     "look",
     "people",
     "copy_zone",
@@ -459,6 +460,7 @@ _EDITORIAL_ALLOWED = {
     "standfirst",
     "label",
     "type_preset",
+    "brand_label",
 }
 
 
@@ -480,6 +482,33 @@ def parse_editorial_params(
         editorial_presets.resolve_output_preset(output_preset)
     except ValueError:
         raise advanced_error("invalid_request", "This output preset is not allowed for the workflow.")
+    design_style = params.get("design_style")
+    if design_style is not None:
+        try:
+            editorial_presets.marketing_design_instruction(design_style, output_preset)
+            copy = editorial_typography.validate_marketing_copy(
+                params.get("headline"),
+                params.get("standfirst"),
+                params.get("label"),
+                params.get("brand_label"),
+            )
+        except ValueError as exc:
+            raise advanced_error("invalid_request", str(exc))
+        incompatible = {"look", "people", "copy_zone", "type_preset"}.intersection(params)
+        if incompatible:
+            raise advanced_error(
+                "invalid_request", "Marketing designs use fixed picture and type settings."
+            )
+        return {
+            "design_style": design_style,
+            "headline": copy["headline"],
+            "standfirst": copy["supporting_line"],
+            "label": copy["promotion_label"],
+            "brand_label": copy["brand_label"],
+        }
+
+    if params.get("brand_label") is not None:
+        raise advanced_error("invalid_request", "brand_label requires a marketing design.")
     look = params.get("look")
     if look not in editorial_presets.EDITORIAL_LOOKS:
         raise advanced_error("invalid_request", "Invalid look.")

@@ -24,7 +24,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
-PRESET_TABLE_VERSION = "editorial-presets-1"
+PRESET_TABLE_VERSION = "editorial-presets-2"
 
 COMPOSED_INSTRUCTION_MAX_CHARS = 2200
 
@@ -82,6 +82,27 @@ EDITORIAL_LOOKS: dict[str, dict[str, str]] = {
         ),
     },
 }
+
+# One intentionally narrow marketing design for the staging evaluation. The
+# browser chooses only this key; all picture direction and layout geometry stay
+# server-owned. Existing editorial looks remain unchanged for comparison.
+MARKETING_DESIGNS: dict[str, dict[str, str]] = {
+    "magazine_promo_card": {
+        "label": "Magazine promo card",
+        "instruction": (
+            "Reframe the scene as a bright contemporary magazine advertisement. "
+            "Use high-key commercial lighting with a broad, soft, even exposure, "
+            "clean bright or mid-tone colours, crisp separation between the "
+            "subject and its setting, and controlled polished contrast. Arrange "
+            "the subject as the clear visual focus in the upper two thirds while "
+            "the lower portion is a simple, evenly lit continuation of the scene "
+            "with restrained detail, suitable for a promotional placard."
+            + _SUBJECT_CLAUSE
+        ),
+    },
+}
+
+MARKETING_DESIGN_ORDER: tuple[str, ...] = ("magazine_promo_card",)
 
 LOOK_ORDER: tuple[str, ...] = (
     "cover_shot",
@@ -211,6 +232,40 @@ DEFAULT_ZONE: dict[str, str] = {
     "800x2000": "upper_third",
 }
 
+MARKETING_OUTPUT_PRESETS: tuple[str, ...] = (
+    "1600x900",
+    "1080x1080",
+    "1080x1920",
+)
+
+
+def marketing_design_instruction(design: str, output_preset: str) -> str:
+    if design not in MARKETING_DESIGNS:
+        raise ValueError(f"unknown marketing design: {design!r}")
+    if output_preset not in MARKETING_OUTPUT_PRESETS:
+        raise ValueError(f"marketing design is not available for {output_preset}")
+    return MARKETING_DESIGNS[design]["instruction"]
+
+
+def marketing_card_rect(output_preset: str) -> tuple[int, int, int, int]:
+    """Fixed floating placard geometry for landscape, square and tall portrait."""
+    width, height = resolve_output_preset(output_preset)
+    if output_preset not in MARKETING_OUTPUT_PRESETS:
+        raise ValueError(f"marketing design is not available for {output_preset}")
+    if width > height:
+        fractions = (0.055, 0.61, 0.62, 0.93)
+    elif width == height:
+        fractions = (0.07, 0.62, 0.93, 0.94)
+    else:
+        fractions = (0.075, 0.66, 0.925, 0.92)
+    x0, y0, x1, y1 = fractions
+    return (
+        int(round(x0 * width)),
+        int(round(y0 * height)),
+        int(round(x1 * width)),
+        int(round(y1 * height)),
+    )
+
 
 def resolve_output_preset(preset: str) -> tuple[int, int]:
     if preset not in OUTPUT_PRESETS:
@@ -298,9 +353,25 @@ def fingerprint(
     }
 
 
+def marketing_fingerprint(design: str, output_preset: str) -> dict[str, Any]:
+    instruction = marketing_design_instruction(design, output_preset)
+    return {
+        "design_style": design,
+        "output_preset": output_preset,
+        "instruction_sha256": hashlib.sha256(instruction.encode()).hexdigest(),
+        "instruction_chars": len(instruction),
+        "preset_table_version": PRESET_TABLE_VERSION,
+    }
+
+
 def public_catalog() -> dict[str, Any]:
     """Safe for the UI: keys, labels and geometry only — never the wording."""
     return {
+        "marketing_designs": [
+            {"key": key, "label": MARKETING_DESIGNS[key]["label"]}
+            for key in MARKETING_DESIGN_ORDER
+        ],
+        "marketing_output_presets": list(MARKETING_OUTPUT_PRESETS),
         "looks": [
             {"key": key, "label": EDITORIAL_LOOKS[key]["label"]} for key in LOOK_ORDER
         ],
