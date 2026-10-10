@@ -18,6 +18,19 @@ _assets_stub.BUCKET = "generation-assets"
 _assets_stub.ValidationResult = dict
 sys.modules["assets"] = _assets_stub
 
+_fastapi_stub = types.ModuleType("fastapi")
+
+
+class HTTPException(Exception):
+    def __init__(self, status_code, detail):
+        super().__init__(str(detail))
+        self.status_code = status_code
+        self.detail = detail
+
+
+_fastapi_stub.HTTPException = HTTPException
+sys.modules["fastapi"] = _fastapi_stub
+
 import advanced  # noqa: E402
 import editorial_presets as ep  # noqa: E402
 

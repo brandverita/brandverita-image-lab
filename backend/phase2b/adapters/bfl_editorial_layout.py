@@ -462,9 +462,9 @@ def run_editorial_layout(job_id: str, user_id: str) -> None:
                     "instruction_sha256": preset_fingerprint["instruction_sha256"],
                     "zone_busy": usability["busy"],
                     "zone_usable": usability["usable"],
-                    "type_ink": type_meta["ink"],
-                    "type_scrim": type_meta["scrim"],
-                    "type_contrast_ratio": type_meta["contrast_ratio"],
+                    "type_ink": type_meta.get("ink", "light"),
+                    "type_scrim": type_meta.get("scrim", bool(design_style)),
+                    "type_contrast_ratio": type_meta.get("contrast_ratio"),
                 },
             }
         )

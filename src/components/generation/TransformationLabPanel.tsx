@@ -71,28 +71,6 @@ const selectClass =
 
 const inputClass = selectClass;
 
-// Server catalog drives the zone list per canvas; these are the fallbacks
-// matching the server-owned preset table when the catalog is unavailable.
-const FALLBACK_ZONES: Record<string, { key: string; label: string }[]> = {
-  "1600x900": [
-    { key: "left_third", label: "Left third" },
-    { key: "right_third", label: "Right third" },
-    { key: "lower_third", label: "Lower third" },
-  ],
-  "1080x1080": [
-    { key: "lower_third", label: "Lower third" },
-    { key: "upper_third", label: "Upper third" },
-  ],
-  "1080x1920": [
-    { key: "upper_third", label: "Upper third" },
-    { key: "lower_third", label: "Lower third" },
-  ],
-  "800x2000": [
-    { key: "upper_third", label: "Upper third" },
-    { key: "lower_third", label: "Lower third" },
-  ],
-};
-
 export function TransformationLabPanel({ accessToken }: Props) {
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
