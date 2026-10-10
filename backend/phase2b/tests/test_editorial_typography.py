@@ -121,6 +121,32 @@ tall_zone = ep.zone_rect("upper_third", 800, 2000)
 out_tall, meta_tall = et.typeset(flat(800, 2000, (36, 38, 44)), tall_zone, headline="Tall story")
 check("tall banner typeset", out_tall.size == (800, 2000) and meta_tall["ink"] == "light")
 
+# Magazine Promo Card: fixed placard, exact copy and shape-safe placement.
+for shape in ep.MARKETING_OUTPUT_PRESETS:
+    width, height = ep.resolve_output_preset(shape)
+    card = ep.marketing_card_rect(shape)
+    promo_out, promo_meta = et.typeset_magazine_promo_card(
+        flat(width, height, (210, 190, 170)),
+        card,
+        headline="Up to 30% off",
+        supporting_line="Selected styles while stocks last",
+        promotion_label="Autumn sale",
+        brand_label="BrandVerita",
+    )
+    check(f"promo card keeps {shape} size", promo_out.size == (width, height))
+    check(f"promo card records {shape} design", promo_meta["design_style"] == "magazine_promo_card")
+    check(f"promo card changes {shape} pixels", list(promo_out.getdata()) != list(flat(width, height, (210, 190, 170)).getdata()))
+
+promo_copy = et.validate_marketing_copy(
+    "  Big   sale ", "Short line", "Autumn sale", "Brand name"
+)
+check("marketing copy collapses whitespace", promo_copy["headline"] == "Big sale")
+check("marketing copy retains brand label", promo_copy["brand_label"] == "Brand name")
+check(
+    "marketing copy rejects long brand label",
+    _rejects(et.validate_marketing_copy, headline="Sale", brand_label="x" * 41),
+)
+
 print()
 if failures:
     print(f"{len(failures)} FAILED")

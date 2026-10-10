@@ -71,28 +71,6 @@ const selectClass =
 
 const inputClass = selectClass;
 
-// Server catalog drives the zone list per canvas; these are the fallbacks
-// matching the server-owned preset table when the catalog is unavailable.
-const FALLBACK_ZONES: Record<string, { key: string; label: string }[]> = {
-  "1600x900": [
-    { key: "left_third", label: "Left third" },
-    { key: "right_third", label: "Right third" },
-    { key: "lower_third", label: "Lower third" },
-  ],
-  "1080x1080": [
-    { key: "lower_third", label: "Lower third" },
-    { key: "upper_third", label: "Upper third" },
-  ],
-  "1080x1920": [
-    { key: "upper_third", label: "Upper third" },
-    { key: "lower_third", label: "Lower third" },
-  ],
-  "800x2000": [
-    { key: "upper_third", label: "Upper third" },
-    { key: "lower_third", label: "Lower third" },
-  ],
-};
-
 export function TransformationLabPanel({ accessToken }: Props) {
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
@@ -117,13 +95,10 @@ export function TransformationLabPanel({ accessToken }: Props) {
 
   const [editorial, setEditorial] = useState<EditorialCatalog | null>(null);
   const [edPreset, setEdPreset] = useState<string>(EDITORIAL_OUTPUT_PRESETS[0]);
-  const [edLook, setEdLook] = useState<string>("cover_shot");
-  const [edPeople, setEdPeople] = useState<string>("none");
-  const [edZone, setEdZone] = useState<string>("left_third");
-  const [edType, setEdType] = useState<string>("display_sans");
   const [edHeadline, setEdHeadline] = useState<string>("");
   const [edStandfirst, setEdStandfirst] = useState<string>("");
   const [edLabel, setEdLabel] = useState<string>("");
+  const [edBrandLabel, setEdBrandLabel] = useState<string>("");
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [job, setJob] = useState<AdvancedJob | null>(null);
@@ -194,20 +169,6 @@ export function TransformationLabPanel({ accessToken }: Props) {
     const allowed = OUTPAINT_ANCHORS_BY_DIRECTION[direction];
     if (!allowed.includes(anchor)) setAnchor(allowed[0] as OutpaintAnchor);
   }, [direction, anchor]);
-
-  function editorialZonesFor(preset: string): { key: string; label: string }[] {
-    const fromCatalog = editorial?.output_presets.find((item) => item.key === preset);
-    if (fromCatalog) return fromCatalog.copy_zones;
-    return FALLBACK_ZONES[preset] ?? [];
-  }
-
-  // The copy zone must exist on the chosen canvas shape; fall back to the
-  // first zone of the new shape when switching sizes.
-  useEffect(() => {
-    const zones = editorialZonesFor(edPreset);
-    if (!zones.some((zone) => zone.key === edZone)) setEdZone(zones[0]?.key ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edPreset, editorial]);
 
   const busy = phase === "submitting" || phase === "polling" || upload.busy;
 
@@ -298,13 +259,11 @@ export function TransformationLabPanel({ accessToken }: Props) {
                 accessToken: tokenRef.current,
                 selection: {
                   outputPreset: edPreset,
-                  look: edLook,
-                  people: edPeople,
-                  copyZone: edZone,
-                  typePreset: edType,
+                  designStyle: "magazine_promo_card",
                   headline: edHeadline.trim(),
-                  standfirst: edStandfirst.trim() || undefined,
-                  label: edLabel.trim() || undefined,
+                  supportingLine: edStandfirst.trim() || undefined,
+                  promotionLabel: edLabel.trim() || undefined,
+                  brandLabel: edBrandLabel.trim() || undefined,
                 },
               });
       if (runRef.current !== runId) return;
@@ -446,84 +405,32 @@ export function TransformationLabPanel({ accessToken }: Props) {
                     value={edPreset}
                     onChange={(event) => setEdPreset(event.target.value)}
                   >
-                    {(editorial?.output_presets.map((item) => item.key) ??
-                      EDITORIAL_OUTPUT_PRESETS).map((preset) => (
+                    {(editorial?.marketing_output_presets ??
+                      EDITORIAL_OUTPUT_PRESETS.slice(0, 3)).map((preset) => (
                       <option key={preset} value={preset}>
                         {preset.replace("x", " x ")}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Look" hint="Fixed server-owned scene styles.">
-                  <select
-                    className={selectClass}
-                    disabled={busy}
-                    value={edLook}
-                    onChange={(event) => setEdLook(event.target.value)}
-                  >
-                    {(editorial?.looks ?? [
-                      { key: "cover_shot", label: "Cover shot" },
-                      { key: "lifestyle_spread", label: "Lifestyle spread" },
-                      { key: "flat_lay", label: "Flat lay" },
-                      { key: "documentary", label: "Documentary" },
-                    ]).map((look) => (
-                      <option key={look.key} value={look.key}>
-                        {look.label}
-                      </option>
-                    ))}
-                  </select>
+                <Field label="Design">
+                  <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-left text-sm font-medium text-foreground">
+                    Magazine promo card
+                  </div>
                 </Field>
-                <Field label="People in the scene">
-                  <select
-                    className={selectClass}
+                <Field label="Promotion label (optional)">
+                  <input
+                    type="text"
+                    className={inputClass}
                     disabled={busy}
-                    value={edPeople}
-                    onChange={(event) => setEdPeople(event.target.value)}
-                  >
-                    {(editorial?.people ?? [
-                      { key: "none", label: "None" },
-                      { key: "background_figures", label: "Background figures" },
-                      { key: "foreground_model", label: "Foreground model" },
-                    ]).map((option) => (
-                      <option key={option.key} value={option.key}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                    maxLength={editorial?.type?.label_max_chars ?? 40}
+                    value={edLabel}
+                    onChange={(event) => setEdLabel(event.target.value)}
+                    placeholder="Autumn sale"
+                    aria-label="Promotion label"
+                  />
                 </Field>
-                <Field label="Where the text goes" hint="The scene keeps this area calm.">
-                  <select
-                    className={selectClass}
-                    disabled={busy}
-                    value={edZone}
-                    onChange={(event) => setEdZone(event.target.value)}
-                  >
-                    {editorialZonesFor(edPreset).map((zone) => (
-                      <option key={zone.key} value={zone.key}>
-                        {zone.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Type style">
-                  <select
-                    className={selectClass}
-                    disabled={busy}
-                    value={edType}
-                    onChange={(event) => setEdType(event.target.value)}
-                  >
-                    {(editorial?.type?.type_presets ?? [
-                      { key: "display_sans", label: "Display sans" },
-                      { key: "editorial_serif", label: "Editorial serif" },
-                      { key: "condensed_caps", label: "Condensed caps" },
-                    ]).map((preset) => (
-                      <option key={preset.key} value={preset.key}>
-                        {preset.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Headline" hint="Typeset by the service, never sent to the picture model.">
+                <Field label="Headline" hint="Added as exact text after the picture is created.">
                   <input
                     type="text"
                     className={inputClass}
@@ -535,7 +442,7 @@ export function TransformationLabPanel({ accessToken }: Props) {
                     aria-label="Headline"
                   />
                 </Field>
-                <Field label="Standfirst (optional)">
+                <Field label="Supporting line (optional)">
                   <input
                     type="text"
                     className={inputClass}
@@ -543,18 +450,18 @@ export function TransformationLabPanel({ accessToken }: Props) {
                     maxLength={editorial?.type?.standfirst_max_chars ?? 200}
                     value={edStandfirst}
                     onChange={(event) => setEdStandfirst(event.target.value)}
-                    aria-label="Standfirst"
+                    aria-label="Supporting line"
                   />
                 </Field>
-                <Field label="Small label (optional)">
+                <Field label="Brand label (optional)">
                   <input
                     type="text"
                     className={inputClass}
                     disabled={busy}
-                    maxLength={editorial?.type?.label_max_chars ?? 40}
-                    value={edLabel}
-                    onChange={(event) => setEdLabel(event.target.value)}
-                    aria-label="Small label"
+                    maxLength={editorial?.type?.brand_label_max_chars ?? 40}
+                    value={edBrandLabel}
+                    onChange={(event) => setEdBrandLabel(event.target.value)}
+                    aria-label="Brand label"
                   />
                 </Field>
               </>
@@ -722,7 +629,7 @@ export function TransformationLabPanel({ accessToken }: Props) {
             disabled={
               !source?.asset_id ||
               busy ||
-              (module === "editorial_layout" && (!edHeadline.trim() || !edZone))
+              (module === "editorial_layout" && !edHeadline.trim())
             }
             onClick={() => void handleSubmit()}
           >

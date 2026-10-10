@@ -29,6 +29,7 @@ FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
 HEADLINE_MAX_CHARS = 90
 STANDFIRST_MAX_CHARS = 200
 LABEL_MAX_CHARS = 40
+BRAND_LABEL_MAX_CHARS = 40
 
 LIGHT = (250, 250, 248)
 DARK = (26, 26, 28)
@@ -36,6 +37,8 @@ DARK = (26, 26, 28)
 # Below this contrast ratio the scrim is applied automatically (WCAG AA text).
 MIN_CONTRAST = 4.5
 SCRIM_ALPHA = 110
+PROMO_CARD_FILL = (22, 24, 29, 218)
+PROMO_CARD_RADIUS_RATIO = 0.055
 
 # --------------------------------------------------------------------------- #
 # Type presets — enum-only
@@ -99,6 +102,26 @@ def validate_copy(
         "headline": _clean_copy(headline, "headline", HEADLINE_MAX_CHARS, True),
         "standfirst": _clean_copy(standfirst, "standfirst", STANDFIRST_MAX_CHARS, False),
         "label": _clean_copy(label, "label", LABEL_MAX_CHARS, False),
+    }
+
+
+def validate_marketing_copy(
+    headline: Any,
+    supporting_line: Any = None,
+    promotion_label: Any = None,
+    brand_label: Any = None,
+) -> dict[str, Optional[str]]:
+    return {
+        "headline": _clean_copy(headline, "headline", HEADLINE_MAX_CHARS, True),
+        "supporting_line": _clean_copy(
+            supporting_line, "supporting_line", STANDFIRST_MAX_CHARS, False
+        ),
+        "promotion_label": _clean_copy(
+            promotion_label, "promotion_label", LABEL_MAX_CHARS, False
+        ),
+        "brand_label": _clean_copy(
+            brand_label, "brand_label", BRAND_LABEL_MAX_CHARS, False
+        ),
     }
 
 
@@ -365,6 +388,118 @@ def typeset(
     return out.convert("RGB"), metadata
 
 
+def typeset_magazine_promo_card(
+    image: Image.Image,
+    card_rect: tuple[int, int, int, int],
+    *,
+    headline: Any,
+    supporting_line: Any = None,
+    promotion_label: Any = None,
+    brand_label: Any = None,
+) -> tuple[Image.Image, dict[str, Any]]:
+    """Draw the fixed Magazine Promo Card; never mutates the clean picture."""
+    copy = validate_marketing_copy(
+        headline, supporting_line, promotion_label, brand_label
+    )
+    out = image.convert("RGBA")
+    overlay = Image.new("RGBA", out.size, (0, 0, 0, 0))
+    card_draw = ImageDraw.Draw(overlay)
+    x0, y0, x1, y1 = card_rect
+    card_w, card_h = x1 - x0, y1 - y0
+    radius = max(8, int(min(card_w, card_h) * PROMO_CARD_RADIUS_RATIO))
+    card_draw.rounded_rectangle(card_rect, radius=radius, fill=PROMO_CARD_FILL)
+    out = Image.alpha_composite(out, overlay)
+    draw = ImageDraw.Draw(out)
+
+    pad_x = int(card_w * 0.075)
+    pad_y = int(card_h * 0.115)
+    text_w = card_w - 2 * pad_x
+    text_h = card_h - 2 * pad_y
+    ink = LIGHT + (255,)
+
+    headline_text = str(copy["headline"]).upper()
+    promo_font = load_font("condensed_caps", max(12, int(card_h * 0.09)))
+    supporting_font = load_font("display_sans", max(12, int(card_h * 0.08)))
+    reserved = 0
+    if copy["promotion_label"]:
+        reserved += int(promo_font.size * 1.5)
+    if copy["supporting_line"]:
+        reserved += int(supporting_font.size * 2.8)
+    headline_font, headline_lines = _fit_headline(
+        draw,
+        headline_text,
+        "condensed_caps",
+        text_w,
+        max(int(text_h * 0.72), text_h - reserved),
+    )
+    headline_line_h = int(headline_font.size * 1.08)
+    support_lines = (
+        _wrap(draw, str(copy["supporting_line"]), supporting_font, text_w, 0.0)
+        if copy["supporting_line"]
+        else []
+    )
+    if len(support_lines) > 2:
+        raise ValueError("supporting_line is too long for the Magazine Promo Card")
+
+    gap = max(8, int(card_h * 0.045))
+    block_h = headline_line_h * len(headline_lines)
+    if copy["promotion_label"]:
+        block_h += promo_font.size + gap
+    if support_lines:
+        block_h += int(supporting_font.size * 1.25) * len(support_lines) + gap
+    if block_h > text_h:
+        raise ValueError("copy does not fit the Magazine Promo Card")
+
+    y = y0 + pad_y + max(0, (text_h - block_h) // 2)
+    if copy["promotion_label"]:
+        draw.text(
+            (x0 + pad_x, y),
+            str(copy["promotion_label"]).upper(),
+            font=promo_font,
+            fill=ink,
+        )
+        y += promo_font.size + gap
+    for line in headline_lines:
+        draw.text((x0 + pad_x, y), line, font=headline_font, fill=ink)
+        y += headline_line_h
+    if support_lines:
+        y += gap
+        for line in support_lines:
+            draw.text(
+                (x0 + pad_x, y),
+                line,
+                font=supporting_font,
+                fill=LIGHT + (230,),
+            )
+            y += int(supporting_font.size * 1.25)
+
+    if copy["brand_label"]:
+        brand_font = load_font("display_sans", max(14, int(min(out.size) * 0.024)))
+        brand_text = str(copy["brand_label"]).upper()
+        brand_width = draw.textlength(brand_text, font=brand_font)
+        margin = int(min(out.size) * 0.045)
+        draw.text(
+            (out.width - margin - brand_width, margin),
+            brand_text,
+            font=brand_font,
+            fill=LIGHT + (255,),
+            stroke_width=max(1, brand_font.size // 18),
+            stroke_fill=DARK + (180,),
+        )
+
+    metadata = {
+        "design_style": "magazine_promo_card",
+        **copy,
+        "headline_font_size_px": headline_font.size,
+        "headline_lines": len(headline_lines),
+        "card_rect": list(card_rect),
+        "card_fill_alpha": PROMO_CARD_FILL[3],
+        "headline_font_family": TYPE_PRESETS["condensed_caps"]["label"],
+        "supporting_font_family": TYPE_PRESETS["display_sans"]["label"],
+    }
+    return out.convert("RGB"), metadata
+
+
 def public_type_catalog() -> dict[str, Any]:
     """Safe for the UI: preset keys/labels and copy limits only."""
     return {
@@ -374,4 +509,5 @@ def public_type_catalog() -> dict[str, Any]:
         "headline_max_chars": HEADLINE_MAX_CHARS,
         "standfirst_max_chars": STANDFIRST_MAX_CHARS,
         "label_max_chars": LABEL_MAX_CHARS,
+        "brand_label_max_chars": BRAND_LABEL_MAX_CHARS,
     }

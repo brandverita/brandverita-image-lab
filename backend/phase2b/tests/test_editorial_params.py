@@ -18,6 +18,19 @@ _assets_stub.BUCKET = "generation-assets"
 _assets_stub.ValidationResult = dict
 sys.modules["assets"] = _assets_stub
 
+_fastapi_stub = types.ModuleType("fastapi")
+
+
+class HTTPException(Exception):
+    def __init__(self, status_code, detail):
+        super().__init__(str(detail))
+        self.status_code = status_code
+        self.detail = detail
+
+
+_fastapi_stub.HTTPException = HTTPException
+sys.modules["fastapi"] = _fastapi_stub
+
 import advanced  # noqa: E402
 import editorial_presets as ep  # noqa: E402
 
@@ -69,6 +82,32 @@ ok2 = parse(
     preset="1080x1080",
 )
 check("full request parses", ok2["people"] == "foreground_model" and ok2["label"] == "Issue 3")
+
+marketing = parse(
+    {
+        "design_style": "magazine_promo_card",
+        "headline": "Up to 30% off",
+        "standfirst": "Selected styles",
+        "label": "Autumn sale",
+        "brand_label": "BrandVerita",
+    },
+    preset="1080x1080",
+)
+check("marketing design parses", marketing["design_style"] == "magazine_promo_card")
+check("marketing brand label passes", marketing["brand_label"] == "BrandVerita")
+rejects(
+    "marketing design rejects legacy controls",
+    {"design_style": "magazine_promo_card", "headline": "Sale", "look": "cover_shot"},
+)
+rejects(
+    "marketing design rejects unsupported shape",
+    {"design_style": "magazine_promo_card", "headline": "Sale"},
+    preset="800x2000",
+)
+rejects(
+    "legacy design rejects brand label",
+    {"look": "cover_shot", "headline": "Sale", "brand_label": "Brand"},
+)
 
 # Enum discipline.
 rejects("rejects unknown look", {"look": "grunge", "headline": "Hi"})

@@ -293,15 +293,22 @@ def run_editorial_layout(job_id: str, user_id: str) -> None:
         # etc.) is deliberately NOT part of it: text is typeset locally.
         import editorial_presets
 
-        instruction = editorial_presets.compose_instruction(
-            validated["look"], validated["people"], validated["copy_zone"], preset
-        )
-        preset_fingerprint = editorial_presets.fingerprint(
-            validated["look"], validated["people"], validated["copy_zone"], preset
-        )
-        _stage(job_id, "preset_resolved", look=validated["look"])
+        design_style = validated.get("design_style")
+        if design_style:
+            instruction = editorial_presets.marketing_design_instruction(design_style, preset)
+            preset_fingerprint = editorial_presets.marketing_fingerprint(design_style, preset)
+            zone = editorial_presets.marketing_card_rect(preset)
+            _stage(job_id, "preset_resolved", design=design_style)
+        else:
+            instruction = editorial_presets.compose_instruction(
+                validated["look"], validated["people"], validated["copy_zone"], preset
+            )
+            preset_fingerprint = editorial_presets.fingerprint(
+                validated["look"], validated["people"], validated["copy_zone"], preset
+            )
+            zone = editorial_presets.zone_rect(validated["copy_zone"], *editorial_presets.resolve_output_preset(preset))
+            _stage(job_id, "preset_resolved", look=validated["look"])
         width, height = editorial_presets.resolve_output_preset(preset)
-        zone = editorial_presets.zone_rect(validated["copy_zone"], width, height)
 
         # 4 + 5 — hosted call, bounded, then normalised to the exact preset size.
         dispatched_at = datetime.now(timezone.utc)
@@ -376,14 +383,24 @@ def run_editorial_layout(job_id: str, user_id: str) -> None:
 
         # 8 — local typesetting into the second layer. The model never drew
         # this text; every glyph comes from the bundled open-licence fonts.
-        typeset_image, type_meta = editorial_typography.typeset(
-            clean_image,
-            zone,
-            headline=validated["headline"],
-            standfirst=validated["standfirst"],
-            label=validated["label"],
-            type_preset=validated["type_preset"],
-        )
+        if design_style:
+            typeset_image, type_meta = editorial_typography.typeset_magazine_promo_card(
+                clean_image,
+                zone,
+                headline=validated["headline"],
+                supporting_line=validated["standfirst"],
+                promotion_label=validated["label"],
+                brand_label=validated["brand_label"],
+            )
+        else:
+            typeset_image, type_meta = editorial_typography.typeset(
+                clean_image,
+                zone,
+                headline=validated["headline"],
+                standfirst=validated["standfirst"],
+                label=validated["label"],
+                type_preset=validated["type_preset"],
+            )
         buffer = io.BytesIO()
         typeset_image.save(buffer, format="PNG", optimize=True)
         typeset_png = buffer.getvalue()
@@ -435,18 +452,19 @@ def run_editorial_layout(job_id: str, user_id: str) -> None:
                 "output_width": width,
                 "output_height": height,
                 "output_bytes": len(typeset_png),
-                "variant_id": validated["look"],
+                "variant_id": design_style or validated["look"],
                 "provider_params": {
-                    "look": validated["look"],
-                    "people": validated["people"],
-                    "copy_zone": validated["copy_zone"],
-                    "type_preset": validated["type_preset"],
+                    "design_style": design_style,
+                    "look": validated.get("look"),
+                    "people": validated.get("people"),
+                    "copy_zone": validated.get("copy_zone"),
+                    "type_preset": validated.get("type_preset"),
                     "instruction_sha256": preset_fingerprint["instruction_sha256"],
                     "zone_busy": usability["busy"],
                     "zone_usable": usability["usable"],
-                    "type_ink": type_meta["ink"],
-                    "type_scrim": type_meta["scrim"],
-                    "type_contrast_ratio": type_meta["contrast_ratio"],
+                    "type_ink": type_meta.get("ink", "light"),
+                    "type_scrim": type_meta.get("scrim", bool(design_style)),
+                    "type_contrast_ratio": type_meta.get("contrast_ratio"),
                 },
             }
         )

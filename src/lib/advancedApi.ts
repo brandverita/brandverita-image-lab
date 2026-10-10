@@ -64,6 +64,8 @@ export interface ScenePresetCatalog {
 }
 
 export interface EditorialCatalog {
+  marketing_designs?: { key: string; label: string }[];
+  marketing_output_presets?: string[];
   looks: { key: string; label: string }[];
   people: { key: string; label: string }[];
   output_presets: {
@@ -78,6 +80,7 @@ export interface EditorialCatalog {
     headline_max_chars: number;
     standfirst_max_chars: number;
     label_max_chars: number;
+    brand_label_max_chars?: number;
   };
 }
 
@@ -290,13 +293,39 @@ export interface EditorialSelection {
   label?: string | undefined;
 }
 
+export interface MarketingEditorialSelection {
+  outputPreset: string;
+  designStyle: "magazine_promo_card";
+  headline: string;
+  supportingLine?: string | undefined;
+  promotionLabel?: string | undefined;
+  brandLabel?: string | undefined;
+}
+
 export function startEditorialLayout(input: {
   sourceAssetId: string;
-  selection: EditorialSelection;
+  selection: EditorialSelection | MarketingEditorialSelection;
   idempotencyKey: string;
   accessToken?: string | null;
 }): Promise<AdvancedJob> {
   const s = input.selection;
+  const params = "designStyle" in s
+    ? {
+        design_style: s.designStyle,
+        headline: s.headline,
+        ...(s.supportingLine ? { standfirst: s.supportingLine } : {}),
+        ...(s.promotionLabel ? { label: s.promotionLabel } : {}),
+        ...(s.brandLabel ? { brand_label: s.brandLabel } : {}),
+      }
+    : {
+        look: s.look,
+        people: s.people,
+        copy_zone: s.copyZone,
+        type_preset: s.typePreset,
+        headline: s.headline,
+        ...(s.standfirst ? { standfirst: s.standfirst } : {}),
+        ...(s.label ? { label: s.label } : {}),
+      };
   return request<AdvancedJob>("/v1/generations", {
     method: "POST",
     accessToken: input.accessToken,
@@ -307,15 +336,7 @@ export function startEditorialLayout(input: {
       source_asset_id: input.sourceAssetId,
       output_preset: s.outputPreset,
       idempotency_key: input.idempotencyKey,
-      params: {
-        look: s.look,
-        people: s.people,
-        copy_zone: s.copyZone,
-        type_preset: s.typePreset,
-        headline: s.headline,
-        ...(s.standfirst ? { standfirst: s.standfirst } : {}),
-        ...(s.label ? { label: s.label } : {}),
-      },
+      params,
     }),
   });
 }
